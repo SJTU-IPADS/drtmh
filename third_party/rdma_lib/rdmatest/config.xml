@@ -1,0 +1,26 @@
+<param>
+
+  <network>
+    <a> 192.168.15.102 </a>
+    <a> 192.168.15.115 </a> 
+  </network>
+
+  <port> 5555 </port>
+
+  <permac>
+    <sendThread>1</sendThread>
+    <recvThread>1</recvThread>
+  </permac>
+
+  <op>0</op>
+  <reqLength>64</reqLength>
+  <workCount>2</workCount>
+  <batchSize>32</batchSize>
+  <iter>1280000</iter>
+  <userBuf>8M</userBuf>
+  <sendWithImm>0</sendWithImm>
+  <rcPerThread>1</rcPerThread>
+  <ucPerThread>0</ucPerThread>
+  <udPerThread>0</udPerThread>
+  <enableSingleMR>0</enableSingleMR>
+</param>

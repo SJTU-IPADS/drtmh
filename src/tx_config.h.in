@@ -1,0 +1,49 @@
+#pragma once
+
+// tx parameters
+
+// whether to emulate FaSST's protocol
+#cmakedefine EM_FASST @EM_FASST@
+
+// whether to only execute execution phase
+#cmakedefine INLINE_OVERWRITE @INLINE_OVERWRITE@
+
+// whether to only execute execution phase
+#cmakedefine TX_ONLY_EXE @TX_ONLY_EXE@
+
+// logging related configurations
+#cmakedefine TX_USE_LOG @TX_USE_LOG@
+
+/**
+ * 1: use RPC as logging
+ * 2: use one-sided WRITE as logging
+ */
+#cmakedefine TX_LOG_STYLE @TX_LOG_STYLE@
+
+// whether to use a backup store
+#cmakedefine TX_BACKUP_STORE @TX_BACKUP_STORE@
+
+
+// Data store releated configurations
+// whether offload read to one-sided operation
+#cmakedefine ONE_SIDED_READ @ONE_SIDED_READ@
+
+// whether to use cache for one-sided operations
+#cmakedefine RDMA_CACHE @RDMA_CACHE@
+
+#cmakedefine RDMA_STORE_SIZE @RDMA_STORE_SIZE@
+
+
+// checks
+#ifdef RDMA_CACHE
+static_assert(ONE_SIDED_READ,"RDMA cache must be supported with read offloading!");
+static_assert(RDMA_CACHE == 0 ||  (RDMA_CACHE > 0 && ONE_SIDED_READ > 0),
+              "Using cache for one-sided operation requires reads can be offloaded using one-sided operation.");
+#endif
+
+#ifdef ONE_SIDED_READ
+static_assert( RDMA_STORE_SIZE,"RDMA read offloading requires an RDMA friendly store!");
+static_assert( ONE_SIDED_READ == 0 ||
+               ((RDMA_STORE_SIZE > 0) && (RDMA_STORE_SIZE < 8192)),
+               "RDMA size initized too large. Up to 8G supported.");
+#endif

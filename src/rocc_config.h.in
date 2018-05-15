@@ -1,0 +1,10 @@
+#pragma once
+
+// whether to use RDMA as a communication primitive
+#cmakedefine USE_RDMA @USE_RDMA@
+
+#cmakedefine ROCC_RBUF_SIZE @ROCC_RBUF_SIZE@    // rdma registered buf size
+
+static_assert(
+              ROCC_RBUF_SIZE < 20240 && ROCC_RBUF_SIZE > 0,
+              "RDMA registered buf size too large or too small!");

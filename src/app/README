@@ -1,0 +1,3 @@
+This file mainly contains our benchmark code.
+More specifically, snapsharechoptpcc.cc contains our TPCC implementation.
+bank.cc contains our smallbank implementation.

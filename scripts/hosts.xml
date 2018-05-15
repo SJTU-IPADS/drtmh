@@ -1,0 +1,25 @@
+<hosts>
+  <!-- all reachable hosts -->
+  <macs>
+    <a> val01 </a>
+    <a> val02 </a>
+    <a> val03 </a>
+    <a> val04 </a>
+    <a> val05 </a>
+    <a> val06 </a>
+    <a> val08 </a>
+    <a> val09 </a>
+    <a> val10 </a>
+    <a> val11 </a>
+    <a> val12 </a>
+    <a> val13 </a>
+    <a> val14 </a>
+    <a> val15 </a>
+    <a> val00 </a>
+    <a> val07 </a>
+  </macs>
+  <!-- The macs which are ignored-->
+  <black>
+    <a> val02 </a>
+  </black>
+</hosts>
