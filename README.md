@@ -1,8 +1,8 @@
-### ROCC and RTX
+## ROCC and RTX
 
 
 
-#### Intro
+### Intro
 
 **ROCC** simplifies building high performance network programming with *RDMA*.
 
@@ -32,7 +32,7 @@ indirect_yield();   // yield, not waiting the completion of READ
 Rfree(buffer);      // can free the buffer after that
 ```
 
-- For messaging operations. Notice that the message primitive has been optimized using RDMA.  ROCC provides 3 messaging primitives:
+- For messaging operations. Notice that the message primitive has been optimized using RDMA.  ROCC provides 3 messaging primitive's implementations: 
   - Messaging with RDMA UD send/recv
   - Messaging with RDMA RC write-with-imm
   - Messaging with TCP/IP
@@ -61,7 +61,7 @@ Rfree(reply_buffer);
 
 ------
 
-#### Build
+### Build
 
 We use RTX to test a transactional system's performance using ROCC. 
 
@@ -94,7 +94,7 @@ The samples of these two files are listed in ./scripts .
 
 ***
 
-**Run:**
+### **Run:**
 
 `cd scripts; ./run2.py config_template.xml noccocc "-t 24 -c 10 -r 256" micro 16 ` , 
 
