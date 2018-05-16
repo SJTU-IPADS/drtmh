@@ -4,7 +4,7 @@
 
 ### Intro
 
-**ROCC** provides fast and simple programming of distributed applications, especially atop of *RDMA*. ROCC has been integrated with most RDMA features, including a variety of optimizations. 
+**ROCC** provides fast and simple programming of distributed applications, especially atop of *RDMA*. ROCC has been integrated with most RDMA features, including a variety of optimizations.  ROCC's code is in `src/core`. 
 
 **RTX** is a fast distributed transactional system atop of ROCC.
 
@@ -21,8 +21,7 @@ uint64_t remote_addr = 0;        // remote memory address(offset)
 char *buffer = Rmalloc(payload); // allocate a local buffer to store the result
 auto qp = cm->get_rc_qp(mac_id);  // the the connection of target machine
 qp->rc_post_send(IBV_WR_RDMA_READ, // READ request
-                buffer,
-		        payload,
+                buffer,payload,
                 remote_addr,
                 IBV_SEND_SIGNALED,  // let NIC generate completion event
                 cor_id_); // the current execute app id

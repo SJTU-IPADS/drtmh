@@ -1,5 +1,3 @@
-/* The main code for bootstraping the applications */
-
 #ifndef NOCC_OLTP_BENCH_WORKER_H
 #define NOCC_OLTP_BENCH_WORKER_H
 
@@ -34,10 +32,7 @@ namespace nocc {
 
     Worker(int worker_id,RdmaCtrl *cm,uint64_t seed = 0)
       :cm_(cm),
-        worker_id_(worker_id),cor_id_(0), // coroutine id inited is zero
-        rdma_sched_(NULL),routine_meta_(NULL),
-        running(false),inited(false),    // not initilized, not running
-        msg_handler_(NULL),client_handler_(NULL),rpc_(NULL),
+        worker_id_(worker_id),
         rand_generator_(seed) // the random generator used at this thread
         {
 
@@ -128,26 +123,26 @@ namespace nocc {
         bool init_status() const { return inited; }
 
     public:
-      unsigned int cor_id_;
-      RoutineMeta *routine_meta_;
+      unsigned int cor_id_ = 0;
+      RoutineMeta *routine_meta_ = NULL;
 
       util::fast_random rand_generator_;
 
     protected:
-      RdmaCtrl *cm_;
-      RRpc *rpc_;
-      RDMA_sched *rdma_sched_;
-      int       use_port_ = -1;
+      RdmaCtrl *cm_ = NULL;
+      RRpc *rpc_    = NULL;
+      RDMA_sched *rdma_sched_ = NULL;
+      int       use_port_ = -1;  // which RNIC's device to use
 
       // running status
-      bool   running;
-      bool   inited;
+      bool   running = false;
+      bool   inited  = false;
 
       const unsigned int worker_id_;  // thread id of the running routine
 
     private:
-      MsgHandler *msg_handler_;  // communication between servers
-      UDMsg *client_handler_;  // communication with clients
+      MsgHandler *msg_handler_ = NULL;  // communication between servers
+      UDMsg *client_handler_   = NULL;  // communication with clients
       MSGER_TYPE  server_type_;
       coroutine_func_t *routines_ = NULL;
 
