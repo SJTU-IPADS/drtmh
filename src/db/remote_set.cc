@@ -539,8 +539,8 @@ namespace nocc {
 
       // send the req
       rpc_->prepare_multi_req(reply_buf_end_,1,cor_id_);
-      rpc_->append_req((char *)(&(req_array[cur]) + sizeof(rpc_header)),
-                       RPC_READ,sizeof(RequestItem),cor_id_,RRpc::REQ,pid,tid_);
+      rpc_->append_req((char *)(&(req_array[cur])) + sizeof(RRpc::rrpc_header),
+                       RPC_READ,sizeof(RequestItem),cor_id_,RRpc::REQ,pid);
 
       return cur;
     }

@@ -31,6 +31,8 @@ void DBTX::get_naive_rpc_handler(int id,int cid,char *msg,void *arg) {
     goto retry;
 
   if(unlikely(tmp_val == NULL)) {
+    fprintf(stdout,"tabied %d, key %lu\n",header->tableid,header->key);
+    assert(txdb_->Get(header->tableid,header->key) != NULL);
     assert(false);
   }
   else {

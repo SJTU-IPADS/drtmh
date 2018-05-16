@@ -1367,7 +1367,7 @@ namespace nocc {
 
           // fetch remote objects
 #ifdef FARM // one-sided read
-#if CACHING == 0 // whether use cache
+#if RDMA_CACHE == 0 // whether use cache
           int idx = tx_->add_to_remote_set(STOC,s_key,WarehouseToPartition(stockKeyToWare(s_key)),yield);
 #else
           int idx = tx_->add_to_remote_set(STOC,s_key,WarehouseToPartition(stockKeyToWare(s_key)));

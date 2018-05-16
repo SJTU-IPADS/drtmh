@@ -243,7 +243,7 @@ namespace nocc {
         store->AddSchema(DIST,TAB_HASH,sizeof(uint64_t),sizeof(district::value),meta_size,
                          scale_factor * NumDistrictsPerWarehouse() * 2);
         store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size,
-                         NumItems() * scale_factor * 2);
+                         NumItems() * scale_factor * 0.75);
 
         store->EnableRemoteAccess(WARE,cm);
         store->EnableRemoteAccess(DIST,cm);
