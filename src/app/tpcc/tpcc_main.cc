@@ -386,7 +386,7 @@ namespace nocc {
       }
 
       void TpccMainRunner::populate_cache() {
-#if CACHING == 1
+#if RDMA_CACHE == 1
         // create a temporal QP for usage
         int dev_id = cm->get_active_dev(0);
         int port_idx = cm->get_active_port(0);

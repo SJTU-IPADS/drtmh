@@ -54,16 +54,13 @@ namespace nocc {
 
       Qp* qp = get_qp(pid);
       // Qp* qp = qps_[pid];
-
       auto off = db_->stores_[tableid]->RemoteTraverse(key,qp,sched_,yield,kvs_[elems_].val);
-      //auto off = db_->stores_[tableid]->RemoteTraverse(key,qp);
 
       // add to the pending qp list
       qp->rc_post_send(IBV_WR_RDMA_READ,kvs_[elems_].val,len,off,
                        IBV_SEND_SIGNALED,cor_id_);
       sched_->add_pending(cor_id_,qp);
       worker->indirect_yield(yield); // yield for waiting for NIC's completion
-
       // add the record to the read write set
       kvs_[elems_].pid     = pid;
       kvs_[elems_].key     = key;
