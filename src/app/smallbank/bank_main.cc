@@ -356,15 +356,6 @@ namespace nocc {
 
         for(uint64_t i = 0;i <= NumAccounts();++i) {
 
-#define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
-#define PBWIDTH 60
-          double percentage = (double)i / (double)NumAccounts();
-          int val = (int) (percentage * 100);
-          int lpad = (int) (percentage * PBWIDTH);
-          int rpad = PBWIDTH - lpad;
-          printf ("\r%3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
-          //fflush(stdout);
-
           auto pid = AcctToPid(i);
 
           auto off = db->stores_[CHECK]->RemoteTraverse(i,
@@ -374,6 +365,7 @@ namespace nocc {
           off = db->stores_[SAV]->RemoteTraverse(i,
                                                  cm->get_rc_qp(nthreads + nthreads + 1,pid,0),temp);
           assert(off != 0);
+          Debugger::print_progress((double)i / NumAccounts());
 
         }
         Rfree(temp);

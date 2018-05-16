@@ -28,7 +28,21 @@ namespace nocc {
 
         fprintf(out,"%s",buf);
       }
+
+      // a nice progrss printer
+      // credits: razzak@stackoverflow
+      static inline void print_progress(double percentage) {
+#define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
+#define PBWIDTH 60
+        int val = (int) (percentage * 100);
+        int lpad = (int) (percentage * PBWIDTH);
+        int rpad = PBWIDTH - lpad;
+        printf("\r%3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
+        if(percentage == 100)
+          printf("\n");
+      }
     }; // class Debugger
+
   }
 #define ASSERT_PRINT(exp,file,fmt,...) {if(unlikely(!(exp))) {util::Debugger::debug_fprintf(file,fmt, ##__VA_ARGS__); assert(false);} }
 } // nocc

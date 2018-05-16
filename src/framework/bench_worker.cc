@@ -156,7 +156,7 @@ namespace nocc {
 
       // waiting for master to start workers
       this->inited = true;
-#if 0
+#if 1
       while(!this->running) {
         asm volatile("" ::: "memory");
       }
