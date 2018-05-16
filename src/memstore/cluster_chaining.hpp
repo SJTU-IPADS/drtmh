@@ -21,7 +21,7 @@ namespace nocc {
     // Limitation: current only supports int type key
     template <class Data, int DRTM_CLUSTER_NUM>
     class ClusterHash {
-
+    public:
       struct Key {
         uint64_t valid : 1;
         uint64_t key   : 63;
@@ -30,13 +30,12 @@ namespace nocc {
       struct HeaderNode {
         Key keys[DRTM_CLUSTER_NUM];
         Data datas[DRTM_CLUSTER_NUM];
-        uint64_t next;
+        uint32_t next;
       };
 
-    public:
       ClusterHash(int expected_data, char *val = NULL)
         :data_num_(expected_data),
-         indirect_num_(expected_data / DRTM_CLUSTER_NUM),
+         indirect_num_(expected_data <= DRTM_CLUSTER_NUM ? expected_data : expected_data / DRTM_CLUSTER_NUM),
          logical_num_(expected_data), // assume 1 hit
          free_indirect_num_(1),       // we omit the first indirect node
          data_ptr_(val),
@@ -47,9 +46,9 @@ namespace nocc {
 
         if(data_ptr_ == NULL) {
           fprintf(stderr,"[CLUSTER hashing warning: ] using self-allocated memory %d!\n",size_);
-          //data_ptr_ = (char *)malloc(size_);
-          data_ptr_ = (char *)malloc_huge_pages(size_,2 * 1024 * 1024,true);
+          data_ptr_ = (char *)malloc_huge_pages(size_,HUGE_PAGE_SZ,true);
         }
+        fprintf(stdout,"[CLUSTER] Init hash table with size %d\n",size_);
         // zeroing
         assert(data_ptr_ != NULL);
         memset(data_ptr_,0,size_);
@@ -82,8 +81,12 @@ namespace nocc {
       // yield version
       inline void fetch_node(Qp *qp,uint64_t off,char *buf,int size,
                              nocc::oltp::RDMA_sched *sched,yield_func_t &yield) {
-        qp->rc_post_send(IBV_WR_RDMA_READ,buf,size,off,IBV_SEND_SIGNALED,worker->cor_id_);
+        int flag = IBV_SEND_SIGNALED;
+        if(size < 64) flag |= IBV_SEND_INLINE;
+
+        qp->rc_post_send(IBV_WR_RDMA_READ,buf,size,off,flag,worker->cor_id_);
         sched->add_pending(worker->cor_id_,qp);
+
         worker->indirect_yield(yield);
       }
 

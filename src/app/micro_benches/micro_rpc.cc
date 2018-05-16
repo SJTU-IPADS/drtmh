@@ -68,8 +68,9 @@ namespace nocc {
 
           // prepare an RPC header
           req_array[i].req.off = offset;
-          rpc_handler_->append_req((char *)(&(req_array[i])) + sizeof(uint64_t) + sizeof(rpc_header),
+          rpc_->append_req((char *)(&(req_array[i])) + sizeof(uint64_t) + sizeof(rpc_header),
                                    RPC_WRITE,sizeof(ReadReq),cor_id_,RRpc::REQ,pid);
+
         }
         indirect_yield(yield);
         return txn_result_t(true,1);

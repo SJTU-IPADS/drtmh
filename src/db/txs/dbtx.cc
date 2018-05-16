@@ -600,6 +600,7 @@ namespace nocc{
       char *_addr = (char *)malloc(len + META_LENGTH);
       MemNode *node = NULL;
       node = txdb_->stores_[tableid]->GetWithInsert(key);
+      assert(node != NULL && node->value != NULL);
 
     retry:
       uint64_t seq = node->seq;

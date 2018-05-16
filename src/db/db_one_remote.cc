@@ -1,4 +1,5 @@
 #include "db_one_remote.h"
+#include "tx_config.h"
 
 #include "ralloc.h"                    // for Rmalloc
 #include "framework/bench_worker.hpp"  // for worker->indirect_yield
@@ -56,11 +57,12 @@ namespace nocc {
 
       auto off = db_->stores_[tableid]->RemoteTraverse(key,qp,sched_,yield,kvs_[elems_].val);
       //auto off = db_->stores_[tableid]->RemoteTraverse(key,qp);
-      //qp->rc_post_send(IBV_WR_RDMA_READ,kvs_[elems_].val,len,off,
-      //                      IBV_SEND_SIGNALED,cor_id_);
 
       // add to the pending qp list
-      //sched_->add_pending(cor_id_,qp);
+      qp->rc_post_send(IBV_WR_RDMA_READ,kvs_[elems_].val,len,off,
+                       IBV_SEND_SIGNALED,cor_id_);
+      sched_->add_pending(cor_id_,qp);
+      worker->indirect_yield(yield); // yield for waiting for NIC's completion
 
       // add the record to the read write set
       kvs_[elems_].pid     = pid;
@@ -87,13 +89,9 @@ namespace nocc {
       //qp->rc_post_send(IBV_WR_RDMA_READ,kvs_[elems_].val,len,off,
       //IBV_SEND_SIGNALED,cor_id_);
 
-#if CACHING == 0
-      auto ret = qp->poll_completion();
-      assert(ret == Qp::IO_SUCC);
-#else
       // add to the pending qp list
       sched_->add_pending(cor_id_,qp);
-#endif
+
       // add the record to the read write set
       kvs_[elems_].pid     = pid;
       kvs_[elems_].key     = key;

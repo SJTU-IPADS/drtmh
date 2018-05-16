@@ -1411,7 +1411,7 @@ namespace nocc {
 #else
         bool res = true;
 #ifndef FARM
-        tx_->remoteset->update_read_buf();
+        //tx_->remoteset->update_read_buf();
         tx_->remoteset->update_write_buf();
 #endif
 #endif

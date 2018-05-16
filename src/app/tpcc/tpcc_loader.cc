@@ -51,7 +51,7 @@ namespace nocc {
 
       void TpccWarehouseLoader::load() {
 
-#if ONE_SIDED == 1
+#if ONE_SIDED_READ == 1
         RThreadLocalInit();
 #endif
 
@@ -73,7 +73,7 @@ namespace nocc {
 
             int w_size = store_->_schemas[WARE].total_len;
 
-#if ONE_SIDED == 1
+#if ONE_SIDED_READ == 1
             char *wrapper = (char *)Rmalloc(w_size);
 #else
             char *wrapper = (char *)malloc(w_size);
@@ -117,7 +117,7 @@ namespace nocc {
 
       void TpccDistrictLoader::load() {
 
-#if ONE_SIDED == 1
+#if ONE_SIDED_READ == 1
         RThreadLocalInit();
 #endif
         string obj_buf;
@@ -135,7 +135,7 @@ namespace nocc {
 
               int d_size = store_->_schemas[DIST].total_len;
 
-#if ONE_SIDED == 1
+#if ONE_SIDED_READ == 1
               char *wrapper = (char *)Rmalloc(d_size);
 #else
               char *wrapper = (char *)malloc(d_size);
@@ -159,6 +159,7 @@ namespace nocc {
               n_districts++;
 
               store_->Put(DIST, key, (uint64_t *)wrapper);
+              assert(store_->Get(DIST,key) != NULL);
             }
           }
         } catch (...) {
@@ -424,7 +425,7 @@ namespace nocc {
 
       void TpccStockLoader::load() {
 
-#if ONE_SIDED == 1
+#if ONE_SIDED_READ == 1
         RThreadLocalInit();
 #endif
 
@@ -446,7 +447,7 @@ namespace nocc {
 
                 int s_size = store_->_schemas[STOC].total_len;
 
-#if ONE_SIDED == 1
+#if ONE_SIDED_READ == 1
                 char *wrapper = (char *)Rmalloc(s_size);
 #else
                 char *wrapper = (char *)malloc(s_size);

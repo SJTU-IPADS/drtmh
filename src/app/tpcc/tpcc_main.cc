@@ -2,6 +2,7 @@
 #include "tpcc_schema.h"
 #include "tpcc_mixin.h"
 #include "tpcc_log_cleaner.h"
+#include "tx_config.h"
 
 #include <getopt.h>
 #include <iostream>
@@ -225,20 +226,25 @@ namespace nocc {
       }
 
       void TpccMainRunner::init_store(MemDB* &store){
+
         store = new MemDB(store_buffer);
         int meta_size = META_SIZE;
 
 
-#if ONE_SIDED == 0
+#if ONE_SIDED_READ == 0
         // store as normal B-tree
         store->AddSchema(WARE,TAB_BTREE,sizeof(uint64_t),sizeof(warehouse::value),meta_size);
         store->AddSchema(DIST,TAB_BTREE,sizeof(uint64_t),sizeof(district::value),meta_size);
         store->AddSchema(STOC,TAB_BTREE,sizeof(uint64_t),sizeof(stock::value),meta_size);
 #else
+        assert(scale_factor > 0);
         // store as DrTM kv
-        store->AddSchema(WARE,TAB_HASH,sizeof(uint64_t),sizeof(warehouse::value),meta_size);
-        store->AddSchema(DIST,TAB_HASH,sizeof(uint64_t),sizeof(district::value),meta_size);
-        store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size);
+        store->AddSchema(WARE,TAB_HASH,sizeof(uint64_t),sizeof(warehouse::value),meta_size,scale_factor * 2);
+        store->AddSchema(DIST,TAB_HASH,sizeof(uint64_t),sizeof(district::value),meta_size,
+                         scale_factor * NumDistrictsPerWarehouse() * 2);
+        store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size,
+                         NumItems() * scale_factor * 2);
+
         store->EnableRemoteAccess(WARE,cm);
         store->EnableRemoteAccess(DIST,cm);
         store->EnableRemoteAccess(STOC,cm);
