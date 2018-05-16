@@ -8,14 +8,15 @@ extern size_t total_partition;
 
 namespace nocc {
 #define DRTM_CLUSTER_NUM 4
+#define CACHE_BUCKET_NUM 4
   // a wrapper over cluster_chaining which implements MemStore
 
-  typedef  drtm::ClusterHash<uint64_t,4> loc_cache_t;
+  typedef  drtm::ClusterHash<uint64_t,CACHE_BUCKET_NUM> loc_cache_t;
   class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM>  {
   public:
     RHash(int expected_data, char *ptr) : drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM> (expected_data, ptr) {
 #if RDMA_CACHE
-      loc_cache_ = new loc_cache_t(expected_data * total_partition / 2);
+      loc_cache_ = new loc_cache_t(expected_data * total_partition / CACHE_BUCKET_NUM);
 #endif
     }
 
