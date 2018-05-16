@@ -9,8 +9,8 @@ extern size_t total_partition;
 namespace nocc {
 #define DRTM_CLUSTER_NUM 4
 #define CACHE_BUCKET_NUM 4
-  // a wrapper over cluster_chaining which implements MemStore
 
+  // a wrapper over cluster_chaining which implements MemStore
   typedef  drtm::ClusterHash<uint64_t,CACHE_BUCKET_NUM> loc_cache_t;
   class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM>  {
   public:

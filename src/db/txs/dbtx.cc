@@ -952,8 +952,7 @@ namespace nocc{
 
     void DBTX::remote_write(int r_idx,char *val,int len) {
 #if TX_USE_LOG
-      if(db_logger_){
-        // printf("remote_write size: %d\n", len);
+      if(likely(db_logger_)) {
         RemoteSet::RemoteSetItem& item = remoteset->kvs_[r_idx];
         char* logger_val = db_logger_->get_log_entry(cor_id_, item.tableid, item.key, len, item.pid);
         memcpy(logger_val, val, len);

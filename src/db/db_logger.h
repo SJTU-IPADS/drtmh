@@ -46,13 +46,13 @@ namespace nocc  {
 
     // To avoid ring buffer bug when logger tailer == header
     const uint32_t LOG_HOLE = 1024;
-    
+
     struct TXHeader {
       uint64_t  magic_num;
       uint64_t  global_seq;
     };
     struct TXTailer {
-      uint64_t  magic_num; 
+      uint64_t  magic_num;
       uint64_t  seq;
     };
     struct EntryMeta {
@@ -94,7 +94,7 @@ namespace nocc  {
 
       void thread_local_init();
 
-      //global_seq == 0 means each entry in the log needs a seq corresponding 
+      //global_seq == 0 means each entry in the log needs a seq corresponding
       void log_begin(uint cor_id, uint64_t global_seq = 0);
       char* get_log_entry(uint cor_id, int tableid, uint64_t key, uint32_t size, int partition_id = -1);
       void close_entry(uint cor_id, uint64_t seq = 0);
@@ -121,7 +121,7 @@ namespace nocc  {
       char* print_log_entry(char *ptr);
       char* print_log_tailer(char *ptr);
 
-      // global constants  
+      // global constants
       static LogCleaner *log_cleaner_;
       static char* check_log_completion(volatile char* ptr, uint64_t *msg_size = NULL);
       static void clean_log(char* log_ptr, char* tailer_ptr);

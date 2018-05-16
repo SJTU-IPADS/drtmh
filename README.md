@@ -71,9 +71,8 @@ We use RTX to test a transactional system's performance using ROCC.
 - g++`>= 4.8`
 - Zmq
 - Zmq C++ binding
-- Boost `1.61.0` (Only tested) (will be automatically installed)
+- Boost `1.61.0` (Only tested) (will be automatically installed by the build tool chain)
 - Libibverbs 
-- [LibRDMA](http://ipads.se.sjtu.edu.cn:1312/Windybeing/rdma_lib) 
 
 ------
 

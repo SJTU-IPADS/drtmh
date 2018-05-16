@@ -34,11 +34,11 @@ namespace nocc {
       ptree pt;
       read_xml(config, pt);
 
+      // assume that the number of backups is the same as the network
+      num_partitions_ = net_def_.size();
       try{
-        num_partitions_ = pt.get<int>("bench.topo.num_shards");
-        rep_factor_ = pt.get<int>("bench.topo.rep_factor");
+        rep_factor_ = pt.get<int>("bench.rep_factor");
       } catch (const ptree_error &e) {
-        num_partitions_ = net_def_.size();
         rep_factor_ = 2;
       }
       assert(rep_factor_ <= MAX_BACKUP_NUM);
