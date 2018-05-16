@@ -4,7 +4,7 @@
 
 ### Intro
 
-**ROCC** simplifies building high performance network programming with *RDMA*.
+**ROCC** provides fast and simple programming of distributed applications, especially atop of *RDMA*. ROCC has been integrated with most RDMA features, including a variety of optimizations. 
 
 **RTX** is a fast distributed transactional system atop of ROCC.
 
@@ -73,6 +73,7 @@ We use RTX to test a transactional system's performance using ROCC.
 - Zmq
 - Zmq C++ binding
 - Boost `1.61.0` (Only tested) (will be automatically installed)
+- Libibverbs 
 - [LibRDMA](http://ipads.se.sjtu.edu.cn:1312/Windybeing/rdma_lib) 
 
 ------
