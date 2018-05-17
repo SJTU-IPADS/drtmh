@@ -3,7 +3,8 @@
 
 #include "all.h"
 #include "config.h"
-#include "./db/config.h"
+#include "db/config.h"
+#include "db/db_logger.hpp"
 #include "db_statistics_helper.h"
 #include "memstore/memstore.h"
 
@@ -36,6 +37,7 @@ namespace nocc {
   using namespace oltp;
 
   namespace db {
+
 
     class RemoteSet {
     public:
@@ -86,6 +88,10 @@ namespace nocc {
 
       void commit_remote(yield_func_t &yield);
       void commit_remote_naive(yield_func_t &yield);
+
+      void log_remote(yield_func_t &yield);
+
+      // come cleaning methods
       void clear(int meta_size = 0);
       void reset();
 
@@ -122,6 +128,9 @@ namespace nocc {
       char *write_back_request_buf_;
       char *write_back_request_buf_end_;
 
+      char *log_buf_;
+      char *log_buf_end_;
+
       /* used to receive objs reads */
       char *reply_buf_;
       char *reply_buf_end_;
@@ -138,6 +147,7 @@ namespace nocc {
       uint64_t count_;
       bool need_validate_;
 
+      void log_rpc_handler(int id,int cid,char *msg,void *arg);
     private:
       void print_write_server_list();
       std::set<int> server_set_;
@@ -146,6 +156,7 @@ namespace nocc {
       int read_server_num_;
       int write_servers_[MAX_SERVER_TO_SENT];
       int write_server_num_;
+
 
       // some statictics
       LAT_VARS(lock);

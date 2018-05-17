@@ -403,11 +403,10 @@ void DBTX::validate_rpc_handler(int id,int cid,char *msg,void *arg) {
 }
 
 void DBTX::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
-  //  fprintf(stdout,"commit @%d\n",cid);
+
   int num_items = (*((RemoteSet::RequestHeader *) msg)).num;
   uint64_t desired_seq = (*((RemoteSet::RequestHeader *) msg)).padding;
-  //assert(desired_seq == 73);
-  //  fprintf(stdout,"try commit %d\n",num_items);
+
   char *traverse_ptr = msg + sizeof(RemoteSet::RequestHeader);
   for(uint i = 0;i < num_items;++i) {
     RemoteSet::RemoteWriteItem *header = (RemoteSet::RemoteWriteItem *)traverse_ptr;
@@ -420,11 +419,14 @@ void DBTX::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
 #if 1
     /* now we simply using memcpy */
     char *new_val;
+    MemNode *node = txdb_->stores_[header->tableid]->Get((uint64_t)(header->key));
+
     if(header->payload == 0) {
       /* a delete case */
       new_val = NULL;
     } else {
 #if EM_FASST
+      // update inplace
       //new_val = (char *)malloc(header->payload + META_LENGTH);
       //memcpy(new_val + META_LENGTH,traverse_ptr,header->payload);
 #else
@@ -432,17 +434,18 @@ void DBTX::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
       memcpy(new_val + META_LENGTH,traverse_ptr,header->payload);
 #endif
     }
-    //    fprintf(stdout,"try commit %d %d, node %p\n",cid,thread_id,header->node);
-    uint64_t old_seq = header->node->seq;
-    header->node->seq   = 1;
+
+    uint64_t old_seq = node->seq;
+    node->seq   = 1;
     asm volatile("" ::: "memory");
 #if EM_FASST || INLINE_OVERWRITE
-    memcpy(header->node->padding, traverse_ptr,header->payload);
+    memcpy(node->padding, traverse_ptr,header->payload);
 #else
-    header->node->value = (uint64_t *)new_val;
+    //header->node->value = (uint64_t *)new_val;
+    node->value = (uint64_t *)new_val;
 #endif
     asm volatile("" ::: "memory");
-    header->node->seq = old_seq + 2;
+    node->seq = old_seq + 2;
     asm volatile("" ::: "memory");
     /* release the lock */
 #if 0
@@ -452,8 +455,7 @@ void DBTX::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
       assert(false);
     }
 #else
-    //    assert(false);
-    header->node->lock = 0;
+    node->lock = 0;
 #endif
 
 #endif

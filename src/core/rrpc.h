@@ -107,7 +107,7 @@ namespace nocc {
       }
 
       inline void prepare_multi_req(char *reply_buf,int num_of_replies,int cid) {
-        reply_bufs_[cid] = reply_buf; reply_counts_[cid] = num_of_replies;
+        reply_bufs_[cid] = reply_buf; reply_counts_[cid] += num_of_replies;
       }
 
       inline void append_req(char *msg,

@@ -46,4 +46,5 @@ static_assert( RDMA_STORE_SIZE,"RDMA read offloading requires an RDMA friendly s
 static_assert( ONE_SIDED_READ == 0 ||
                ((RDMA_STORE_SIZE > 0) && (RDMA_STORE_SIZE < 8192)),
                "RDMA size initized too large. Up to 8G supported.");
+
 #endif

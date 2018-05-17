@@ -8,12 +8,13 @@
 #include "ralloc.h" // for Rmalloc
 
 #include "util/mapped_log.h" // for logging
+#include "db_logger.h"       // for some log utils
 
 #include "remote_set.h"
 
 #include <sstream>
 
-#define MAXSIZE 1024
+#define MAXSIZE 16
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
@@ -30,6 +31,13 @@ namespace nocc {
   extern __thread oltp::RPCMemAllocator *msg_buf_alloctors;
 
   extern __thread coroutine_func_t *routines_;
+
+  extern RdmaCtrl *cm;
+
+  namespace oltp {
+    extern int rep_factor;
+    extern View* my_view; // replication setting of the data
+  }
 
   namespace db {
 
@@ -67,6 +75,8 @@ namespace nocc {
       request_buf_ = rpc_->get_static_buf(MAX_MSG_SIZE);
       lock_request_buf_ = rpc_->get_static_buf(MAX_MSG_SIZE);
       write_back_request_buf_ = rpc_->get_static_buf(MAX_MSG_SIZE);
+      log_buf_ = rpc_->get_static_buf(MAX_MSG_SIZE);
+
       update_write_buf();
       // clear constants
       clear();
@@ -183,6 +193,32 @@ namespace nocc {
         //write_servers_,write_server_num_,cor_id_);
         worker->indirect_yield(yield);
         this->update_write_buf();
+      }
+    }
+
+    void RemoteSet::log_remote(yield_func_t &yield) {
+
+      if(write_items_ > 0 && rep_factor > 0) {
+        // set up remote numbers
+        int *log_macs = new int[rep_factor * write_server_num_];
+        int  num_logs = 0;
+#if EM_FASST
+        num_logs = my_view->get_backup(current_partition,log_macs);
+#else
+#endif
+        // re-use log request buf
+        volatile RequestHeader *reqh = (volatile RequestHeader *)write_back_request_buf_;
+        reqh->padding = max_time_; // max time is the desired sequence
+        reqh->cor_id  = cor_id_;
+        reqh->num = write_items_;
+
+        rpc_->prepare_multi_req(reply_buf_,num_logs,cor_id_);
+        rpc_->broadcast_to(write_back_request_buf_,RPC_LOGGING,
+                           write_back_request_buf_end_ - write_back_request_buf_,
+                           cor_id_,RRpc::REQ,
+                           log_macs,num_logs);
+        worker->indirect_yield(yield);
+        delete log_macs;
       }
     }
 
@@ -348,7 +384,7 @@ namespace nocc {
           RemoteSetReplyItem *pr = (RemoteSetReplyItem *)ptr;
           kvs_[pr->idx].val = (ptr + sizeof(RemoteSetReplyItem));
           kvs_[pr->idx].seq = pr->seq;
-#if 1
+#if 0
           kvs_[pr->idx].node = pr->node;
 #endif
           requests[pr->idx].node = pr->node;
@@ -395,8 +431,10 @@ namespace nocc {
       // prepare payload
       volatile RemoteWriteItem *p1 = (volatile RemoteWriteItem *)write_back_request_buf_end_;
       p1->payload = len;
-      p1->node    = kvs_[id].node;
+      //p1->node    = kvs_[id].node;
+      p1->key     = kvs_[id].key;
       p1->pid     = kvs_[id].pid;
+      p1->tableid = kvs_[id].tableid;
 
       if(len != 0) {
         memcpy((char *)p1 + sizeof(RemoteWriteItem), val, len);
@@ -665,4 +703,32 @@ namespace nocc {
     }
 
   };
+
+  int LogHelper::mac_num = 0;
+  int LogHelper::threads = 0;
+  int LogHelper::coroutine_num = 0;
+
+  int LogHelper::mac_log_area = 0;
+  int LogHelper::thread_log_area = 0;
+
+  int LogHelper::max_log_size = 0;
+
+  char *LogHelper::log_base_ptr = NULL;
+
+  void RemoteSet::log_rpc_handler(int id,int cid,char *msg,void *arg) {
+
+    char *thread_ptr = LogHelper::get_thread_ptr(tid_);
+    uint64_t size = (uint64_t)arg;
+    assert(size < MAX_MSG_SIZE);
+
+    char *log_area = thread_ptr + LogHelper::get_off(id,cid - 1);
+
+    //assert(log_area - (char *)((char *)(cm->conn_buf_) + HUGE_PAGE_SZ) < LogHelper::get_log_size());
+    //assert(thread_ptr != NULL);
+
+    memcpy(log_area,msg,size);
+    char* reply_msg = rpc_->get_reply_buf();
+    rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply
+  }
+
 };

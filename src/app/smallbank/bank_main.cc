@@ -313,6 +313,7 @@ namespace nocc {
 #endif
         return ret;
       }
+
       std::vector<BackupBenchWorker *> BankMainRunner::make_backup_workers() {
         std::vector<BackupBenchWorker *> ret;
 
@@ -332,9 +333,10 @@ namespace nocc {
 
       void BankMainRunner::populate_cache() {
 
-        fprintf(stdout,"[Smallbank] Loading cache.\n");
 
 #if ONE_SIDED_READ == 1 && RDMA_CACHE == 1
+        fprintf(stdout,"[Smallbank] Loading cache.\n");
+
         // create a temporal QP for usage
         int dev_id = cm->get_active_dev(0);
         int port_idx = cm->get_active_port(0);

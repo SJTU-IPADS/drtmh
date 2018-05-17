@@ -60,8 +60,12 @@ struct RemoteLockItem {
 
 struct RemoteWriteItem {
   uint8_t pid;
-  MemNode *node;
+  union {
+    MemNode *node;
+    uint64_t key;
+  };
   uint16_t payload;
+  uint8_t  tableid;
 } __attribute__ ((aligned (8)));
 
 struct ReplyHeader {

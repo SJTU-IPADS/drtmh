@@ -4,7 +4,7 @@
 // 1: naive RPC
 // 2: naive + RPC batching
 // 3: naive + RPC batching + speculative execuation
-#define NAIVE 1       // does not batch RPC, send it one-by-one
+#define NAIVE 4       // does not batch RPC, send it one-by-one
 
 #define READ_RANDOM   1   //
 

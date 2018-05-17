@@ -128,8 +128,8 @@ namespace nocc  {
       static void set_log_cleaner(LogCleaner *log_cleaner){
         assert(log_cleaner_ == NULL);
         log_cleaner_ = log_cleaner;
+        assert(log_cleaner_ != NULL);
       }
-
 
       static uint64_t base_offset_;  // base offset in the registered RDMA
       static void set_base_offset(uint64_t base_offset){

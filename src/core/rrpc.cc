@@ -47,7 +47,7 @@ namespace nocc {
         // normal rpcs
         try {
           callbacks_[header->meta.rpc_id](from,header->meta.cid,msg + sizeof(rrpc_header),
-                                          (void *)this);
+                                          (void *)(header->meta.payload));
         } catch (...) {
           fprintf(stdout,"[RRpc] call rpc failed @thread %d, cid %d, rpc_id %d\n",
                   worker_id_,header->meta.cid,header->meta.rpc_id);

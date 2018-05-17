@@ -117,7 +117,14 @@ namespace nocc {
       inline void add_backup(int p_id,std::set<int> &backs) {
         for(uint b_i = 0; b_i < partitions_[p_id].num_backups; b_i++) {
           backs.insert(partitions_[p_id][b_i]);
-        }    
+        }
+      }
+
+      inline int get_backup(int p_id,int *macs) {
+        for(uint i = 0; i < partitions_[p_id].num_backups; i++) {
+          macs[i] = partitions_[p_id][i];
+        }
+        return partitions_[p_id].num_backups;
       }
 
       // return the primary mac id for a partition

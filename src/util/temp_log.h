@@ -66,7 +66,7 @@ public:
 		assert(((uint64_t)mem_start_) % ROUND_UP_BASE == 0);
 
 		if(reply_buf_size_){
-			memset(remote_mac_reps_,0,reply_buf_size_);
+			//memset(remote_mac_reps_,0,reply_buf_size_);
 			current_rep_ptr_ = remote_mac_reps_;
 		}
 
@@ -88,15 +88,14 @@ public:
 		in_use_ = false;
 	}
 
-	char* append_entry(int size){
+	inline char* append_entry(int size){
 		assert(current_ == end_);
 		resize(size);
 		end_ += size;
-		print_info();
 		return current_;
 	}
 
-	void close_entry(){
+	inline void close_entry(){
 		current_ = end_;
 		print_info();
 	}

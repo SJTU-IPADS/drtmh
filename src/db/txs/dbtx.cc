@@ -454,7 +454,6 @@ namespace nocc{
       if ( false == localinit) {
         readset = new ReadSet(thread_id);
         rwset = new RWSet();
-        remoteset = new RemoteSet(rpc_,cor_id_,thread_id);
         localinit = true;
       }
     }
@@ -490,6 +489,10 @@ namespace nocc{
       rpc_->register_callback(std::bind(&DBTX::commit_rpc_handler2,this,_1,_2,_3,_4),RPC_COMMIT,true);
 
       rpc_->register_callback(std::bind(&DBTX::ro_val_rpc_handler,this,_1,_2,_3,_4),RPC_R_VALIDATE,true);
+
+      remoteset = new RemoteSet(rpc_,cor_id_,thread_id);
+      //rpc_->register_callback(std::bind(&RemoteSet::log_rpc_handler,remoteset,_1,_2,_3,_4),RPC_LOGGING,true);
+
       nreadro_locked = 0;
     }
 
@@ -920,8 +923,8 @@ namespace nocc{
 
 #if TX_USE_LOG
       db_logger_ = db_logger;
-      //fprintf(stdout,"log begin at coroutine %d\n",cor_id_);
-      if(db_logger_)db_logger->log_begin(cor_id_, 0);
+      if(db_logger_)
+        db_logger->log_begin(cor_id_, 0);
 #endif
     }
 
@@ -951,6 +954,7 @@ namespace nocc{
     }
 
     void DBTX::remote_write(int r_idx,char *val,int len) {
+
 #if TX_USE_LOG
       if(likely(db_logger_)) {
         RemoteSet::RemoteSetItem& item = remoteset->kvs_[r_idx];
@@ -1012,7 +1016,7 @@ namespace nocc{
     }
 
     bool DBTX::end_fasst(yield_func_t &yield) {
-
+      //fprintf(stdout,"Tx commit\n");
       if(abort_) {
         return false;
       }
@@ -1046,10 +1050,11 @@ namespace nocc{
 #if TX_USE_LOG
       if(db_logger_){
         db_logger_->log_backups(cor_id_, timestamp);
-        worker->indirect_must_yield(yield);
+        worker->indirect_yield(yield);
         db_logger_->log_end(cor_id_);
       }
 #endif
+      //remoteset->log_remote(yield);
 
       rwset->CommitLocalWrite();
       remoteset->commit_remote(yield);
@@ -1061,9 +1066,6 @@ namespace nocc{
         db_logger_->log_abort(cor_id_);
       }
 #endif
-      //remoteset->clear_for_reads();
-      if(remoteset->elems_ > 0)
-        remoteset->update_read_buf();
 
       remoteset->release_remote(yield);
       rwset->ReleaseAllSet();
@@ -1078,6 +1080,7 @@ namespace nocc{
       remoteset->update_write_buf();
       return true;
 #endif
+
       if(abort_) {
         return false;
       }
@@ -1131,7 +1134,7 @@ namespace nocc{
 #if TX_USE_LOG
       if(db_logger_){
         db_logger_->log_backups(cor_id_, timestamp);
-        worker->indirect_must_yield(yield);
+        worker->indirect_yield(yield);
         db_logger_->log_end(cor_id_);
       }
 

@@ -125,7 +125,6 @@ namespace nocc {
 		// temprarily we think remote_id as partition id
 		char* DBLogger::get_log_entry(uint cor_id, int table_id, uint64_t key, uint32_t size, int partition_id)
 		{
-
 			TempLog *temp_log = temp_logs_[cor_id];
 
 			EntryMeta* entry_meta = (EntryMeta*)temp_log->append_entry(sizeof(EntryMeta) + size);
@@ -191,18 +190,19 @@ namespace nocc {
             request_header->length = length;
             memcpy(request_header->offsets, temp_log->remote_log_offsets_, sizeof(uint64_t) * num_nodes_);
 
-            // printf("remote_log_offsets: ");
-            // for(int i = 0; i < temp_log->remote_mac_num_; i++){
-            // 	printf("%u ", request_header->offsets[i]) 	;
-            // }
-            // printf("\n");
-
             //rpc_handler_->set_msg((char*) request_header);
             //rpc_handler_->send_reqs(RPC_LOGGING,length + sizeof(DBLogger::RequestHeader), temp_log->remote_mac_reps_,
 			//                  temp_log->remote_mac_ids_,temp_log->remote_mac_num_,cor_id);
-			rpc_handler_->prepare_multi_req(temp_log->remote_mac_reps_,temp_log->remote_mac_num_,cor_id);
+			//int *log_macs = new int[2];
+			//int  num_logs = 0;
+			//num_logs = view_.get_backup(current_partition,log_macs);
+
+			assert(temp_log->remote_mac_num_ > 0);
+			//rpc_handler_->prepare_multi_req(temp_log->remote_mac_reps_,temp_log->remote_mac_num_,cor_id);
+			rpc_handler_->prepare_multi_req(temp_log->remote_mac_reps_,num_logs,cor_id);
 			rpc_handler_->broadcast_to((char *)request_header,RPC_LOGGING,length + sizeof(DBLogger::RequestHeader),
-									  cor_id,RRpc::REQ,temp_log->remote_mac_ids_,temp_log->remote_mac_num_);
+									   cor_id,RRpc::REQ,temp_log->remote_mac_ids_,temp_log->remote_mac_num_);
+									   //log_macs,num_logs);
 
 #else
 			//if(temp_log->remote_mac_num_ > 3){
@@ -291,6 +291,9 @@ namespace nocc {
 			int ret = LOG_SUCC;
 
 			TempLog *temp_log = temp_logs_[cor_id];
+			temp_log->close();
+			return 0;
+
 			if(temp_log->mac_backups_.size() != 0){
 #if TX_LOG_STYLE > 0
 				char* req_buf = msg_buf_alloctors[cor_id].get_req_buf() + sizeof(rpc_header) + sizeof(uint64_t);
@@ -422,7 +425,7 @@ namespace nocc {
 				// printf("size:%d\n", size);
 				// printf("seq:%lu\n", seq);
 				// printf("value:%lu\n", *((uint64_t*)value_ptr));
-				
+				assert(log_cleaner_ != NULL);
 				log_cleaner_->clean_log(table_id, key, seq, value_ptr, size);
 
 				ptr += sizeof(EntryMeta) + size;

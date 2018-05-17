@@ -143,11 +143,12 @@ namespace nocc {
 #if TX_USE_LOG == 1
       uint64_t logger_sz = DBLogger::get_memory_size(nthreads, net_def_.size());
       logger_sz = logger_sz + M2 - logger_sz % M2;
-#else
-      uint64_t logger_sz = 0;
-#endif
       // Set logger's global offset
       DBLogger::set_base_offset(ring_area_sz + M2);
+#else
+      LogHelper::configure(rdma_buffer + M2,total_partition,nthreads,coroutine_num,MAX_MSG_SIZE);
+      uint64_t logger_sz = LogHelper::get_log_size();
+#endif
       fprintf(stdout,"[Mem], Total logger area %fG\n",get_memory_size_g(logger_sz));
 
       uint64_t total_sz = logger_sz + ring_area_sz + M2;
@@ -244,7 +245,8 @@ namespace nocc {
           cerr << "[Runner] Backup DB[" << i << "] size: " << delta_mb << " MB" << endl;
         }
       }
-      if(num_backups > 0){
+
+      if(TX_USE_LOG){
         const vector<BackupBenchWorker *> backup_workers = make_backup_workers();
 
         for (vector<BackupBenchWorker *>::const_iterator it = backup_workers.begin();

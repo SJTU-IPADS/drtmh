@@ -162,9 +162,7 @@ namespace nocc {
         tx_->remoteset->add(REQ_READ_LOCK,pid,CHECK,id);
 #endif
         tx_->do_remote_reads();
-
         indirect_yield(yield);
-
 #ifdef EM_FASST
         bool res = tx_->remoteset->get_results_readlock(1);
 #else
@@ -174,7 +172,6 @@ namespace nocc {
         uint64_t seq = tx_->get_cached(0,(char **)(&cv));
         cv->c_balance += 1;
         tx_->remote_write(0,(char *)cv,sizeof(checking::value));
-
 #ifdef EM_FASST
         if(unlikely(res == false)) {
           // abort case

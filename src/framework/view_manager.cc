@@ -21,6 +21,7 @@ namespace nocc {
   namespace oltp {
 
     std::deque<int> free_machines;
+    int rep_factor;
 
     View::View(std::string config,std::vector<std::string> &network)
       :net_def_(network)
@@ -37,11 +38,13 @@ namespace nocc {
       // assume that the number of backups is the same as the network
       num_partitions_ = net_def_.size();
       try{
-        rep_factor_ = pt.get<int>("bench.rep_factor");
+        rep_factor_ = pt.get<int>("bench.rep-factor");
       } catch (const ptree_error &e) {
         rep_factor_ = 2;
       }
       assert(rep_factor_ <= MAX_BACKUP_NUM);
+      rep_factor = rep_factor_; // update global rep factor
+
       if((num_partitions_ * rep_factor_ ) > MAX_REPO_NUM * net_def_.size()) {
         fprintf(stderr,"[View] there are not enough machine to handle %d shards with %d backups\n",
           num_partitions_,rep_factor_);
