@@ -8,41 +8,43 @@
 //#include "db_statistics_helper.h"
 
 namespace nocc {
-  namespace oltp {
 
-    class RDMA_sched {
-    public:
-      RDMA_sched();
-      ~RDMA_sched();
+namespace oltp {
 
-      // add pending qp to corresponding coroutine
-      void add_pending(int cor_id,rdmaio::Qp *qp);
+class RDMA_sched {
+ public:
+  RDMA_sched();
+  ~RDMA_sched();
 
-      // poll all the pending qps of the thread and schedule
-      void poll_comps();
+  // add pending qp to corresponding coroutine
+  void add_pending(int cor_id,rdmaio::Qp *qp);
 
-      void thread_local_init(int coroutines);
+  // poll all the pending qps of the thread and schedule
+  void poll_comps();
 
-      void report();
-    private:
-      //std::map<rdmaio::Qp *,int> pending_qps_;
-      std::deque<rdmaio::Qp *> pending_qps_;
+  void thread_local_init(int coroutines);
 
-      //struct ibv_wc wcs_[1024];
-      struct ibv_wc wc_;
+  void report();
 
-      /* Some performance counting statistics ********************************/
-      uint64_t total_costs_;
-      uint64_t pre_total_costs_;
+  int  *pending_counts_; // number of pending qps per thread
 
-      uint64_t poll_costs_;
-      uint64_t pre_poll_costs_;
+ private:
+  std::deque<rdmaio::Qp *> pending_qps_;
 
-      uint64_t counts_;
-      uint64_t pre_counts_;
-    };
+  struct ibv_wc wc_;
 
-  }; // namespace db
+  /* Some performance counting statistics ********************************/
+  uint64_t total_costs_;
+  uint64_t pre_total_costs_;
+
+  uint64_t poll_costs_;
+  uint64_t pre_poll_costs_;
+
+  uint64_t counts_;
+  uint64_t pre_counts_;
+};
+
+}; // namespace db
 
 };   // namespace nocc
 

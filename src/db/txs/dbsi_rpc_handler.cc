@@ -1,3 +1,5 @@
+#include "tx_config.h"
+
 #include "dbsi.h"
 #include "util/mapped_log.h"
 
@@ -480,89 +482,15 @@ void DBSI::release_rpc_handler(int id,int cid,char *msg,void *arg) {
   rpc_->send_reply(reply_msg,sizeof(RemoteSet::ReplyHeader),id,thread_id,cid);
 }
 
-void DBSI::commit_rpc_handler(int id,int cid,char *msg,void *arg) {
-  assert(false);
-#if 0
-  int32_t total_size   = (*((RemoteSet::CommitHeader *) msg)).total_size;
-  uint64_t desired_seq = (*((RemoteSet::CommitHeader *) msg)).commit_seq;
-
-  msg += sizeof(RemoteSet::CommitHeader);
-  int processed = 0;
-  //  fprintf(stdout,"receive reply size %d\n",total_size);
-  assert(total_size > sizeof(RemoteSet::ReplyHeader));
-  while(processed < total_size) {
-
-    RemoteSet::ReplyHeader *r_header = (RemoteSet::ReplyHeader *) msg;
-    if(r_header->partition_id_ != current_partition) {
-      msg += r_header->payload_;
-      processed += r_header->payload_;
-      continue;
-    }
-
-    msg += sizeof(RemoteSet::ReplyHeader);
-
-    for(uint j = 0; j < r_header->num_items_;++j) {
-      /* install local writes */
-      RemoteSet::RemoteSetReplyItem *header = (RemoteSet::RemoteSetReplyItem *)msg;
-      //      memcpy(header->node->value
-#if 0
-      if(header->seq != header->node->seq) {
-        fprintf(stdout,"heade %lu, node %lu\n",header->seq,header->node->seq);
-        //	assert(false);
-      }
-#else
-      //      assert(header->seq == header->node->seq);
-#endif
-      header->node->seq   = 1;
-      asm volatile("" ::: "memory");
-      /* now we simply using memcpy */
-      uint64_t *cur    = header->node->value;
-      /* Using value switch */
-      uint64_t *oldptr = header->node->old_value;
-
-      if(cur != NULL) {
-        _SIValHeader * hptr = (_SIValHeader *)cur;
-        hptr->oldValue = oldptr;
-        hptr->version  = header->seq;
-      } else {
-
-      }
-      /* TODO, may set the version */
-      char *new_val = (char *)malloc(header->payload + SI_META_LEN);
-      memcpy(new_val + SI_META_LEN,msg + sizeof(RemoteSet::RemoteSetReplyItem), header->payload);
-      header->node->old_value = cur;
-      header->node->value = (uint64_t *)new_val;
-
-      asm volatile("" ::: "memory");
-      header->node->seq = desired_seq;
-      asm volatile("" ::: "memory");
-      /* release the lock */
-#if 0
-      if(__sync_bool_compare_and_swap( (uint64_t *)(&(header->node->lock)),
-                                       _QP_ENCODE_ID(id,this->thread_id + 1),
-                                       0) != true){
-        fprintf(stdout,"locked by %d idx %d\n",_QP_DECODE_MAC(header->node->lock),_QP_DECODE_INDEX(header->node->lock));
-        assert(false);
-      }
-#else
-      header->node->lock = 0;
-#endif
-      //header->node->lock = 0; // optimized way
-      msg += (header->payload + sizeof(RemoteSet::RemoteSetReplyItem));
-    }
-    break;
-  }
-  assert(processed < total_size);
-  /* end proessing commit message */
-#endif
-}
-
 
 void DBSI::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
 
+#if RECORD_STALE
+  auto time = std::chrono::system_clock::now();
+#endif
+
   int num_items = (*((RemoteSet::RequestHeader *) msg)).num;
   uint64_t desired_seq = (*((RemoteSet::RequestHeader *) msg)).padding;
-  //assert(desired_seq == 12);
   char *traverse_ptr = msg + sizeof(RemoteSet::RequestHeader);
 
   for(uint i = 0;i < num_items;++i) {
@@ -593,6 +521,9 @@ void DBSI::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
       _SIValHeader * hptr = (_SIValHeader *)cur;
       hptr->oldValue = oldptr;
       hptr->version = old_seq;
+#if RECORD_STALE
+      hptr->time     = header->node->time;
+#endif
     } else {
 
     }
@@ -607,11 +538,14 @@ void DBSI::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
     header->node->seq = header->node->seq + 1;
 #endif
     asm volatile("" ::: "memory");
+
+#if RECORD_STALE
+    assert(header->node->time <= time);
+    header->node->time = time;
+#endif
+
     /* release the lock */
-    //    fprintf(stdout,"try release %p at %d\n",header->node,thread_id);
-#if 0
-    //    fprintf(stdout,"try commit release %p , seq %lu by (%d %d)\n",header->node,header->node->seq,
-    //	    id,thread_id);
+#if 0 // check lock's content
     if(__sync_bool_compare_and_swap( (uint64_t *)(&(header->node->lock)),
                                      _QP_ENCODE_ID(id,this->thread_id + 1),
                                      0) != true) {

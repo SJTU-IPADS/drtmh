@@ -1,5 +1,5 @@
 #include "log_cleaner.h"
-#include "core/nocc_worker.h"
+#include "core/rworker.h"
 
 
 /* global config constants */

@@ -1,4 +1,6 @@
 #include "all.h"
+#include "tx_config.h"
+
 #include "bench_micro.h"
 
 #include "db/txs/dbrad.h"
@@ -10,6 +12,8 @@
 #include "util/mapped_log.h"
 
 #include "framework/req_buf_allocator.h"
+
+#include "core/rrpc.h"
 
 extern size_t distributed_ratio; // re-use some configure parameters
 extern size_t nthreads;
@@ -381,7 +385,7 @@ namespace nocc {
           sum = 0;count = 0;
         }
 #endif
-        rpc_->append_req(ts_buffer + RRpc::rpc_padding(),
+        rpc_->append_req(ts_buffer + rpc_->rpc_padding(),
                          RPC_COMMIT + 1, vec_size, cor_id_,RRpc::REQ,master_id);
 #endif
         return txn_result_t(true,1);

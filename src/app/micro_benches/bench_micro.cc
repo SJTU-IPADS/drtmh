@@ -1,16 +1,10 @@
-#include "global_config.h"
+#include "tx_config.h"
 
 #include "bench_micro.h"
 #include "framework/req_buf_allocator.h"
 #include <iostream>
 
 #include "util/mapped_log.h"
-
-// for parsing config xml
-#include <boost/foreach.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/xml_parser.hpp>
 
 #include "db/txs/dbrad.h"
 #include "db/txs/dbtx.h"
@@ -20,6 +14,12 @@
 #include "framework/bench_runner.h"
 
 #include "../smallbank/bank_worker.h" // use the smallbank workload for test
+
+// for parsing config xml
+#include <boost/foreach.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/xml_parser.hpp>
 
 using namespace std;
 
@@ -98,7 +98,7 @@ namespace nocc {
 				}
 				virtual void init_store(MemDB* &store) { store = new MemDB(); assert(store_ != NULL);}
 				virtual void init_backup_store(MemDB* &store) {}
-				virtual std::vector<Worker *> make_workers();
+				virtual std::vector<RWorker *> make_workers();
 				virtual void warmup_buffer(char *ptr) {
 				}
 
@@ -205,7 +205,7 @@ namespace nocc {
 					{
 						// connecting QPs
 						for(uint i = 0;i < cm_->get_num_nodes();++i) {
-							Qp *qp = cm_->get_rc_qp(worker_id_,i,1);
+							Qp *qp = cm_->get_rc_qp(worker_id_,i,0);
 							//Qp *qp = cm_->get_rc_qp(worker_id_ + 8,i,1);
 							qps_.push_back(qp);
 						}
@@ -441,9 +441,9 @@ namespace nocc {
 				return w;
 			}
 
-			std::vector<Worker *> MicroMainRunner::make_workers() {
+			std::vector<RWorker *> MicroMainRunner::make_workers() {
 				fast_random r(23984543 + current_partition);
-				std::vector<Worker *> ret;
+				std::vector<RWorker *> ret;
 				for(uint i = 0;i < nthreads; ++i) {
 					ret.push_back(new MicroWorker(i,r.next(),micro_type,store_,ops_per_worker,
 												  &barrier_a_,&barrier_b_,

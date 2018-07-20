@@ -1,8 +1,8 @@
 #include "db_one_remote.h"
 #include "tx_config.h"
 
-#include "ralloc.h"                    // for Rmalloc
-#include "framework/bench_worker.hpp"  // for worker->indirect_yield
+#include "ralloc.h"                  // for Rmalloc
+#include "framework/bench_worker.h"  // for worker->indirect_yield
 
 #include "util/util.h"
 
@@ -33,7 +33,7 @@ namespace nocc {
           rdmaio::Qp *qp = cm->get_rc_qp(tid_,i,j);
           assert(qp != NULL);
           qps_.push_back(qp);
-        } 
+        }
       }
       memset(qp_idx_,0,sizeof(int)*16);
 
@@ -161,8 +161,8 @@ namespace nocc {
         // DZY: pay attention! if the number of coroutines is too high, and in TPCC, 
         //      the pending requests of send queue can run out of memory
         qp->rc_post_compare_and_swap(val,off,0, lock_content, 0,cor_id_);
-
         //qp->rc_post_send(IBV_WR_RDMA_READ,val + sizeof(uint64_t),sizeof(uint64_t),
+
         //          off + sizeof(uint64_t),IBV_SEND_SIGNALED,cor_id_);
 
         sched_->add_pending(cor_id_,qp);

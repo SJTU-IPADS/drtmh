@@ -1,7 +1,9 @@
 #ifndef NOCC_OLTP_TPCE_WORKER_H
 #define NOCC_OLTP_TPCE_WORKER_H
 
-#include "core/nocc_worker.h"
+#include "core/rworker.h"
+#include "core/utils/spinbarrier.h"
+#include "framework/bench_worker.h"
 
 #include "tpce_schema.h"
 #include "tpce_mixin.h"

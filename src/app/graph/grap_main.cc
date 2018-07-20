@@ -45,7 +45,7 @@ namespace nocc {
       }
 
       virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store = NULL);
-      virtual std::vector<Worker *> make_workers();
+      virtual std::vector<RWorker *> make_workers();
       virtual std::vector<BackupBenchWorker *> make_backup_workers();
       virtual void init_store(MemDB* &store) { }
       virtual void init_backup_store(MemDB* &store) { }
@@ -80,8 +80,8 @@ namespace nocc {
       return res;
     }
 
-    std::vector<Worker *> GraphRunner::make_workers() {
-      std::vector<Worker *> res;
+    std::vector<RWorker *> GraphRunner::make_workers() {
+      std::vector<RWorker *> res;
       return res;
     }
 

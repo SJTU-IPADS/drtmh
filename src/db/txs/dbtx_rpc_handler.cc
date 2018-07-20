@@ -5,13 +5,26 @@
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
 extern size_t current_partition;
+extern size_t total_partition;
 
 #define RPC_LOCK_MAGIC_NUM 73
 
 using namespace nocc::util;
+using namespace nocc::rtx;
 
 #define TEST_LOG 0
 extern __thread MappedLog local_log;
+
+namespace nocc {
+namespace oltp {
+  extern int rep_factor;
+  extern View* my_view; // replication setting of the data
+  extern LogHelper *logger;
+}
+}
+
+using namespace nocc::oltp;
+
 
 void DBTX::get_naive_rpc_handler(int id,int cid,char *msg,void *arg) {
 
@@ -404,18 +417,17 @@ void DBTX::validate_rpc_handler(int id,int cid,char *msg,void *arg) {
 
 void DBTX::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
 
-  int num_items = (*((RemoteSet::RequestHeader *) msg)).num;
-  uint64_t desired_seq = (*((RemoteSet::RequestHeader *) msg)).padding;
+  int num_items = (*((RTXRequestHeader *) msg)).num;
+  uint64_t desired_seq = (*((RTXRequestHeader *) msg)).padding;
 
   char *traverse_ptr = msg + sizeof(RemoteSet::RequestHeader);
   for(uint i = 0;i < num_items;++i) {
-    RemoteSet::RemoteWriteItem *header = (RemoteSet::RemoteWriteItem *)traverse_ptr;
-    traverse_ptr += sizeof(RemoteSet::RemoteWriteItem);
+    RTXRemoteWriteItem *header = (RTXRemoteWriteItem *)traverse_ptr;
+    traverse_ptr += sizeof(RTXRemoteWriteItem);
     if(header->pid != current_partition) {
       traverse_ptr += header->payload;
       continue;
     }
-
 #if 1
     /* now we simply using memcpy */
     char *new_val;
@@ -434,7 +446,7 @@ void DBTX::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
       memcpy(new_val + META_LENGTH,traverse_ptr,header->payload);
 #endif
     }
-
+    ASSERT_PRINT(node != NULL,stdout,"error key %lu, tableid %d\n",header->key,header->tableid);
     uint64_t old_seq = node->seq;
     node->seq   = 1;
     asm volatile("" ::: "memory");
@@ -523,5 +535,63 @@ void DBTX::lock_rpc_handler(int id,int cid,char *msg,void *arg) {
   ((RemoteSet::ReplyHeader *)(reply_msg))->payload_ = max_time;
 #endif
   //fprintf(stdout,"send back %d\n",sizeof(RemoteSet::ReplyHeader));
+  rpc_->send_reply(reply_msg,sizeof(RemoteSet::ReplyHeader),id,cid);
+}
+
+
+void DBTX::log_clean_rpc_handler(int id,int cid,char *msg,void *arg) {
+
+  int num_items = (*((RemoteSet::RequestHeader *) msg)).num;
+
+  char *traverse_ptr = msg + sizeof(RemoteSet::RequestHeader);
+  assert(num_items > 0);
+  for(uint i = 0;i < num_items;++i) {
+
+    RemoteSet::RemoteWriteItem *header = (RemoteSet::RemoteWriteItem *)traverse_ptr;
+    traverse_ptr += sizeof(RemoteSet::RemoteWriteItem);
+
+    if(!my_view->response_back(current_partition,header->pid)){
+      traverse_ptr += header->payload;
+      continue;
+    }
+    auto store = logger->get_backed_store(header->pid);
+    assert(store != NULL);
+    ASSERT_PRINT(header->tableid == 1 || header->tableid == 2,stdout,
+                 "tabled id %d, num item processed %d %d\n",header->tableid,num_items,i);
+    MemNode *node = store->stores_[header->tableid]->Get((uint64_t)(header->key));
+    if(node == NULL) {
+      fprintf(stderr,"backup key error %lu\n",header->key);
+      assert(false);
+    }
+    char *new_val;
+
+    if(header->payload == 0) {
+      /* a delete case */
+      new_val = NULL;
+    } else {
+#if EM_FASST
+#else
+      new_val = (char *)malloc(header->payload + META_LENGTH);
+      memcpy(new_val + META_LENGTH,traverse_ptr,header->payload);
+#endif
+    }
+
+    uint64_t old_seq = node->seq;
+    node->seq   = 1;
+    asm volatile("" ::: "memory");
+#if EM_FASST || INLINE_OVERWRITE
+    memcpy(node->padding, traverse_ptr,header->payload);
+#else
+    node->value = (uint64_t *)new_val;
+#endif
+    asm volatile("" ::: "memory");
+    node->seq = old_seq + 2;
+    asm volatile("" ::: "memory");
+    /* release the lock */
+    node->lock = 0;
+    traverse_ptr += header->payload;
+  } // end iterating
+
+  char *reply_msg = rpc_->get_reply_buf();
   rpc_->send_reply(reply_msg,sizeof(RemoteSet::ReplyHeader),id,cid);
 }

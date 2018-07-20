@@ -68,6 +68,7 @@ namespace nocc {
               if(network.size() + 1 > num)
                 break;
               network.push_back(s);
+              fprintf(stdout,"[%d]: %s\n",network.size() - 1,s.c_str());
             }
           } // end iterating hosts
 

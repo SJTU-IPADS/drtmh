@@ -102,15 +102,19 @@ namespace nocc {
       int is_primary(int mac_id,int *primaries = NULL);
 
       // query whether a machine is responsible for some job in at a partition
-      bool response(int mac_id,int p_id) {
-        
-        if(mac_id == (partitions_[p_id].primary))
-          return true;
+
+      inline bool response_back(int mac_id,int p_id) {
         for(uint b_i = 0; b_i < partitions_[p_id].num_backups; b_i++) {
           if(mac_id == (partitions_[p_id][b_i]))
             return true;
         }
         return false;
+      }
+
+      inline bool response(int mac_id,int p_id) {
+        if(mac_id == (partitions_[p_id].primary))
+          return true;
+        return response_back(mac_id,p_id);
       }
 
       // add the corresponding backups for a partition to a set

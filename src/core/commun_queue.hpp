@@ -8,7 +8,7 @@ namespace nocc {
   namespace util {
 
     class SingleQueue {
-      const int buf_size = 80960;
+      const int buf_size = 809600;
     public:
       SingleQueue():
         header(0),tailer(0),cycle_buf(new char[buf_size + 64])

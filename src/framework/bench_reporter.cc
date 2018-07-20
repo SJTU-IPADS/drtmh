@@ -1,6 +1,5 @@
 #include "config.h"
-#include "core/nocc_worker.h"
-#include "bench_worker.hpp"
+#include "bench_reporter.h"
 
 #include <string>
 #include <string.h>
@@ -67,6 +66,7 @@ namespace nocc {
 
     void BenchReporter::merge_data(char *data) {
       WorkerData *p = (WorkerData *)data;
+      assert(p->throughput < 1000000000L);
       throughput += p->throughput;
       aborts = p->aborts;
       //abort_ratio += p->abort_ratio;
@@ -113,7 +113,7 @@ namespace nocc {
 #endif
 
 #ifdef LOG_RESULTS
-      if(epoch > 10) {
+      if(epoch > 10 && log_file.is_open()) {
         /* warm up for 5 seconds, also the calcuation script will skip some seconds*/
         /* record the result */
         log_file << (throughput) << " "<< abort_ratio <<" "

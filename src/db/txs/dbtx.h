@@ -1,9 +1,12 @@
 #ifndef NOCC_TX_OCC_
 #define NOCC_TX_OCC_
 
+#include "rtx/logger.hpp"
+
 #include "tx_handler.h"
 #include "db/remote_set.h"
 #include "memstore/memdb.h"
+
 
 #include <map>
 
@@ -93,6 +96,8 @@ class DBTX : public TXHandler {
   void commit_rpc_handler2(int id,int cid,char *msg,void *arg);
   void ro_val_rpc_handler(int id, int cid,char *msg,void *arg);
 
+  void log_clean_rpc_handler(int id,int cid,char *msg,void *arg);
+
   bool debug_validate();
   //  uint64_t HashextTravel(int pid,int tableid,uint64_t key);
 
@@ -110,6 +115,7 @@ class DBTX : public TXHandler {
   int thread_id;//TODO!!init
   RRpc *rpc_;
   DBLogger *db_logger_;
+  rtx::Logger *new_logger_;
 
 #ifdef DEBUG
   TXProfile *profile;

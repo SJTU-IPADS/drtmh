@@ -47,7 +47,7 @@ public:
 #endif
   ~spin_barrier()
   {
-    ALWAYS_ASSERT(n == 0);
+    //ALWAYS_ASSERT(n == 0);
   }
 
   void

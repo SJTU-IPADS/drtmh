@@ -2,7 +2,7 @@
 #define NOCC_APP_GRAPH_
 
 #include "all.h"
-#include "global_config.h"
+#include "tx_config.h"
 #include "app/config.h"
 
 namespace nocc {

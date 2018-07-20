@@ -1,13 +1,9 @@
-#include "global_config.h"
+#include "tx_config.h"
+#include "framework/bench_runner.h"
+
 #include "tpce_schema.h"
 #include "tpce_worker.h"
 #include "memstore/memdb.h"
-
-// for parsing config xml
-#include <boost/foreach.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/xml_parser.hpp>
 
 
 /* leverages this for TPCE file loading */
@@ -18,8 +14,15 @@
 #include "egen/MiscConsts.h"
 #include "egen/DM.h"
 
-
 #include "db/txs/dbsi.h"
+#include "db/txs/dbrad.h"
+
+// for parsing config xml
+#include <boost/foreach.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+
 
 #include <iostream>
 
@@ -118,7 +121,7 @@ namespace nocc {
         TpceMainRunner(std::string &config_file) ;
         virtual void init_put();
         virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store = NULL);
-        virtual std::vector<Worker *> make_workers();
+        virtual std::vector<RWorker *> make_workers();
         virtual std::vector<BackupBenchWorker *> make_backup_workers();
         virtual void init_store(MemDB* &store);
 				virtual void init_backup_store(MemDB* &store) {assert(false);}
@@ -141,6 +144,12 @@ namespace nocc {
         assert(store == NULL);
         store = new MemDB();
         int meta_size = META_SIZE;
+#if RAD_TX
+        meta_size = radGetMetalen();
+#endif
+#if SI_TX
+        meta_size = SI_META_LEN;
+#endif
         store->AddSchema(BROKER, TAB_BTREE,sizeof(uint64_t), sizeof(broker::value),meta_size);
         store->AddSchema(TRADETYPE,TAB_BTREE,sizeof(uint64_t),sizeof(trade_type::value),meta_size);
         store->AddSchema(CHARGE,TAB_BTREE,sizeof(uint64_t),sizeof(charge::value),meta_size);
@@ -254,9 +263,9 @@ namespace nocc {
         return ret;
       }
 
-      std::vector<Worker *> TpceMainRunner::make_workers() {
+      std::vector<RWorker *> TpceMainRunner::make_workers() {
         fast_random r(23984543 + current_partition);
-        std::vector<Worker *> ret;
+        std::vector<RWorker *> ret;
         for(uint i = 0;i < nthreads;++i) {
           ret.push_back(new TpceWorker(i,r.next(),store_,&barrier_a_,&barrier_b_,this));
         }

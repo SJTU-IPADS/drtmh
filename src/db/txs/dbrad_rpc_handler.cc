@@ -14,6 +14,7 @@ extern __thread MappedLog local_log;
 
 using namespace nocc::db;
 using namespace nocc::util;
+using namespace nocc::rtx;
 
 #define MAX(x,y) (  (x) > (y) ? (x) : (y))
 
@@ -380,8 +381,8 @@ DBRad::lock_rpc_handler(int id,int cid, char *msg,void *arg) {
       continue;
     }
 #if 1
-
     MemNode *node = lheader->node;
+
     volatile uint64_t *lockptr = &(node->lock);
 
     // lock the item
@@ -441,7 +442,6 @@ DBRad::lock_rpc_handler(int id,int cid, char *msg,void *arg) {
   /* re-use payload field to set the max time */
   ((RemoteSet::ReplyHeader *)(reply_msg))->payload_ = max_time;
   rpc_->send_reply(reply_msg,sizeof(RemoteSet::ReplyHeader),id,cid);
-
 #if RAD_LOG
   log_buf = next_log_entry(&local_log,10);
   assert(log_buf != NULL);
@@ -492,18 +492,23 @@ DBRad::release_rpc_handler(int id,int cid,char *msg,void *arg) {
 
 void //__attribute__((optimize("O0")))
 DBRad::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
-  RemoteSet::RequestHeader *r_header = (RemoteSet::RequestHeader *)msg;
+
+#if RECORD_STALE
+  auto time = std::chrono::system_clock::now();
+#endif
+
+  RTXRequestHeader *r_header = (RTXRequestHeader *)msg;
 
   int num_items = r_header->num;
   uint64_t desired_seq = r_header->padding;
 
-  char *traverse_ptr = msg + sizeof(RemoteSet::RequestHeader);
+  char *traverse_ptr = msg + sizeof(RTXRequestHeader);
   assert(num_items > 0);
 
   for(uint i = 0;i < num_items;++i) {
 
-    RemoteSet::RemoteWriteItem *header = (RemoteSet::RemoteWriteItem *)traverse_ptr;
-    traverse_ptr += sizeof(RemoteSet::RemoteWriteItem);
+    RTXRemoteWriteItem *header = (RTXRemoteWriteItem *)traverse_ptr;
+    traverse_ptr += sizeof(RTXRemoteWriteItem);
 
     if(header->pid != current_partition ) {
       traverse_ptr += header->payload;
@@ -532,6 +537,10 @@ DBRad::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
       hptr->oldValue = oldptr;
       //hptr->version  = header->seq;
       hptr->version = old_seq;
+#if RECORD_STALE
+      hptr->time     = header->node->time;
+#endif
+
     } else {
 
     }
@@ -541,6 +550,12 @@ DBRad::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
     asm volatile("" ::: "memory");
     header->node->seq = desired_seq;
     asm volatile("" ::: "memory");
+
+#if RECORD_STALE
+    assert(header->node->time <= time);
+    header->node->time = time;
+#endif
+
 #endif
     /* release the lock */
     header->node->lock = 0;
@@ -554,6 +569,8 @@ DBRad::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
     traverse_ptr += header->payload;
   }
   char *reply_msg = rpc_->get_reply_buf();
+  RemoteSet::ReplyHeader *header = (RemoteSet::ReplyHeader *)reply_msg;
+  header->num_items_ = 73;
   rpc_->send_reply(reply_msg,sizeof(RemoteSet::ReplyHeader),id,cid);
 }
 

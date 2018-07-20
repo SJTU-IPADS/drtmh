@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 // tx parameters
 
 // whether to emulate FaSST's protocol
@@ -31,20 +33,24 @@
 // whether to use cache for one-sided operations
 #cmakedefine RDMA_CACHE @RDMA_CACHE@
 
+#cmakedefine USE_RDMA_COMMIT @USE_RDMA_COMMIT@
+
 #cmakedefine RDMA_STORE_SIZE @RDMA_STORE_SIZE@
-
-
-// checks
-#ifdef RDMA_CACHE
-static_assert(ONE_SIDED_READ,"RDMA cache must be supported with read offloading!");
-static_assert(RDMA_CACHE == 0 ||  (RDMA_CACHE > 0 && ONE_SIDED_READ > 0),
-              "Using cache for one-sided operation requires reads can be offloaded using one-sided operation.");
+#ifndef RDMA_STORE_SIZE
+#define RDMA_STORE_SIZE 8
 #endif
 
-#ifdef ONE_SIDED_READ
-static_assert( RDMA_STORE_SIZE,"RDMA read offloading requires an RDMA friendly store!");
-static_assert( ONE_SIDED_READ == 0 ||
-               ((RDMA_STORE_SIZE > 0) && (RDMA_STORE_SIZE < 8192)),
-               "RDMA size initized too large. Up to 8G supported.");
+#define PA @PA@
 
-#endif
+// other TX specific configurations
+#define RECORD_STALE @RECORD_STALE@
+
+#define QP_NUMS 1
+
+// execuation related configuration
+#define NO_ABORT 1           // does not retry if the TX is abort, and do the execution
+#define OCC_RETRY            // OCC does not issue another round of checks
+#define OCC_RO_CHECK 1       // whether do ro validation of OCC
+
+#define PROFILE_RW_SET 0     // whether profile TX's read/write set
+#define PROFILE_SERVER_NUM 0 // whether profile number of server accessed per TX

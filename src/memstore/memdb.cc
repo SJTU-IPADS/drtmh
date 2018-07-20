@@ -101,17 +101,26 @@ void MemDB::PutIndex(int indexid, uint64_t key,uint64_t *value){
 
 void MemDB::Put(int tableid, uint64_t key, uint64_t *value) {
 
+#if RECORD_STALE
+  auto time = std::chrono::system_clock::now();
+#endif
   switch(_schemas[tableid].c) {
   case TAB_SBTREE: {
     assert(false);
     MemNode *mn = _indexs[tableid]->Put(key,value);
     mn->seq = 2;
+#if RECORD_STALE
+    mn->time = time;
+#endif
   }
     break;
   default:
     MemNode *mn = stores_[tableid]->Put(key,value);
-     mn->seq = 2;
-     mn->lock = 0;
+    mn->seq = 2;
+    mn->lock = 0;
+#if RECORD_STALE
+    mn->time = time;
+#endif
     break;
   }
 }

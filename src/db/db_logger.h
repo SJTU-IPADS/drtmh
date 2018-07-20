@@ -1,9 +1,9 @@
 #ifndef NOCC_DB_DBLOGGER_H_
 #define NOCC_DB_DBLOGGER_H_
 
-#include "all.h"
-#include "global_config.h"
 #include "tx_config.h"
+
+#include "all.h"
 
 #include "core/routine.h"
 #include "core/rdma_sched.h"
@@ -26,6 +26,7 @@
 
 #define RPC_LOGGING 10
 #define RPC_LOGGING_COMMIT 11
+#define RPC_LOGGING_CLEAN  12
 
 using namespace rdmaio;
 

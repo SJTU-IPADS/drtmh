@@ -2,90 +2,89 @@
 #include <boost/bind.hpp>
 
 #include "routine.h"
+#include "rworker.h"
 
 namespace nocc {
 
-  // default routines to bind
-  //extern __thread coroutine_func_t *routines_;
+// default routines to bind
 
-  namespace oltp {
+namespace oltp {
 
-    __thread std::queue<RoutineMeta *> *ro_pool;
+__thread std::queue<RoutineMeta *> *ro_pool;
 
-    // add a routine chain to RPC
-    __thread RoutineMeta *next_routine_array;
-    __thread RoutineMeta *routine_tailer;   // the header of the scheduler
-    __thread RoutineMeta *routine_header;   // the tailer of the scheduler
+// add a routine chain to RPC
+__thread RoutineMeta *next_routine_array;
+__thread RoutineMeta *routine_tailer;   // the header of the scheduler
+__thread RoutineMeta *routine_header;   // the tailer of the scheduler
 
-    __thread RoutineMeta *one_shot_routine_pool;
+__thread RoutineMeta *one_shot_routine_pool;
 
-    __thread one_shot_func_t *one_shot_callbacks;
+__thread one_shot_func_t *one_shot_callbacks;
+__thread RWorker *worker = NULL;
 
-    bool inited = false;
-    std::mutex routine_mtx;
+bool inited = false;
+std::mutex routine_mtx;
 
-    void one_shot_func(yield_func_t &yield,RoutineMeta *routine) {
+void one_shot_func(yield_func_t &yield,RoutineMeta *routine) {
 
-      while(1) {
-        // callback
-        //fprintf(stdout,"one shot\n");
-        one_shot_callbacks[routine->info_.req_id](yield,routine->info_.from_mac,
-                                                   routine->info_.from_routine,routine->info_.msg,
-                                                   NULL);
-        ro_pool->push(routine);
-        free(routine->info_.msg);
-        // yield back
-        // need to reset-the context if necessary
-        routine->yield_from_routine_list(yield);
-        //worker->indirect_must_yield(yield);
+  while(1) {
+    // callback
+    one_shot_callbacks[routine->info_.req_id](yield,routine->info_.from_mac,
+                                              routine->info_.from_routine,routine->info_.msg,
+                                              NULL);
+    ro_pool->push(routine);
+    free(routine->info_.msg);
+    // yield back
+    // need to reset-the context if necessary
+    worker->indirect_must_yield(yield);
+  }
+}
 
-      }
-    }
+void RoutineMeta::thread_local_init(int num_ros,int coroutines,coroutine_func_t *routines_,RWorker *w) {
 
-    void RoutineMeta::thread_local_init(int num_ros,int coroutines,coroutine_func_t *routines_) {
-      // init next routine array
-      next_routine_array = new RoutineMeta[coroutines + 1];
+  // init worker
+  assert(worker == NULL);
+  worker = w;
 
-      for(uint i = 0;i < coroutines + 1;++i) {
-        next_routine_array[i].id_   = i;
-        next_routine_array[i].routine_ = routines_ + i;
-      }
+  // init next routine array
+  next_routine_array = new RoutineMeta[coroutines + 1];
 
-      for(uint i = 0;i < coroutines + 1;++i) {
-        next_routine_array[i].prev_ = next_routine_array + i - 1;
-        next_routine_array[i].next_ = next_routine_array + i + 1;
-      }
+  for(uint i = 0;i < coroutines + 1;++i) {
+    next_routine_array[i].id_   = i;
+    next_routine_array[i].routine_ = routines_ + i;
+  }
 
-      routine_header = &(next_routine_array[0]);
-      routine_tailer = &(next_routine_array[coroutines]);
+  for(uint i = 0;i < coroutines + 1;++i) {
+    next_routine_array[i].prev_ = next_routine_array + i - 1;
+    next_routine_array[i].next_ = next_routine_array + i + 1;
+  }
 
-      // set master routine's status
-      next_routine_array[0].prev_ = routine_header;
+  routine_header = &(next_routine_array[0]);
+  routine_tailer = &(next_routine_array[coroutines]);
 
-      // set tail routine's chain
-      next_routine_array[coroutines].next_ = routine_header; //loop back
+  // set master routine's status
+  next_routine_array[0].prev_ = routine_header;
 
-      // init ro routine pool
-      ro_pool = new std::queue<RoutineMeta *>();
-      for(uint i = 0;i < num_ros;++i) {
-        RoutineMeta *meta = new RoutineMeta;
-        meta->prev_ = NULL; meta->next_ = NULL; meta->id_ = 0;
-        meta->routine_ = new coroutine_func_t(bind(one_shot_func,_1,meta));
-        ro_pool->push(meta);
-      }
+  // set tail routine's chain
+  next_routine_array[coroutines].next_ = routine_header; //loop back
 
-      one_shot_callbacks = new one_shot_func_t[MAX_ONE_SHOT_CALLBACK];
-    }
+  // init ro routine pool
+  ro_pool = new std::queue<RoutineMeta *>();
+  for(uint i = 0;i < num_ros;++i) {
+    RoutineMeta *meta = new RoutineMeta;
+    meta->prev_ = NULL; meta->next_ = NULL; meta->id_ = 0;
+    meta->routine_ = new coroutine_func_t(bind(one_shot_func,_1,meta));
+    ro_pool->push(meta);
+  }
 
-    void RoutineMeta::register_callback(one_shot_func_t callback,int id) {
-      register_one_shot(callback,id);
-    }
+  one_shot_callbacks = new one_shot_func_t[MAX_ONE_SHOT_CALLBACK];
+}
 
-    void global_init() {
-      // not used anymore
-      assert(false);
-    }
+void RoutineMeta::register_callback(one_shot_func_t callback,int id) {
+  register_one_shot(callback,id);
+}
 
-  };
+
+};
 
 };

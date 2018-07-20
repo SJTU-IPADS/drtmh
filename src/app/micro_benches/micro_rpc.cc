@@ -76,7 +76,7 @@ namespace nocc {
         return txn_result_t(true,1);
 #elif NAIVE == 2 // add doorbell
         ReadReqWrapper *req_array = (ReadReqWrapper *)req_buf;
-        rpc_->prepare_multi_req(reply_bufs_[cor_id_],0,cor_id_);
+        // rpc_->prepare_multi_req(reply_bufs_[cor_id_],0,cor_id_);
 
         for(uint i = 0;i < num;++i) {
 
@@ -92,7 +92,7 @@ namespace nocc {
                                    RPC_WRITE,sizeof(ReadReq),cor_id_,RRpc::REQ,pid);
         }
         rpc_->flush_pending();
-        indirect_yield(yield);
+        // indirect_yield(yield);
 #endif
         return txn_result_t(true,1);
       }
@@ -240,14 +240,14 @@ namespace nocc {
 
       void MicroWorker::write_rpc_handler(int id,int cid,char *msg, void *arg) {
 
-        char *reply_msg = rpc_->get_reply_buf();
+        // char *reply_msg = rpc_->get_reply_buf();
         ReadReq *req = (ReadReq *)msg;
 
         assert(req->off >= 0 && req->off < r_buffer_size && req->off + req->size < r_buffer_size);
 
         assert(test_buf != NULL);
         //memcpy(test_buf + req->off, msg + sizeof(ReadReq), req->size);
-        rpc_->send_reply(reply_msg,1,id,worker_id_,cid); // a dummy notification
+        // rpc_->send_reply(reply_msg,1,id,worker_id_,cid); // a dummy notification
       }
 
       void MicroWorker::null_rpc_handler(int id, int cid, char *msg, void *arg) {

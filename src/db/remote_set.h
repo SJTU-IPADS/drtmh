@@ -6,9 +6,11 @@
 #include "db/config.h"
 #include "db/db_logger.hpp"
 #include "db_statistics_helper.h"
+#include "rtx/logger.hpp"
 #include "memstore/memstore.h"
 
 #include "core/rrpc.h"
+#include "rtx/msg_format.hpp"
 
 #include <stdint.h>
 
@@ -69,7 +71,6 @@ namespace nocc {
 
       void promote_to_write(int id,char *val,int len);
 
-      void write(int8_t tableid, uint64_t key,  char *val,int len);
       /* this is used to encode some addition meta data in the message */
       char* get_meta_ptr()  {
         return ((char *)request_buf_) + sizeof(RequestHeader);
@@ -90,6 +91,7 @@ namespace nocc {
       void commit_remote_naive(yield_func_t &yield);
 
       void log_remote(yield_func_t &yield);
+      void log_remote(rtx::Logger *logger,yield_func_t &yield);
 
       // come cleaning methods
       void clear(int meta_size = 0);
@@ -152,10 +154,13 @@ namespace nocc {
       void print_write_server_list();
       std::set<int> server_set_;
       std::set<int> write_server_set_;
+
       int read_servers_[MAX_SERVER_TO_SENT];
       int read_server_num_;
       int write_servers_[MAX_SERVER_TO_SENT];
       int write_server_num_;
+
+
 
 
       // some statictics

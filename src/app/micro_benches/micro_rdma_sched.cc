@@ -1,4 +1,5 @@
 #include "bench_micro.h"
+#include "tx_config.h"
 
 namespace nocc {
 

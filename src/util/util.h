@@ -43,7 +43,9 @@ namespace nocc {
     inline uint64_t TimeToMs(struct timespec &t) { return t.tv_sec * 1000 + t.tv_nsec / 1000000;}
 
     std::pair<uint64_t, uint64_t> get_system_memory_info(); // instruction's memory comsuption
+
     void *malloc_huge_pages(size_t size,uint64_t huge_page_sz,bool flag = true);
+
     inline double get_memory_size_g(uint64_t bytes) { static double G = 1024.0 * 1024 * 1024; return bytes / G; }
 
     void print_stacktrace(FILE *out = stderr, unsigned int max_frames = 63);

@@ -1,3 +1,4 @@
+#include "tx_config.h"
 #include "bench_micro.h"
 #include "framework/req_buf_allocator.h"
 
@@ -102,7 +103,7 @@ namespace nocc {
         for(uint i = 0;i < window_size;++i) {
       retry:
           int      pid    = random_generator[cor_id_].next() % num_nodes;
-          if(pid == current_partition) goto retry;
+          // if(pid == current_partition) goto retry;
 #if READ_RANDOM == 1
           uint64_t offset = random_generator[cor_id_].next() %
             //(total_free - MAX_MSG_SIZE);
@@ -217,7 +218,7 @@ namespace nocc {
       txn_result_t MicroWorker::micro_rdma_read_multi(yield_func_t &yield) {
 
         auto num = distributed_ratio; // number of remote objects to fetch
-        assert(num > 0 && num < MAX_REQ_NUM);
+        assert(num > 0 && num <= MAX_REQ_NUM);
 
         static uint64_t free_offset = free_buffer - rdma_buffer;
         static uint64_t total_free  = r_buffer_size - free_offset;

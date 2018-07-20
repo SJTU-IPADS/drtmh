@@ -1,7 +1,7 @@
 #ifndef NOCC_BENCH_RUNNER
 #define NOCC_BENCH_RUNNER
 
-#include "bench_worker.hpp"
+#include "bench_worker.h"
 #include "backup_worker.h"
 
 namespace nocc {
@@ -33,7 +33,7 @@ namespace nocc {
       virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB *store = NULL) = 0;
 
       /* return a set of workers to execute application logic */
-      virtual std::vector<Worker *> make_workers() = 0;
+      virtual std::vector<RWorker *> make_workers() = 0;
 
       /* make some background workers, if necessary */
       virtual std::vector<BackupBenchWorker *> make_backup_workers() = 0;
@@ -59,9 +59,7 @@ namespace nocc {
       spin_barrier barrier_a_;
       spin_barrier barrier_b_;
       MemDB *store_;
-      MemDB *backup_stores_[MAX_BACKUP_NUM];
     private:
-      BenchListener *listener_;
       SpinLock rdma_init_lock_;
       int8_t   init_worker_count_; /*used for worker to notify qp creation done*/
     };

@@ -1,9 +1,9 @@
-#include "global_config.h"
+#include "tx_config.h"
 #include "db/config.h"
 
 #include "db_farm.h"
 
-#include "framework/bench_worker.hpp"
+#include "framework/bench_worker.h"
 #include "framework/req_buf_allocator.h"
 
 // This file contains RPC sending and receiving of FaRM style processing

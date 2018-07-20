@@ -1,8 +1,9 @@
-#include "global_config.h"
+#include "tx_config.h"
 
 #include "tpcc_worker.h"
 #include "db/txs/dbtx.h"
 #include "db/txs/dbsi.h"
+#include "db/txs/dbrad.h"
 
 #include <set>
 
@@ -51,9 +52,7 @@ namespace nocc {
 
       void TpccWarehouseLoader::load() {
 
-#if ONE_SIDED_READ == 1
         RThreadLocalInit();
-#endif
 
         string obj_buf;
         fprintf(stdout,"loading warehouse\n");
@@ -117,9 +116,7 @@ namespace nocc {
 
       void TpccDistrictLoader::load() {
 
-#if ONE_SIDED_READ == 1
         RThreadLocalInit();
-#endif
         string obj_buf;
 
         const ssize_t bsize = -1;
@@ -140,7 +137,6 @@ namespace nocc {
 #else
               char *wrapper = (char *)malloc(d_size);
 #endif
-
 
               memset(wrapper, 0, META_LENGTH + sizeof(district::value) + sizeof(uint64_t));
               district::value *v = (district::value *)(wrapper + META_LENGTH);
@@ -425,9 +421,7 @@ namespace nocc {
 
       void TpccStockLoader::load() {
 
-#if ONE_SIDED_READ == 1
         RThreadLocalInit();
-#endif
 
         string obj_buf, obj_buf1;
         uint64_t stock_total_sz = 0, n_stocks = 0;
@@ -447,11 +441,15 @@ namespace nocc {
 
                 int s_size = store_->_schemas[STOC].total_len;
 
-#if ONE_SIDED_READ == 1
-                char *wrapper = (char *)Rmalloc(s_size);
-#else
-                char *wrapper = (char *)malloc(s_size);
-#endif
+                char *wrapper = NULL;
+
+                // If main store, allocation memory on RDMA heap
+                if(ONE_SIDED_READ && !backup_)
+                  wrapper = (char *)Rmalloc(s_size);
+                else {
+                  wrapper = (char *)malloc(s_size);
+                }
+
                 memset(wrapper, 0, META_LENGTH + sizeof(stock::value));
                 stock::value *v = (stock::value *)(wrapper + META_LENGTH);
                 v->s_quantity = RandomNumber(random_generator_, 10, 100);

@@ -2,7 +2,6 @@
 #define NOCC_DB_DBRPC_H
 
 #include "ring_msg.h"
-#include "global_config.h"
 #include "./config.h"
 #include "util/util.h"
 

@@ -10,9 +10,7 @@
 #include <string.h>
 
 #undef DEBUG
-// #define DEBUG
 
-// Defined by DynamoRIO.
 #define PAGE_SIZE 4096
 
 int new_mapped_log(const char *path, MappedLog *log, int inc_size) {

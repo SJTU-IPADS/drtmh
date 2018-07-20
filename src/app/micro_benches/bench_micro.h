@@ -3,11 +3,11 @@
 
 #include "all.h"
 #include "./app/config.h"  // application specific config
-#include "global_config.h" // global config
+#include "tx_config.h"
 #include "db/db_statistics_helper.h"
 
 #include "framework/backup_worker.h"
-#include "framework/bench_worker.hpp"
+#include "framework/bench_worker.h"
 #include "db/txs/tx_handler.h"
 
 #define MAX_REQ_NUM 100

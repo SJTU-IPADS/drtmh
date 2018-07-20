@@ -99,6 +99,8 @@ namespace nocc {
     fprintf(stdout,"[NOCC] Meet a segmentation fault!\n");
     printTraceExit(sig);
     running = false;
+    exit_lock.Unlock();
+    exit(-1);
   }
 
 
@@ -106,6 +108,7 @@ namespace nocc {
     exit_lock.Lock();
     fprintf(stdout,"[NOCC] Meet an assertion failure!\n");
     printTraceExit(sig);
+    exit_lock.Unlock();
     exit(-1);
   }
 
@@ -243,19 +246,13 @@ int  main(int argc, char **argv)
     case 'm':
       {
         pin_cpus = 1;
-        //        const size_t m = parse_memory_spec(optarg);
-        //        ALWAYS_ASSERT(m > 0);
-        //        numa_memory = m;
       }
       break;
     case 't':
-      //      logfiles.emplace_back(optarg);
       nthreads = strtoul(optarg,NULL,10);
       break;
 
     case 'a':
-      //      assignments.emplace_back(
-      //          ParseCSVString<unsigned, RangeAwareParser<unsigned>>(optarg));
       coroutine_num = strtoul(optarg,NULL,10);
       break;
 
@@ -275,18 +272,9 @@ int  main(int argc, char **argv)
 
   if(bench_type == "tpcc") {
     test_fn = nocc::oltp::tpcc::TpccTest;
-    //    test_fn = nocc_tpce_benchmark::TpceTest;
-    //test_fn = occtpcc_do_test;
-#ifndef BASE_LINE
-    //test_fn = tpcc_do_test;
-#else
-    //test_fn = occtpcc_do_test;
-#endif
   } else if(bench_type == "tpce") {
-    fprintf(stdout,"using benchmark tpce\n");
-    //test_fn = nocc::oltp::tpce::TpceTest;
+    test_fn = nocc::oltp::tpce::TpceTest;
   } else if(bench_type == "micro") {
-    fprintf(stdout,"using benchmark micro\n");
     test_fn = nocc::oltp::micro::MicroTest;
   } else if(bench_type == "bank") {
     test_fn = nocc::oltp::bank::BankTest;
@@ -295,7 +283,6 @@ int  main(int argc, char **argv)
   } else{
     ALWAYS_ASSERT(false);
   }
-  //#endif
 
   vector<string> bench_toks = nocc::split_ws(bench_opts);
   int argc = 1 + bench_toks.size();

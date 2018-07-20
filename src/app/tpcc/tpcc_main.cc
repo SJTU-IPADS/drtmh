@@ -37,6 +37,7 @@ namespace nocc {
   namespace oltp {
 
     extern char *store_buffer; // the buffer used to store DrTM-kv
+    extern MemDB *backup_stores_[MAX_BACKUP_NUM];
 
     namespace tpcc {
 
@@ -87,7 +88,7 @@ namespace nocc {
         TpccMainRunner(std::string &config_file) ;
         virtual void init_put();
         virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store = NULL);
-        virtual std::vector<Worker *> make_workers();
+        virtual std::vector<RWorker *> make_workers();
         virtual std::vector<BackupBenchWorker *> make_backup_workers();
         virtual void init_store(MemDB* &store);
         virtual void init_backup_store(MemDB* &store);
@@ -230,25 +231,23 @@ namespace nocc {
         store = new MemDB(store_buffer);
         int meta_size = META_SIZE;
 
-
-#if ONE_SIDED_READ == 0
         // store as normal B-tree
-        store->AddSchema(WARE,TAB_BTREE,sizeof(uint64_t),sizeof(warehouse::value),meta_size);
-        store->AddSchema(DIST,TAB_BTREE,sizeof(uint64_t),sizeof(district::value),meta_size);
-        store->AddSchema(STOC,TAB_BTREE,sizeof(uint64_t),sizeof(stock::value),meta_size);
-#else
+        //store->AddSchema(WARE,TAB_BTREE,sizeof(uint64_t),sizeof(warehouse::value),meta_size);
+        //store->AddSchema(DIST,TAB_BTREE,sizeof(uint64_t),sizeof(district::value),meta_size);
+        //store->AddSchema(STOC,TAB_BTREE,sizeof(uint64_t),sizeof(stock::value),meta_size);
         assert(scale_factor > 0);
         // store as DrTM kv
         store->AddSchema(WARE,TAB_HASH,sizeof(uint64_t),sizeof(warehouse::value),meta_size,scale_factor * 2);
         store->AddSchema(DIST,TAB_HASH,sizeof(uint64_t),sizeof(district::value),meta_size,
                          scale_factor * NumDistrictsPerWarehouse() * 2);
         store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size,
-                         NumItems() * scale_factor * 0.75);
-
+                         NumItems() * scale_factor * 1.2);
+#if ONE_SIDED_READ == 1
         store->EnableRemoteAccess(WARE,cm);
         store->EnableRemoteAccess(DIST,cm);
         store->EnableRemoteAccess(STOC,cm);
 #endif
+
         store->AddSchema(CUST,TAB_BTREE,sizeof(uint64_t),sizeof(customer::value),meta_size);
         store->AddSchema(HIST,TAB_BTREE,sizeof(uint64_t),sizeof(history::value),meta_size);
         store->AddSchema(NEWO,TAB_BTREE,sizeof(uint64_t),sizeof(new_order::value),meta_size);
@@ -269,9 +268,10 @@ namespace nocc {
         int meta_size = META_SIZE;
 
         // store as DrTM kv
-        store->AddSchema(WARE,TAB_HASH,sizeof(uint64_t),sizeof(warehouse::value),meta_size);
-        store->AddSchema(DIST,TAB_HASH,sizeof(uint64_t),sizeof(district::value),meta_size);
-        store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size);
+        store->AddSchema(WARE,TAB_HASH,sizeof(uint64_t),sizeof(warehouse::value),meta_size,scale_factor * 2);
+        store->AddSchema(DIST,TAB_HASH,sizeof(uint64_t),sizeof(district::value),meta_size,scale_factor * 2 * NumDistrictsPerWarehouse());
+        store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size,
+                         NumItems() * scale_factor);
 
         store->AddSchema(CUST,TAB_BTREE,sizeof(uint64_t),sizeof(customer::value),meta_size);
         store->AddSchema(HIST,TAB_BTREE,sizeof(uint64_t),sizeof(history::value),meta_size);
@@ -317,7 +317,7 @@ namespace nocc {
         } else {
           // ret.push_back(new TpccWarehouseLoader(9324,partition, store));
           // ret.push_back(new TpccItemLoader(235443,partition,store));
-          ret.push_back(new TpccStockLoader(89785943,partition,store));
+          ret.push_back(new TpccStockLoader(89785943,partition,store,true));
           ret.push_back(new TpccDistrictLoader(129856349,partition,store));
           // ret.push_back(new TpccCustomerLoader(923587856425,partition,store));
           // ret.push_back(new TpccOrderLoader(2343352,partition,store));
@@ -325,15 +325,14 @@ namespace nocc {
         return ret;
       }
 
-      std::vector<Worker *> TpccMainRunner::make_workers() {
+      std::vector<RWorker *> TpccMainRunner::make_workers() {
 
         fast_random r(23984543 + current_partition);
 
-        std::vector<Worker *> ret;
+        std::vector<RWorker *> ret;
 
         int n_ware_per_worker = scale_factor / nthreads;
         fprintf(stdout, "[Tpcc] n_ware_per_worker: %d\n", n_ware_per_worker);
-        assert(n_ware_per_worker > 0);
         for(uint i = 0;i < nthreads; ++i) {
           //  assert(ops_per_worker > 0);
           if(n_ware_per_worker == 0) {
@@ -352,7 +351,7 @@ namespace nocc {
 
 #if SI_TX
         // add ts worker
-        ts_manager = new TSManager(nthreads + nclients + 1,cm,0,0);
+        ts_manager = new TSManager(nthreads + nclients + 1,cm,total_partition - 1,0);
         ret.push_back(ts_manager);
 #endif
 
@@ -387,6 +386,7 @@ namespace nocc {
 
       void TpccMainRunner::populate_cache() {
 #if RDMA_CACHE == 1
+        fprintf(stdout,"create cache QP\n");
         // create a temporal QP for usage
         int dev_id = cm->get_active_dev(0);
         int port_idx = cm->get_active_port(0);
@@ -396,6 +396,7 @@ namespace nocc {
         cm->register_connect_mr(dev_id); // register memory on the specific device
 
         cm->link_connect_qps(nthreads + nthreads + 1,dev_id,port_idx,0,IBV_QPT_RC);
+        fprintf(stdout,"create cache QP done\n");
 
         // calculate the time of populating the cache
         struct  timeval start;

@@ -1,5 +1,5 @@
 #include "db_logger.h"
-#include "framework/bench_worker.hpp"
+#include "framework/bench_worker.h"
 #include "framework/req_buf_allocator.h"
 
 extern size_t nthreads;
@@ -193,13 +193,13 @@ namespace nocc {
             //rpc_handler_->set_msg((char*) request_header);
             //rpc_handler_->send_reqs(RPC_LOGGING,length + sizeof(DBLogger::RequestHeader), temp_log->remote_mac_reps_,
 			//                  temp_log->remote_mac_ids_,temp_log->remote_mac_num_,cor_id);
-			//int *log_macs = new int[2];
+			//int *log_macs = new int[16];
 			//int  num_logs = 0;
 			//num_logs = view_.get_backup(current_partition,log_macs);
 
 			assert(temp_log->remote_mac_num_ > 0);
-			//rpc_handler_->prepare_multi_req(temp_log->remote_mac_reps_,temp_log->remote_mac_num_,cor_id);
-			rpc_handler_->prepare_multi_req(temp_log->remote_mac_reps_,num_logs,cor_id);
+			rpc_handler_->prepare_multi_req(temp_log->remote_mac_reps_,temp_log->remote_mac_num_,cor_id);
+			//rpc_handler_->prepare_multi_req(temp_log->remote_mac_reps_,num_logs,cor_id);
 			rpc_handler_->broadcast_to((char *)request_header,RPC_LOGGING,length + sizeof(DBLogger::RequestHeader),
 									   cor_id,RRpc::REQ,temp_log->remote_mac_ids_,temp_log->remote_mac_num_);
 									   //log_macs,num_logs);

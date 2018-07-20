@@ -15,10 +15,10 @@
 //#define RPC_TIMEOUT_FLAG
 #define RPC_TIMEOUT_TIME 10000000
 //#define RPC_CHECKSUM
-#define MAX_INFLIGHT_REPLY 1024
+#define MAX_INFLIGHT_REPLY 2048
 //#define MAX_INFLIGHT_REQS  768  // for TPC-C, smallbank usage
 //#define MAX_INFLIGHT_REQS 128
-#define MAX_INFLIGHT_REQS 16
+#define MAX_INFLIGHT_REQS 64
 
 
 // print statements

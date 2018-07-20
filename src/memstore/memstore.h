@@ -2,32 +2,42 @@
 #define DRTMMEMSTORE
 
 #include "all.h"
+#include "tx_config.h"
+
 #include "util/spinlock.h"
 #include "core/rdma_sched.h"
 
 #include "rdmaio.h"
 
 #include <stdlib.h>
+#include <chrono>
 
 #define MEMSTORE_MAX_TABLE 16
 
+typedef std::chrono::time_point<std::chrono::system_clock>  std_time_t_;
+typedef std::chrono::duration<double>  std_time_diff_t_;
+
 struct MemNode
 {
-  volatile uint64_t lock;
+  volatile uint64_t lock; // should be placed at the first place.
   uint64_t seq;
-
+#if RECORD_STALE
+  std_time_t_ time;
+  static std_time_t_ init_time;
+#endif
   //  uint64_t counter;
   uint64_t* value; // pointer to the real value. 1: logically delete 2: Node is removed from memstore
   union {
     uint64_t* old_value;
     uint64_t  off;
   };
-  char padding[16];
   union {
-    SpinLock* read_fallback_lock;
-    uint64_t read_ts;
     volatile uint64_t read_lock;
   };
+  uint64_t read_ts;
+
+  char padding[16];
+
   MemNode()
   {
     lock = 0;
@@ -35,7 +45,10 @@ struct MemNode
     read_lock = 0;
     seq = 0;
     value = NULL;
-    read_fallback_lock = new SpinLock();
+    old_value = NULL;
+#if RECORD_STALE
+    time = init_time;
+#endif
   }
 } __attribute__ ((aligned (CACHE_LINE_SZ)));
 

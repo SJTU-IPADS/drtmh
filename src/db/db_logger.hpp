@@ -1,5 +1,8 @@
 #pragma once
 
+#include <map>
+#include "memstore/memdb.h"
+
 namespace nocc {
 
   namespace db {
@@ -47,6 +50,26 @@ namespace nocc {
       inline static int get_off(int mid,int cid) {
         return mid * (coroutine_num * max_log_size) + cid * max_log_size;
       }
+
+      LogHelper() {
+
+      }
+
+      void add_backup_store(int id,MemDB *backup_store){
+        backup_stores_.insert(std::make_pair(id,backup_store));
+      }
+
+      inline MemDB *get_backed_store(int id) {
+        assert(backup_stores_.size() > 0);
+        if(backup_stores_.find(id) == backup_stores_.end()) {
+          fprintf(stdout,"error %d\n",id);
+          assert(false);
+        }
+        return backup_stores_[id];
+      }
+
+    private:
+      std::unordered_map<int,MemDB*> backup_stores_;
     };
 
 

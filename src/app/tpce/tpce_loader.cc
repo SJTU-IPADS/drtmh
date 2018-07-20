@@ -44,12 +44,12 @@ namespace nocc {
       CLogFormatTab fmt;
 
       std::map<int32_t,double> TpceTaxMap;
-    
+
       std::map<std::string,int> TpceExchangeMap;
       std::map<std::string,uint64_t> SecurityToCompany;
       std::map<std::string,uint64_t> CONameToId;
       std::map<std::string,uint64_t> TpceTradeTypeMap;
-    
+
       /* i think this table is static, thus no need to really store it in database */
       std::map<std::string,int64_t  > BrokerNameToKey;
       std::map<std::string,uint64_t > IndustryNametoID;
@@ -65,32 +65,32 @@ namespace nocc {
       std::map<std::string,std::string>           SecurityToSector;
       std::map<uint64_t,uint64_t>                 WatchList;
       std::map<uint64_t,std::vector<std::string> >WatchItem;
-    
-    
+
+
       bool TypeMapInitDone = false;
 
       uint64_t preload_trade_per_server_offset(0);
-  
+
       TpceLoader::TpceLoader(unsigned long seed, MemDB *store)
         : TpceMixin(store),
           BenchLoader(seed)
       {
-    
+
       }
-  
+
       void TpceLoader::load() {
-    
+
         NoccTpceLoadFactory *factory = new NoccTpceLoadFactory(store_);
         /* Init TPCE loading factory */
-    
+
         char  szInDir[64];
-        //snprintf(szInDir,64,"/home/wxd/egen_flat_in/"); // used in local data center
-        snprintf(szInDir,64,"/home/ubuntu/egen_flat_in/"); // used in aws
+        snprintf(szInDir,64,"/home/wxd/egen_flat_in/"); // used in local data center
+        //snprintf(szInDir,64,"/home/ubuntu/egen_flat_in/"); // used in aws
         int   iLoadUnitSize = iDefaultLoadUnitSize;
         bool  bGenerateUsingCache  = true;
-    
+
         char szLogFileName[64];
-    
+
         snprintf(&szLogFileName[0], sizeof(szLogFileName),
                  "NoccRunningFrom%" PRId64 "To%" PRId64 ".log",
                  (long long int)mStartCustomer, (long long int)((mStartCustomer + accountPerPartition) - 1));
@@ -98,7 +98,7 @@ namespace nocc {
         logger = new CEGenLogger(eDriverEGenLoader, 0, szLogFileName, &fmt);
 
         CGenerateAndLoadStandardOutput* output = NULL;
-    
+
         inputFiles = new CInputFiles();
         output = new CGenerateAndLoadStandardOutput();
         inputFiles->Initialize(eDriverEGenLoader, totalCustomer, totalCustomer, szInDir);
@@ -107,7 +107,7 @@ namespace nocc {
         cerr << "  Total customer    : " << totalCustomer << endl;
         cerr << "  Load unit size    : " << iLoadUnitSize  << endl;
 
-    
+
         CGenerateAndLoad *TpceLoadFactory = new CGenerateAndLoad(*inputFiles, accountPerPartition,
                                                                  mStartCustomer,
                                                                  totalCustomer, iLoadUnitSize,
@@ -130,9 +130,9 @@ namespace nocc {
         TpceLoadFactory->m_iStartFromCustomer = mStartCustomer;
         TpceLoadFactory->m_iCustomerCount = accountPerPartition;
         /* reset done */
-      
+
         /**/
-      
+
         TpceLoadFactory->GenerateAndLoadTradeType();
         TpceLoadFactory->GenerateAndLoadCharge();
         TpceLoadFactory->GenerateAndLoadExchange();
@@ -152,21 +152,21 @@ namespace nocc {
         TpceLoadFactory->GenerateAndLoadDailyMarket();
         TpceLoadFactory->GenerateAndLoadLastTrade();
         TpceLoadFactory->GenerateAndLoadNewsItemAndNewsXRef();
-      
+
         /* reset load range */
         TpceLoadFactory->m_iStartFromCustomer = mStartCustomer;
         TpceLoadFactory->m_iCustomerCount = accountPerPartition;
         /* reset done */
-      
+
         TpceLoadFactory->GenerateAndLoadTaxrate();
         TpceLoadFactory->GenerateAndLoadCommissionRate();
-      
+
         TpceLoadFactory->GenerateAndLoadCustomerTaxrate();
-      
+
         fprintf(stdout,"Generate and load customer account\n");
         TpceLoadFactory->GenerateAndLoadCustomer();
         TpceLoadFactory->GenerateAndLoadCustomerAccountAndAccountPermission();
-      
+
         fprintf(stdout,"Generate trades table\n");
         TpceLoadFactory->GenerateAndLoadGrowingTables();
         //      TpceLoadFactory->GenerateAndLoadTaxrate
@@ -200,7 +200,7 @@ namespace nocc {
         }
         virtual void FinishLoad() { fprintf(stdout,"[TPCE loader] watch item load done.\n");}
       };
-    
+
 
       class TpceSectorLoader : public CBaseLoader<SECTOR_ROW>, public TpceMixin {
       public:
@@ -229,7 +229,7 @@ namespace nocc {
         }
         virtual void FinishLoad() {}
       };
-    
+
       class TpceTradeTypeLoader : public CBaseLoader<TRADE_TYPE_ROW> , public TpceMixin {
         int index;
       public:
@@ -244,14 +244,14 @@ namespace nocc {
           int meta_len = store_->_schemas[TRADETYPE].meta_len;
           char *tt_wrapper = (char *)malloc(tt_size);
           memset(tt_wrapper, 0, meta_len + sizeof(trade_type::value));
-      
+
           trade_type::value *v = (trade_type::value *)(tt_wrapper + meta_len);
           v->tt_name = string(record->TT_NAME);
           v->tt_is_sell = record->TT_IS_SELL;
           v->tt_is_mrkt = record->TT_IS_MRKT;
-      
+
           store_->Put(TRADETYPE,index,(uint64_t *)tt_wrapper);
-	
+
           std::string key = std::string(record->TT_ID);
 
           ASSERT_PRINT(TpceTradeTypeMap.find(key) == TpceTradeTypeMap.end(),
@@ -259,16 +259,16 @@ namespace nocc {
           TpceTradeTypeMap.insert(std::make_pair(key,index++));
           TpceTradeHash.insert(std::make_pair(key,v));
         }
-    
+
         virtual void FinishLoad() {      }
-    
+
       };
 
       class TpceDMLoader : public CBaseLoader<DAILY_MARKET_ROW> , public TpceMixin {
       public:
         TpceDMLoader(MemDB *store) : TpceMixin(store) {} ;
         virtual void WriteNextRecord(CBaseLoader<DAILY_MARKET_ROW>::PT record) {
-	
+
           int dm_size = store_->_schemas[DAILY_MARKET].total_len;
           int meta_len = store_->_schemas[DAILY_MARKET].meta_len;
           char *wrapper = (char *)malloc(dm_size + meta_len);
@@ -345,7 +345,7 @@ namespace nocc {
         }
         virtual void FinishLoad() {}
       };
-    
+
       class TpceNILoader : public CBaseLoader<NEWS_ITEM_ROW>, public TpceMixin {
       public:
         TpceNILoader(MemDB *store) : TpceMixin(store) { };
@@ -376,7 +376,7 @@ namespace nocc {
         }
         virtual void FinishLoad() {}
       };
-    
+
       class TpceZipCodeLoader : public CBaseLoader<ZIP_CODE_ROW>, public TpceMixin {
       public:
         TpceZipCodeLoader(MemDB *store) : TpceMixin(store) {} ;
@@ -400,7 +400,7 @@ namespace nocc {
           int len = store_->_schemas[CUST_TAX].total_len;
           int meta = store_->_schemas[CUST_TAX].meta_len;
           char *dummy_v = (char *)malloc(len + meta);
-	
+
           store_->Put(COMPANY_C,cc_key,(uint64_t *)dummy_v);
           assert(store_->Get(COMPANY,record->CP_CO_ID) != NULL);
           assert(store_->Get(COMPANY,record->CP_COMP_CO_ID) != NULL);
@@ -417,7 +417,7 @@ namespace nocc {
 
         };
         virtual void WriteNextRecord(CBaseLoader<CHARGE_ROW>::PT record) {
-      
+
           auto it = TpceTradeTypeMap.find(std::string(record->CH_TT_ID));
           assert(it != TpceTradeTypeMap.end());
           int tt_idx = it->second;
@@ -436,21 +436,21 @@ namespace nocc {
           store_->Put(CHARGE,c_key,(uint64_t *)ch_wrapper);
           //delete (uint64_t *)c_key;
         }
-    
+
         virtual void FinishLoad() {
           /* The first some implemented loader has sanity checks */
         }
-    
+
       };
 
-  
+
       class TpceExchangeLoader : public CBaseLoader<EXCHANGE_ROW> , public TpceMixin {
         int index;
       public:
         TpceExchangeLoader(MemDB *store)
           :TpceMixin(store),
            index(1) { }
-      
+
         virtual void WriteNextRecord(CBaseLoader<EXCHANGE_ROW>::PT record) {
           auto it = TpceExchangeMap.find(std::string(record->EX_ID));
           assert(it == TpceExchangeMap.end());
@@ -459,7 +459,7 @@ namespace nocc {
           int meta_len = store_->_schemas[EXCHANGE].meta_len;
           char *ex_wrapper = (char *)malloc(ex_size);
           memset(ex_wrapper, 0, meta_len + sizeof(exchange::value));
-      
+
           exchange::value *v = (exchange::value *)(ex_wrapper + meta_len);
           v->ex_name = record->EX_NAME;
           v->ex_num_symb = record->EX_NUM_SYMB;
@@ -478,7 +478,7 @@ namespace nocc {
           DBRad tx(store_,0,NULL);
           fprintf(stdout,"start sanity check exchange...\n");
           tx.reset();
-      
+
           /* The first some implemented loader has sanity checks */
           for(auto it = TpceExchangeMap.begin(); it != TpceExchangeMap.end();++it) {
             fprintf(stdout,"exchange %s -> %d\n",it->first.c_str(),it->second);
@@ -488,9 +488,9 @@ namespace nocc {
             assert(seq == 2);
             fprintf(stdout,"exchange name %s\n",ev->ex_name.data());
           }
-#endif      
+#endif
         }
-      
+
       };
 
       class TpceSecurityLoader : public CBaseLoader<SECURITY_ROW>, public TpceMixin {
@@ -503,15 +503,15 @@ namespace nocc {
           dummy = new uint64_t;
         }
         virtual void WriteNextRecord(CBaseLoader<SECURITY_ROW>::PT record) {
-      
+
           std::string symbl = record->S_SYMB;
           uint64_t sec_key = makeSecurityIndex(symbl);
-      
+
           int se_size = store_->_schemas[SECURITY].total_len;
           int meta_len = store_->_schemas[SECURITY].meta_len;
           char *se_wrapper = (char *)malloc(se_size);
           memset(se_wrapper, 0, meta_len + sizeof(security::value));
-      
+
           security::value *v = (security::value *)(se_wrapper + meta_len);
           v->s_issue = std::string(record->S_ISSUE);
           v->s_st_id = std::string(record->S_ST_ID);
@@ -526,14 +526,14 @@ namespace nocc {
 
           store_->Put(SECURITY,sec_key,(uint64_t *)se_wrapper);
           loaded += 1;
-	
+
           /* add am secondary index */
           /* first check whether an existing entry exists */
           uint64_t sec_idx_key = makeSecuritySecondIndex(v->s_co_id,record->S_ISSUE);
           uint64_t *mn = (uint64_t *)store_->_indexs[SEC_IDX]->Get(sec_idx_key);
           /* Ensuring no previous inserted index here */
           assert(mn == NULL);
-	
+
           uint64_t *val = new uint64_t[5];
           memset(val,0,sizeof(uint64_t) * 5);
           memcpy(val,symbl.c_str(),symbl.size());
@@ -560,12 +560,12 @@ namespace nocc {
           //	  fprintf(stdout,"got one, co_id %lu\n",v->s_co_id);
           //	}
           store_->PutIndex(SEC_SC_INS,in_co_s_key,dummy); /* static table, put dummy is ok */
-	
+
           delete (uint64_t *)sec_key;
           delete (uint64_t *)sec_idx_key;
           delete (uint64_t *)in_co_s_key;
         }
-    
+
         virtual void FinishLoad () {
           fprintf(stdout,"loading security done, sizeof the record %lu, total loaded %d\n",
                   sizeof(security::value),loaded);
@@ -587,10 +587,10 @@ namespace nocc {
           : TpceMixin(store) {
         }
         virtual void WriteNextRecord(CBaseLoader<LAST_TRADE_ROW>::PT record) {
-      
+
           std::string symbl = record->LT_S_SYMB;
           uint64_t sec_key = makeSecurityIndex(symbl);
-	
+
           int se_size = store_->_schemas[LT].total_len;
           int meta_len = store_->_schemas[LT].meta_len;
           char *se_wrapper = (char *)malloc(se_size);
@@ -601,14 +601,14 @@ namespace nocc {
           v->lt_price = record->LT_PRICE;
           v->lt_open_price = record->LT_OPEN_PRICE;
           v->lt_vol = record->LT_VOL;
-	
+
           store_->Put(LT,sec_key,(uint64_t *)se_wrapper);
           delete (uint64_t *)sec_key;
         }
-    
+
         virtual void FinishLoad () {      }
       };
-    
+
       class TpceTaxRateLoader : public CBaseLoader<TAXRATE_ROW>  {
         int index;
       public:
@@ -620,13 +620,13 @@ namespace nocc {
         }
         virtual void FinishLoad() {}
       };
-    
+
       class TpceCTLoader : public CBaseLoader<CUSTOMER_TAXRATE_ROW> , public TpceMixin {
       public:
         TpceCTLoader(MemDB *store) :
           TpceMixin(store) {}
         virtual void WriteNextRecord(CBaseLoader<CUSTOMER_TAXRATE_ROW>::PT record) {
-      
+
           int len = store_->_schemas[CUST_TAX].total_len;
           int meta = store_->_schemas[CUST_TAX].meta_len;
           char *wrapper = (char *)malloc(len + meta);
@@ -644,7 +644,7 @@ namespace nocc {
         TpceCRLoader(MemDB *store) :
           TpceMixin(store) {}
         virtual void WriteNextRecord(CBaseLoader<COMMISSION_RATE_ROW>::PT record) {
-	
+
           int len = store_->_schemas[CR].total_len;
           int meta = store_->_schemas[CR].meta_len;
           char *wrapper = (char *)malloc(len + meta);
@@ -659,7 +659,7 @@ namespace nocc {
         }
         virtual void FinishLoad() {}
       };
-    
+
 
       class TpceTradeLoader : public CBaseLoader<TRADE_ROW> , public TpceMixin {
         uint64_t *dummy;
@@ -673,14 +673,14 @@ namespace nocc {
           fprintf(stdout,"[TRADE] trade loader init, sizeof record %lu\n",sizeof(trade::value));
         }
         virtual void WriteNextRecord(CBaseLoader<TRADE_ROW>::PT record) {
-	
+
           int len = store_->_schemas[TRADE].total_len;
           int meta = store_->_schemas[TRADE].meta_len;
           char *wrapper = (char *)malloc(meta + len);
           memset(wrapper,0,len + meta);
-	
+
           trade::value *v = (trade::value *)(wrapper + meta);
-	
+
           if(iAbortedTradeModFactor == lastTradeId % iAbortTrade)
             lastTradeId += 1;
           /* currently manally create trade id */
@@ -707,20 +707,20 @@ namespace nocc {
           v->t_tax  = record->T_TAX;
           v->t_lifo = record->T_LIFO;
           assert(record->T_ID != 0);
-	
+
           assert(v->t_is_cash == record->T_IS_CASH);
           store_->Put(TRADE,tid,(uint64_t *)wrapper);
           //      assert(ca_id_norm <= 50000);
-#if 0      
+#if 0
           /* sanity checks */
           tx->reset();
           security::value *vs;
           std::string test = std::string(record->T_S_SYMB);
-      
+
           uint64_t *key = new uint64_t[5];
           memset((char *)key,0,sizeof(uint64_t) * 5);
           memcpy(key,test.c_str(),test.size());
-      
+
           uint64_t seq = tx->get(SECURITY,(uint64_t)key,(char **)(&vs),sizeof(security::value));
           assert(seq == 2);
 #endif
@@ -754,13 +754,13 @@ namespace nocc {
           uint64_t sec = makeHoldingKey(record->H_CA_ID,
                                         encode_trade_id(record->H_T_ID - preload_trade_per_server_offset,0,0),
                                         symbl,record->H_DTS.GetDate());
-	
+
           int holding_sz = store_->_schemas[HOLDING].total_len;
           int meta_sz    = store_->_schemas[HOLDING].meta_len;
-	
+
           char *holding_wrapper = (char *)malloc(holding_sz + meta_sz);
           memset(holding_wrapper,0,holding_sz + meta_sz);
-	
+
           holding::value *v = (holding::value *)(holding_wrapper + meta_sz);
           v->h_dts = record->H_DTS.GetDate();
           v->h_price = record->H_PRICE;
@@ -785,7 +785,7 @@ namespace nocc {
         }
         virtual void FinishLoad() { fprintf(stdout,".");}
       };
-  
+
       class TpceHHLoader : public CBaseLoader<HOLDING_HISTORY_ROW> , public TpceMixin {
       public:
         TpceHHLoader(MemDB *store) :
@@ -815,19 +815,19 @@ namespace nocc {
         TpceHSLoader(MemDB *store) :
           TpceMixin(store) {}
         virtual void WriteNextRecord(CBaseLoader<HOLDING_SUMMARY_ROW>::PT record) {
-	
+
           std::string symb = record->HS_S_SYMB;
           uint64_t sec = makeHSKey(record->HS_CA_ID,symb);
-      
+
           int len = store_->_schemas[HOLDING_SUM].total_len;
           int meta = store_->_schemas[HOLDING_SUM].meta_len;
           char *wrapper = (char *)malloc(len + meta);
           memset(wrapper,0,len + meta);
-      
+
           holding_summary::value *v = (holding_summary::value *)(wrapper + meta);
           v->hs_qty = record->HS_QTY;
           store_->Put(HOLDING_SUM,sec,(uint64_t *)wrapper);
-      
+
 #ifdef SANITY_CHECKS
           {
             uint64_t *keys = (uint64_t *)sec;
@@ -839,7 +839,7 @@ namespace nocc {
               assert(false);
             }
           }
-#endif      
+#endif
           delete (uint64_t *)sec;
         }
         virtual void FinishLoad() { fprintf(stdout,".");}
@@ -851,7 +851,7 @@ namespace nocc {
         TpceBrokerLoader(MemDB *store) :
           TpceMixin(store) {}
         virtual void WriteNextRecord(CBaseLoader<BROKER_ROW>::PT record) {
-	
+
           int len = store_->_schemas[BROKER].total_len;
           int meta = store_->_schemas[BROKER].meta_len;
           char *wrapper = (char *)malloc(len + meta);
@@ -878,7 +878,7 @@ namespace nocc {
         TpceSELoader(MemDB *store) :
           TpceMixin(store) {}
         virtual void WriteNextRecord(CBaseLoader<SETTLEMENT_ROW>::PT record) {
-	
+
           int len = store_->_schemas[SETTLEMENT].total_len;
           int meta = store_->_schemas[SETTLEMENT].meta_len;
 
@@ -906,7 +906,7 @@ namespace nocc {
 
           char *wrapper = (char *)(malloc(meta + len));
           memset(wrapper,0,meta + len);
-	
+
           cash_transaction::value *v = (cash_transaction::value *)(wrapper + meta);
           v->ct_dts = record->CT_DTS.GetDate();
           v->ct_amt = record->CT_AMT;
@@ -931,7 +931,7 @@ namespace nocc {
           int meta = store_->_schemas[TRADE_HIST].meta_len;
           char *wrapper = (char *)malloc(len + meta);
           memset(wrapper,0,len + meta);
-	
+
           trade_history::value *v = (trade_history::value *)(wrapper + meta);
           //	v->th_st_id = std::string(record->TH_ST_ID);
 
@@ -987,7 +987,7 @@ namespace nocc {
           int meta = store_->_schemas[COMPANY].meta_len;
           char *wrapper = (char *)malloc(len + meta);
           memset(wrapper,0,len + meta);
-	
+
           /* seems no secondary index is needed for customer */
           company::value *v = (company::value *)(wrapper + meta);
           //	v->co_st_id = std::string(record->CO_ST_ID);
@@ -1004,7 +1004,7 @@ namespace nocc {
           assert(CONameToId.find(name) == CONameToId.end());
           assert(TpceAddress.find(record->CO_AD_ID) != TpceAddress.end());
           CONameToId.insert(std::make_pair(name,record->CO_ID));
-#if 0			  
+#if 0
           char *s_wrapper = (char *)malloc(sizeof(uint64_t) * 2);
           uint64_t *prikeys = (uint64_t *)(s_wrapper);
           prikeys[0] = 1;
@@ -1025,7 +1025,7 @@ namespace nocc {
         }
         virtual void FinishLoad() { }
       };
-    
+
 
       class TpceCustLoader : public CBaseLoader<CUSTOMER_ROW> , public TpceMixin {
       public:
@@ -1065,14 +1065,14 @@ namespace nocc {
       public:
         TpceAPLoader(MemDB *store) :
           TpceMixin(store) {}
-    
+
         virtual void WriteNextRecord(CBaseLoader<ACCOUNT_PERMISSION_ROW>::PT record) {
-      
+
           int len = store_->_schemas[ACCTPER].total_len;
           int meta = store_->_schemas[ACCTPER].meta_len;
           char *wrapper = (char *)malloc(len + meta);
           memset(wrapper,0,len + meta);
-      
+
           account_permission::value *v = (account_permission::value *)(wrapper + meta);
           v->ap_acl = std::string(record->AP_ACL);
           v->ap_l_name = std::string(record->AP_L_NAME);
@@ -1083,7 +1083,7 @@ namespace nocc {
         }
         virtual void FinishLoad() { fprintf(stdout,"acct permission done\n");}
       };
-  
+
 
       /* Some simple code.... */
       NoccTpceLoadFactory::NoccTpceLoadFactory (MemDB *store) {
@@ -1121,11 +1121,11 @@ namespace nocc {
         wll_   = new TpceWatchListLoader();
         wil_   = new TpceWatchItemLoader();
       }
-    
+
       CBaseLoader<TRADE_TYPE_ROW> *NoccTpceLoadFactory::CreateTradeTypeLoader() {
         return ttl_;
       }
-  
+
       CBaseLoader<CHARGE_ROW> *NoccTpceLoadFactory::CreateChargeLoader() {
         return chl_;
       }

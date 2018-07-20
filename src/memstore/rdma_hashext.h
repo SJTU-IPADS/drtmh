@@ -1,7 +1,7 @@
 #ifndef DRTM_MEM_RDMAHASHEXT_H
 #define DRTM_MEM_RDMAHASHEXT_H
 
-#include "global_config.h"
+#include "tx_config.h"
 
 #include "util/rtm.h"
 #include "util/util.h"
@@ -10,7 +10,7 @@
 #include "rdmaio.h" // for qp operation
 #include "ralloc.h" // for Rmalloc
 
-#include "framework/bench_worker.hpp"
+#include "framework/bench_worker.h"
 
 //#include "sparsehash/dense_hash_map"
 
@@ -121,8 +121,8 @@ namespace drtm {
 
       inline void fetch_node(Qp *qp,uint64_t off,char *buf,int size,
                              nocc::oltp::RDMA_sched *sched,yield_func_t &yield) {
-        qp->rc_post_send(IBV_WR_RDMA_READ,buf,size,off,IBV_SEND_SIGNALED,worker->cor_id_);
-        sched->add_pending(worker->cor_id_,qp);
+        qp->rc_post_send(IBV_WR_RDMA_READ,buf,size,off,IBV_SEND_SIGNALED,worker->cor_id());
+        sched->add_pending(worker->cor_id(),qp);
         worker->indirect_yield(yield);
       }
 

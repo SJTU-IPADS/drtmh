@@ -62,8 +62,8 @@ inline unsigned int __try_xacquire(__rtm_spin_lock_t *lock) {
   register unsigned ret = 1;
   //  __asm__ volatile (PREFIX_XACQUIRE "lock; xchgl %0, %1"
   __asm__ volatile ("lock; xchgl  %0, %1"
-		    : "=r"(ret),"=m"(*lock):"0"(ret),"m"(*lock):"memory" );  
-  
+                    : "=r"(ret),"=m"(*lock):"0"(ret),"m"(*lock):"memory" );
+
   return (ret^1);
 }
 
@@ -77,23 +77,23 @@ inline void Acquire(__rtm_spin_lock_t *lock) {
       //      fprintf(stdout,"read lock spined %lu\n",*lock);
       exit(-1);
     }
-#if 0      
+#if 0
     while(*lock) {
       __asm__ volatile ("pause\n" : : : "memory" );
       if( !(*lock != 0 || *lock != 1)) {
-	fprintf(stdout,"lock content %lu\n",*lock);
-	assert(false);
+        fprintf(stdout,"lock content %lu\n",*lock);
+        assert(false);
       }
     }
-#endif    
+#endif
   }
 }
 
 static inline void Xrelease(__rtm_spin_lock_t *lock) {
   barrier();
-  //  __asm__ volatile (PREFIX_XRELEASE "movl $0, %0"		    
+  //  __asm__ volatile (PREFIX_XRELEASE "movl $0, %0"
   __asm__ volatile ("movl $0, %0"
-		    : "=m"(*lock) : "m"(*lock) : "memory" );
+                    : "=m"(*lock) : "m"(*lock) : "memory" );
 
 }
 
@@ -113,9 +113,9 @@ class RTMScope {
  public:
 
   static SpinLock fblock;
-  
+
   inline RTMScope(RTMProfile* prof, int read = 1, int write = 1, SpinLock* sl = NULL) {
-  //  inline RTMScope(TXProfile* prof, int read = 1, int write = 1, SpinLock* sl = NULL) {  
+    //  inline RTMScope(TXProfile* prof, int read = 1, int write = 1, SpinLock* sl = NULL) {
 
     //globalprof = prof;
     retry = 0;
@@ -136,77 +136,77 @@ class RTMScope {
       stat = _xbegin();
       if(stat == _XBEGIN_STARTED) {
 
-	//Put the global lock into read set
-	if(slock->IsLocked())
-	  _xabort(0xff);
+        //Put the global lock into read set
+        if(slock->IsLocked())
+          _xabort(0xff);
 
-	return;
+        return;
 
       } else {
 
-	retry++;
-	//if (prof!= NULL) prof->recordAbortStatus(stat);	
-	if((stat & _XABORT_NESTED) != 0)
-	  nested++;
-	else if(stat == 0)
-	  zero++;
-	else if((stat & _XABORT_CONFLICT) != 0) {
-	  conflict++;
-	}
-	else if((stat & _XABORT_CAPACITY) != 0)
-	  capacity++;
+        retry++;
+        //if (prof!= NULL) prof->recordAbortStatus(stat);
+        if((stat & _XABORT_NESTED) != 0)
+          nested++;
+        else if(stat == 0)
+          zero++;
+        else if((stat & _XABORT_CONFLICT) != 0) {
+          conflict++;
+        }
+        else if((stat & _XABORT_CAPACITY) != 0)
+          capacity++;
 
-	if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
-	  while(slock->IsLocked())
-	    _mm_pause();
-	}
-	if((stat & _XABORT_EXPLICIT)) {
-	  if(prof != NULL) {
-	    prof->explicitAbortCounts++;
-	  }
-	}
-	if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0x73) {
-	  if(prof != NULL) {
-	    prof->explicitAbortCounts ++;
-	  }
-	  //retry maybe not helpful
-	  break;
-	}
+        if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
+          while(slock->IsLocked())
+            _mm_pause();
+        }
+        if((stat & _XABORT_EXPLICIT)) {
+          if(prof != NULL) {
+            prof->explicitAbortCounts++;
+          }
+        }
+        if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0x73) {
+          if(prof != NULL) {
+            prof->explicitAbortCounts ++;
+          }
+          //retry maybe not helpful
+          break;
+        }
 
 #if SIMPLERETY
-	if(retry > 100)
-	  break;
+        if(retry > 100)
+          break;
 #else
 
-	int step = 1;
+        int step = 1;
 
-	//		  if((stat & _XABORT_NESTED) != 0)
-	//			step = NESTSTEP;
-	//break;
-	if (nested > MAXNEST)
-	  break;
-	if(zero > MAXZERO/step) {
-	  break;
-	}
+        //		  if((stat & _XABORT_NESTED) != 0)
+        //			step = NESTSTEP;
+        //break;
+        if (nested > MAXNEST)
+          break;
+        if(zero > MAXZERO/step) {
+          break;
+        }
 
-	if(capacity > MAXCAPACITY / step) {
-	  break;
-	}
-	if (conflict > MAXCONFLICT/step) {
-	  break;
-	}
+        if(capacity > MAXCAPACITY / step) {
+          break;
+        }
+        if (conflict > MAXCONFLICT/step) {
+          break;
+        }
 #endif
 
       }
     }
     slock->Lock();
     if(prof != NULL) {
-#if 0      
+#if 0
       prof->succCounts++;
       prof->abortCounts += retry;
       prof->capacityCounts += capacity;
       prof->conflictCounts += conflict;
-#endif      
+#endif
       //      prof->nested += nested;
     }
   }
@@ -224,7 +224,7 @@ class RTMScope {
     else
       _xend ();
     //    prof->succCounts += 1;
-    
+
     //access the global profile info outside the transaction scope
 #if RTMPROFILE
     if(globalprof != NULL) {
@@ -273,49 +273,49 @@ class RTMTX {
 
       if(stat == _XBEGIN_STARTED) {
 
-	if(sl->IsLocked())
-	  _xabort(0xff);
+        if(sl->IsLocked())
+          _xabort(0xff);
 
-	return;
+        return;
 
       } else {
 
-	if (prof!= NULL) prof->recordAbortStatus(stat);
-	retry++;
+        if (prof!= NULL) prof->recordAbortStatus(stat);
+        retry++;
 
-	if((stat & _XABORT_NESTED) != 0){
-	  nested++;
-	}
-	else if(stat == 0)
-	  zero++;
-	else if((stat & _XABORT_CONFLICT) != 0)
-	  conflict++;
-	else if((stat & _XABORT_CAPACITY) != 0)
-	  capacity++;
-	if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
-	  while(sl->IsLocked())
-	    _mm_pause();
-	}
+        if((stat & _XABORT_NESTED) != 0){
+          nested++;
+        }
+        else if(stat == 0)
+          zero++;
+        else if((stat & _XABORT_CONFLICT) != 0)
+          conflict++;
+        else if((stat & _XABORT_CAPACITY) != 0)
+          capacity++;
+        if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
+          while(sl->IsLocked())
+            _mm_pause();
+        }
 
 
 
-	int step = 1;
-	if (nested > MAXNEST)
-	  {
-	    break;
-	  }
+        int step = 1;
+        if (nested > MAXNEST)
+        {
+          break;
+        }
 
-	if(zero > MAXZERO/step) {
-	  break;
-	}
+        if(zero > MAXZERO/step) {
+          break;
+        }
 
-	if(capacity > MAXCAPACITY / step) {
-	  break;
-	}
+        if(capacity > MAXCAPACITY / step) {
+          break;
+        }
 
-	if (conflict > MAXCONFLICT/step) {
-	  break;
-	}
+        if (conflict > MAXCONFLICT/step) {
+          break;
+        }
 
       }
     }
@@ -367,50 +367,50 @@ class RTMTX {
       stat = _xbegin();
 
       if(stat == _XBEGIN_STARTED) {
-	for (int i=0; i<numOfLocks; i++)
-	  if(sl[i]->IsLocked())
-	    _xabort(0xff);
+        for (int i=0; i<numOfLocks; i++)
+          if(sl[i]->IsLocked())
+            _xabort(0xff);
 
-	return;
+        return;
 
       } else {
 
-	if (prof!= NULL) prof->recordAbortStatus(stat);
-	retry++;
+        if (prof!= NULL) prof->recordAbortStatus(stat);
+        retry++;
 
-	if((stat & _XABORT_NESTED) != 0){
-	  nested++;
-	}
-	else if(stat == 0)
-	  zero++;
-	else if((stat & _XABORT_CONFLICT) != 0)
-	  conflict++;
-	else if((stat & _XABORT_CAPACITY) != 0)
-	  capacity++;
-	if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
-	  while(sl[0]->IsLocked())
-	    _mm_pause();
-	}
+        if((stat & _XABORT_NESTED) != 0){
+          nested++;
+        }
+        else if(stat == 0)
+          zero++;
+        else if((stat & _XABORT_CONFLICT) != 0)
+          conflict++;
+        else if((stat & _XABORT_CAPACITY) != 0)
+          capacity++;
+        if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
+          while(sl[0]->IsLocked())
+            _mm_pause();
+        }
 
 
 
-	int step = 1;
-	if (nested > MAXNEST)
-	  {
-	    break;
-	  }
+        int step = 1;
+        if (nested > MAXNEST)
+        {
+          break;
+        }
 
-	if(zero > MAXZERO/step) {
-	  break;
-	}
+        if(zero > MAXZERO/step) {
+          break;
+        }
 
-	if(capacity > MAXCAPACITY / step) {
-	  break;
-	}
+        if(capacity > MAXCAPACITY / step) {
+          break;
+        }
 
-	if (conflict > MAXCONFLICT/step) {
-	  break;
-	}
+        if (conflict > MAXCONFLICT/step) {
+          break;
+        }
 
       }
     }
@@ -446,61 +446,61 @@ class RTMTX {
       stat = _xbegin();
       //put the local locks in read-set
       if(stat == _XBEGIN_STARTED) {
-	//		    for (int i=0; i<numOfLocks; i++)
-	//		      if(sl[i]->IsLocked())
-	//			_xabort(0xff);
-	if(sl && sl->IsLocked())
-	  _xabort(0xff);
+        //		    for (int i=0; i<numOfLocks; i++)
+        //		      if(sl[i]->IsLocked())
+        //			_xabort(0xff);
+        if(sl && sl->IsLocked())
+          _xabort(0xff);
 
-	return;
+        return;
 
       } else {
 
-	if (prof!= NULL) prof->recordAbortStatus(stat);
-	retry++;
+        if (prof!= NULL) prof->recordAbortStatus(stat);
+        retry++;
 
-	if((stat & _XABORT_NESTED) != 0){
-	  nested++;
-	}
-	else if(stat == 0)
-	  zero++;
-	else if((stat & _XABORT_CONFLICT) != 0)
-	  conflict++;
-	else if((stat & _XABORT_CAPACITY) != 0)
-	  capacity++;
-	else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x73)) {
-	  if(prof != NULL) {
-	    prof->explicitAbortCounts++;
-	  }
-	  break;
-	}else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x93)) {
-	  *abort_flag = true;
-	  break;
-	}
-	if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
-	  while(sl != NULL && sl->IsLocked())
-	    _mm_pause();
-	}
+        if((stat & _XABORT_NESTED) != 0){
+          nested++;
+        }
+        else if(stat == 0)
+          zero++;
+        else if((stat & _XABORT_CONFLICT) != 0)
+          conflict++;
+        else if((stat & _XABORT_CAPACITY) != 0)
+          capacity++;
+        else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x73)) {
+          if(prof != NULL) {
+            prof->explicitAbortCounts++;
+          }
+          break;
+        }else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x93)) {
+          *abort_flag = true;
+          break;
+        }
+        if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
+          while(sl != NULL && sl->IsLocked())
+            _mm_pause();
+        }
 
 
 
-	int step = 1;
-	if (nested > MAXNEST)
-	  {
-	    break;
-	  }
+        int step = 1;
+        if (nested > MAXNEST)
+        {
+          break;
+        }
 
-	if(zero > MAXZERO/step) {
-	  break;
-	}
+        if(zero > MAXZERO/step) {
+          break;
+        }
 
-	if(capacity > MAXCAPACITY / step) {
-	  break;
-	}
+        if(capacity > MAXCAPACITY / step) {
+          break;
+        }
 
-	if (conflict > MAXCONFLICT/step) {
-	  break;
-	}
+        if (conflict > MAXCONFLICT/step) {
+          break;
+        }
 
       }
 
@@ -528,56 +528,56 @@ class RTMTX {
       stat = _xbegin();
       //put the local locks in read-set
       if(stat == _XBEGIN_STARTED) {
-	for (int i=0; i<numOfLocks; i++)
-	  if(sl[i]->IsLocked())
-	    _xabort(0xff);
-	return;
+        for (int i=0; i<numOfLocks; i++)
+          if(sl[i]->IsLocked())
+            _xabort(0xff);
+        return;
 
       } else {
 
-	if (prof!= NULL) prof->recordAbortStatus(stat);
-	retry++;
+        if (prof!= NULL) prof->recordAbortStatus(stat);
+        retry++;
 
-	if((stat & _XABORT_NESTED) != 0){
-	  nested++;
-	}
-	else if(stat == 0)
-	  zero++;
-	else if((stat & _XABORT_CONFLICT) != 0)
-	  conflict++;
-	else if((stat & _XABORT_CAPACITY) != 0)
-	  capacity++;
-	else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x73)) {
-	  if(prof != NULL) {
-	    prof->explicitAbortCounts++;
-	  }
-	  break;
-	}else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x93)) {
-	  *abort_flag = true;
-	  break;
-	}
-	if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
-	  while(sl != NULL && sl[0]->IsLocked())
-	    _mm_pause();
-	}
+        if((stat & _XABORT_NESTED) != 0){
+          nested++;
+        }
+        else if(stat == 0)
+          zero++;
+        else if((stat & _XABORT_CONFLICT) != 0)
+          conflict++;
+        else if((stat & _XABORT_CAPACITY) != 0)
+          capacity++;
+        else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x73)) {
+          if(prof != NULL) {
+            prof->explicitAbortCounts++;
+          }
+          break;
+        }else if((stat & _XABORT_EXPLICIT && _XABORT_CODE(stat) == 0x93)) {
+          *abort_flag = true;
+          break;
+        }
+        if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
+          while(sl != NULL && sl[0]->IsLocked())
+            _mm_pause();
+        }
 
-	int step = 1;
-	if (nested > MAXNEST)
-	  {
-	    break;
-	  }
+        int step = 1;
+        if (nested > MAXNEST)
+        {
+          break;
+        }
 
-	if(zero > MAXZERO/step) {
-	  break;
-	}
+        if(zero > MAXZERO/step) {
+          break;
+        }
 
-	if(capacity > MAXCAPACITY / step) {
-	  break;
-	}
+        if(capacity > MAXCAPACITY / step) {
+          break;
+        }
 
-	if (conflict > MAXCONFLICT/step) {
-	  break;
-	}
+        if (conflict > MAXCONFLICT/step) {
+          break;
+        }
 
       }
     }
@@ -603,7 +603,7 @@ class RTMTX {
     }
     for (int i=0; i< numOfLocks; i++)
       if(sl[i]->IsLocked())
-	sl[i]->Unlock();
+        sl[i]->Unlock();
 
 
   }
@@ -635,50 +635,50 @@ class RTMTX {
 
       if(stat == _XBEGIN_STARTED) {
 
-	if(sl->IsLocked())
-	  _xabort(0xff);
-	else if  (s2->IsLocked())
-	  _xabort(0xff);
-	return;
+        if(sl->IsLocked())
+          _xabort(0xff);
+        else if  (s2->IsLocked())
+          _xabort(0xff);
+        return;
 
       } else {
 
-	if (prof!= NULL) prof->recordAbortStatus(stat);
-	retry++;
+        if (prof!= NULL) prof->recordAbortStatus(stat);
+        retry++;
 
-	if((stat & _XABORT_NESTED) != 0){
-	  nested++;
-	}
-	else if(stat == 0)
-	  zero++;
-	else if((stat & _XABORT_CONFLICT) != 0)
-	  conflict++;
-	else if((stat & _XABORT_CAPACITY) != 0)
-	  capacity++;
-	if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
-	  while(sl->IsLocked())
-	    _mm_pause();
-	}
+        if((stat & _XABORT_NESTED) != 0){
+          nested++;
+        }
+        else if(stat == 0)
+          zero++;
+        else if((stat & _XABORT_CONFLICT) != 0)
+          conflict++;
+        else if((stat & _XABORT_CAPACITY) != 0)
+          capacity++;
+        if((stat & _XABORT_EXPLICIT) && _XABORT_CODE(stat) == 0xff) {
+          while(sl->IsLocked())
+            _mm_pause();
+        }
 
 
 
-	int step = 1;
-	if (nested > MAXNEST)
-	  {
-	    break;
-	  }
+        int step = 1;
+        if (nested > MAXNEST)
+        {
+          break;
+        }
 
-	if(zero > MAXZERO/step) {
-	  break;
-	}
+        if(zero > MAXZERO/step) {
+          break;
+        }
 
-	if(capacity > MAXCAPACITY / step) {
-	  break;
-	}
+        if(capacity > MAXCAPACITY / step) {
+          break;
+        }
 
-	if (conflict > MAXCONFLICT/step) {
-	  break;
-	}
+        if (conflict > MAXCONFLICT/step) {
+          break;
+        }
 
       }
     }
@@ -722,7 +722,7 @@ class RAWRTMTX {
       unsigned stat;
       stat = _xbegin();
       if(stat == _XBEGIN_STARTED) {
-	return;
+        return;
       }
     }
   }
