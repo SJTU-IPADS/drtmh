@@ -75,7 +75,8 @@ def copy_file(f):
 
 def kill_servers(e):
     #  print "ending ... kill servers..."
-    kill_cmd1 = "pkill %s --signal 2" % e
+    sigint = 2
+    kill_cmd1 = "pkill %s --signal %d" % (e,sigint)
     # real kill
     kill_cmd2 = "pkill %s" % e
     for i in xrange(mac_num):
