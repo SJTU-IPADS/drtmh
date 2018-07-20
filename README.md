@@ -10,7 +10,7 @@
 
 
 
-A snippet of how to use ROCC framework. Notice that ROCC is independent of RTX.
+A snippet of how to use rocc framework. Notice that ROCC is independent of RTX.
 
 - Issue RDMA read/write operations 
 
@@ -69,20 +69,27 @@ We use RTX to test a transactional system's performance using ROCC.
 - CMake `>= version 3.0` (For compiling)
 - libtool
 - g++`>= 4.8`
-- Zmq
-- Zmq C++ binding
+- Zmq and its C++ binding
 - Boost `1.61.0` (Only tested) (will be automatically installed by the build tool chain)
-- Libibverbs 
+- libibverbs 
+
+
+------
+
+###  A sample setup (using Ubuntu)
+
+sudo apt-get install -y libzmq3-dev
+sudo apt-get install -y libtool-bin
 
 ------
 
 **Build RTX:**
 
-- git clone --recursive https://github.com/roccframework/rocc.git
-
+- `git clone --recursive https://github.com/roccframework/rocc.git`
+- `sudo apt-get install libzmq3-dev`
+- `sudo apt-get install libtool-bin`
 - `cmake .`
 - `make noccocc`
-
 ------
 
 **Prepare:**
@@ -97,7 +104,7 @@ The samples of these two files are listed in ./scripts .
 
 `cd scripts; ./run2.py config_template.xml noccocc "-t 24 -c 10 -r 256" micro 16 ` , 
 
-where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `micro` states for the application used, here states for running the micro bencharmk. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
+where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `micro` states for the application used, here states for running the micro bencharm. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
 
 
 
