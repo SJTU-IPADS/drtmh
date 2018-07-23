@@ -7,8 +7,6 @@
 #include "framework/config.h" // to be fixed later!
 #include "msg_handler.h"
 
-#include "util/printer.h"
-
 #include "ralloc.h" // RDMA malloc
 
 #define MAX_RPC_SUPPORT 16
@@ -19,8 +17,6 @@
 namespace nocc {
 
 namespace oltp {
-
-using namespace util;
 
 class RRpc {
   // The RPC callback takes 4 parameters:
@@ -207,7 +203,7 @@ class RRpc {
                                      std::placeholders::_3,             \
                                      std::placeholders::_4),(id),true);
 
-} // namespace oltp
+}   // namespace oltp
 }   // namespace nocc
 
 #endif

@@ -1,11 +1,7 @@
 #pragma once
 
 #include "memstore/memdb.h"
-
-#include "core/rrpc.h"
-#include "core/common.h"
-
-#include "rdmaio.h"
+#include "core/rworker.h"
 
 namespace nocc {
 
@@ -27,17 +23,24 @@ class TXOpBase {
   TXOpBase() { }
 
   // allow op implementation based on RPC
-  TXOpBase(MemDB *db,RRpc *rpc_handler,int nid):
-      db_(db),rpc_(rpc_handler),node_id_(nid),worker_id_(rpc_handler->worker_id_) {
+  TXOpBase(RWorker *w,MemDB *db,RRpc *rpc_handler,int nid):
+      worker_(w),
+      db_(db),
+      rpc_(rpc_handler),
+      node_id_(nid),
+      worker_id_(rpc_handler->worker_id_) {
 
   }
 
   // allow op implementation based on RDMA one-sided operations
-  TXOpBase(MemDB *db,RRpc *rpc_handler,RdmaCtrl *cm, RDMA_sched* rdma_sched,
-           int nid, // my node id
-           int tid, // worker thread's id
-           int ms)  // total macs in the cluster setting
-      :db_(db),cm_(cm),scheduler_(rdma_sched),node_id_(nid),worker_id_(tid),rpc_(rpc_handler) {
+  TXOpBase(RWorker *w,
+      MemDB *db,RRpc *rpc_handler,RdmaCtrl *cm, RDMA_sched* rdma_sched,
+      int nid, // my node id
+      int tid, // worker thread's id
+      int ms)  // total macs in the cluster setting
+      :worker_(w),
+       db_(db),
+       cm_(cm),scheduler_(rdma_sched),node_id_(nid),worker_id_(tid),rpc_(rpc_handler) {
     // fetch QPs
     for(uint i = 0;i < ms;++i) {
       auto qp = cm->get_rc_qp(tid,i,0);
@@ -69,8 +72,17 @@ class TXOpBase {
   template <typename REQ,typename... _Args>
   uint64_t rpc_op(int cor_id,int rpc_id,int pid,char *req_buf,char *res_buf,_Args&& ... args);
 
-  // lookup the MemNode, stored in val (MemNode), return is the offset
+  /**
+   * lookup the MemNode(index), stored in val (MemNode), return is the offset
+   */
   uint64_t     rdma_lookup_op(int pid,int tableid,uint64_t key,char *val,yield_func_t &yield,int meta_len = 0);
+
+  /**
+   * Read the value stored in the node->value. The offset is stored in node->off.
+   * returnd the val offset.
+   */
+  uint64_t     rdma_read_val(int pid,int tableid,uint64_t key,int len,char *val,yield_func_t &yield,int meta_len = 0);
+
 
   /*
    * Batch operations
@@ -89,9 +101,10 @@ class TXOpBase {
   REPLY    *get_batch_res(BatchOpCtrlBlock &ctrl,int idx);  // return the results to the pointer of result buffer
 
  protected:
-  MemDB *db_  = NULL;
-  RRpc  *rpc_ = NULL;
-  RdmaCtrl *cm_ = NULL;
+  RWorker *worker_ = NULL;
+  MemDB *db_       = NULL;
+  RRpc  *rpc_      = NULL;
+  RdmaCtrl *cm_    = NULL;
   RDMA_sched *scheduler_ = NULL;
 
   std::vector<Qp *> qp_vec_;

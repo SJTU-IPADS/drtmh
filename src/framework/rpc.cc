@@ -220,8 +220,6 @@ namespace nocc {
       int total_size = size + sizeof(struct rpc_header);
       total_size = total_size + sizeof(uint64_t) - total_size % sizeof(uint64_t);
 #endif
-      ASSERT_PRINT((size + sizeof(rpc_header)) < MAX_MSG_SIZE,stderr,"Too large msg size %d\n",size + sizeof(rpc_header));
-
       // set the rpc header
       volatile struct rpc_header *header = (volatile struct rpc_header *)(msg_buf_ + sizeof(uint64_t));
       header->meta.type = type;

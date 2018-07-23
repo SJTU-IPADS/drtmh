@@ -3,6 +3,8 @@
 #include "rtx_occ.h"
 #include "tx_config.h"
 
+#include "core/logging.h"
+
 namespace nocc {
 
 namespace rtx {
@@ -15,34 +17,22 @@ public:
       RtxOCC(worker,db,rpc_handler,nid,tid,cid,response_node,
              cm,rdma_sched,ms)
   {
+    // register normal RPC handlers
     register_default_rpc_handlers();
-    if(USE_RDMA_COMMIT && cid == 1 && tid == 0) {
-      fprintf(stdout,"[RtxOCC-RDMA]: use RDMA for commit\n");
-    }
   }
 
   // without cache's version
   int remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
-    // it is harder to record pending requests.
-    // maybe uses an pending one-sided requests array, (idx,data_ptr) to record this
-    // also, currently assuming data is inlined with datanode
+
     char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len);
-    auto off = rdma_lookup_op(pid,tableid,key,data_ptr,yield);
-
-    MemNode *node = (MemNode *)data_ptr;
-
-#if RDMA_CACHE || !INLINE_OVERWRITE
-    // not inlined data, fetch back
-    // cache only cache the
-    Qp* qp = qp_vec_[pid];
-    qp->rc_post_send(IBV_WR_RDMA_READ,data_ptr + sizeof(MemNode),len,node->off,
-                     IBV_SEND_SIGNALED,cor_id_);
-    scheduler_->add_pending(cor_id_,qp);
-    worker->indirect_yield(yield); // yield for waiting for NIC's completion
+    uint64_t off = 0;
+#if INLINE_OVERWRITE
+    off = rdma_lookup_op(pid,tableid,key,data_ptr,yield);
 #else
-    // copy the padding of MemNode to data_ptr + sizeof(MemNode)
-    memcpy(data_ptr + sizeof(MemNode),node->padding,len);
+    off = rdma_read_val(pid,tableid,key,len,data_ptr,yield);
 #endif
+    MemNode *node = (MemNode *)data_ptr;
+    ASSERT(off != 0) << "RDMA remote read key error: tab " << tableid << " key " << key;
     read_set_.emplace_back(tableid,key,(MemNode *)off,(char *)data_ptr + sizeof(MemNode),
                            node->seq, // seq shall be filled later
                            len,pid);
@@ -52,12 +42,10 @@ public:
   bool commit(yield_func_t &yield) {
 
 #if TX_ONLY_EXE
-    gc_readset();
-    gc_writeset();
-    return true;
+    return dummy_commit();
 #endif
-
-#if 0 //USE_RDMA_COMMIT
+    assert(false);
+#if 1 //USE_RDMA_COMMIT
     if(!lock_writes_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -71,11 +59,7 @@ public:
     }
 #endif
 
-    gc_readset();
-    gc_writeset();
-    return true;
-
-#if 0 //USE_RDMA_COMMIT
+#if 1 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -88,6 +72,7 @@ public:
 #endif
     }
 #endif
+    return dummy_commit();
 
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
@@ -286,7 +271,12 @@ public:
     }
   }
 
-
+  bool dummy_commit() {
+    // clean remaining resources
+    gc_readset();
+    gc_writeset();
+    return true;
+  }
 
 };
 

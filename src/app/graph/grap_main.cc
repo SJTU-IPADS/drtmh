@@ -10,7 +10,6 @@
 #include "framework/bench_runner.h"
 
 #include "util/util.h"
-#include "util/printer.h"
 
 // for log normal distribution
 #include <random>
@@ -32,8 +31,6 @@ namespace nocc {
         : start_id_(start_id), end_id_(end_id), medium_data_size_(mdz),
           BenchLoader(seed)
       {
-        ASSERT_PRINT(start_id_ >= 1 && end_id_ > start_id_,
-                     stderr,"[GRAPH] start_id %lu, end_id %lu\n",start_id_,end_id_);
       };
       virtual void load();
     };
@@ -59,7 +56,6 @@ namespace nocc {
     };
 
     void GraphTest(int argc,char **argv) {
-      Debugger::debug_fprintf(stdout,"[LinkBench] started\n");
       auto test = RealDistribution();
       df_t res;
 
@@ -68,7 +64,7 @@ namespace nocc {
       pdf_t pdf;
       test.get_pdf(res,pdf);
       for(uint i = 0;i < 12;++i) {
-        fprintf(stdout,"%d, %f\n",i,pdf[i]);
+
       }
       //test.get_cdf(res,ifs);
 

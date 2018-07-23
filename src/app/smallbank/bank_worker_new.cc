@@ -85,7 +85,7 @@ txn_result_t BankWorker::txn_wc_new(yield_func_t &yield) {
 }
 
 txn_result_t BankWorker::txn_dc_new(yield_func_t &yield) {
-  //fprintf(stdout,"dc start\n");
+
   rtx_->begin(yield);
 
   float amount = 1.3;

@@ -15,6 +15,7 @@
 
 //#include "framework/rpc.h"
 #include "framework/req_buf_allocator.h"
+#include "core/logging.h"
 
 #include <boost/bind.hpp>
 #include <queue>
@@ -911,7 +912,7 @@ txn_result_t TpceWorker::txn_trade_result(yield_func_t &yield) {
   }
 #else
 
-  ASSERT_PRINT(seq != 1,stdout,"trade id %lu\n",input->trade_id);
+  ASSERT(seq != 1) << "trade id " << input->trade_id;
 #endif
   auto acct_id = tv->t_ca_id;
   auto old_dts = tv->t_dts;

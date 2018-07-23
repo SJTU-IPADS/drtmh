@@ -83,6 +83,7 @@ class ClusterHash {
     auto base_ptr = (char *)(cm->conn_buf_);
     base_off_ = data_ptr_ - base_ptr;
   }
+
   void fetch_node(Qp *qp,uint64_t off,char *buf,int size);
   void fetch_node(Qp *qp,uint64_t off,char *buf,int size,
                   nocc::oltp::RDMA_sched *sched,yield_func_t &yield);
@@ -282,6 +283,7 @@ class ClusterHash {
   int size_;
 
   // offset in the RDMA region
+ public:
   uint64_t base_off_;
 };
 

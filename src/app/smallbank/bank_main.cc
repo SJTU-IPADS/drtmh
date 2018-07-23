@@ -1,5 +1,7 @@
 #include "tx_config.h"
 
+#include "core/logging.h"
+
 #include "bank_schema.h"
 #include "bank_worker.h"
 #include "bank_log_cleaner.h"
@@ -8,8 +10,6 @@
 #include "db/txs/ts_manager.hpp"
 
 #include "framework/bench_runner.h"
-
-#include "util/printer.h"
 
 #include "rdmaio.h"
 using namespace rdmaio;
@@ -198,15 +198,20 @@ class BankLoader : public BenchLoader {
       uint64_t round_sz = CACHE_LINE_SZ << 1; // 128 = 2 * cacheline to avoid false sharing
 
       char *wrapper_acct, *wrapper_saving, *wrapper_check;
+      int save_size = meta_size + sizeof(savings::value);
+      save_size = Round<int>(save_size,CACHE_LINE_SZ);
+      int check_size = meta_size + sizeof(checking::value);
+      check_size = Round<int>(check_size, CACHE_LINE_SZ);
+
 #if ONE_SIDED_READ == 1
       if(is_primary_){
-        wrapper_saving = (char *)Rmalloc(store_->_schemas[SAV].total_len);
+        wrapper_saving = (char *)Rmalloc(save_size);
         assert(wrapper_saving != NULL);
-        wrapper_check  = (char *)Rmalloc(store_->_schemas[CHECK].total_len);
+        wrapper_check  = (char *)Rmalloc(check_size);
         assert(wrapper_check != NULL);
       } else {
-        wrapper_saving = new char[meta_size + sizeof(savings::value)];
-        wrapper_check  = new char[meta_size + sizeof(checking::value)];
+        wrapper_saving = new char[save_size];
+        wrapper_check  = new char[check_size];
       }
       wrapper_acct = new char[meta_size + sizeof(account::value)];
 #else
@@ -235,17 +240,15 @@ class BankLoader : public BenchLoader {
 
       savings::value *s = (savings::value *)(wrapper_saving + meta_size);
       s->s_balance = balance_s;
-      store_->Put(SAV,i,(uint64_t *)wrapper_saving);
-      MemNode *node = store_->stores_[SAV]->Get(i);
-      assert(node->seq == 2);
+      auto node = store_->Put(SAV,i,(uint64_t *)wrapper_saving);
+      node->off = (uint64_t)wrapper_saving - (uint64_t)(cm->conn_buf_);
 
       checking::value *c = (checking::value *)(wrapper_check + meta_size);
-
       c->c_balance = balance_c;
-      //c->c_balance = i + 73;
       assert(c->c_balance > 0);
-      store_->Put(CHECK,i,(uint64_t *)wrapper_check);
-      node = store_->stores_[CHECK]->Get(i);
+      node = store_->Put(CHECK,i,(uint64_t *)wrapper_check);
+      node->off =  (uint64_t)wrapper_check - (uint64_t)(cm->conn_buf_);
+
 #if INLINE_OVERWRITE
       assert(sizeof(checking::value) <= 16);
       memcpy(node->padding,(char *)wrapper_check + meta_size,sizeof(checking::value));
@@ -342,9 +345,8 @@ std::vector<BackupBenchWorker *> BankMainRunner::make_backup_workers() {
 
 void BankMainRunner::populate_cache() {
 
-
 #if ONE_SIDED_READ == 1 && RDMA_CACHE == 1
-  fprintf(stdout,"[Smallbank] Loading cache.\n");
+  LOG(2) << "loading cache.\n";
 
   // create a temporal QP for usage
   int dev_id = cm->get_active_dev(0);
@@ -376,7 +378,9 @@ void BankMainRunner::populate_cache() {
     off = db->stores_[SAV]->RemoteTraverse(i,
                                            cm->get_rc_qp(nthreads + nthreads + 1,pid,0),temp);
     assert(off != 0);
-    Debugger::print_progress((double)i / NumAccounts());
+
+    if(i % 10000 == 0)
+      PrintProgress((double)i / NumAccounts());
 
   }
   Rfree(temp);

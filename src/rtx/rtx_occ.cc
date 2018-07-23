@@ -6,10 +6,10 @@ namespace nocc {
 namespace rtx {
 
 RtxOCC::RtxOCC(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int cid,int response_node) :
-    TXOpBase(db,rpc_handler,response_node),
+    TXOpBase(worker,db,rpc_handler,response_node),
     read_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),
     write_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),
-    worker_(worker),cor_id_(cid),response_node_(nid)
+    cor_id_(cid),response_node_(nid)
 {
   register_default_rpc_handlers();
   // resize the read/write set

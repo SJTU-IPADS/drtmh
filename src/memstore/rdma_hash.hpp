@@ -1,9 +1,15 @@
 #pragma once
 
+#include "tx_config.h"
+
 #include "cluster_chaining.hpp"
 #include "cluster_chaining_remote_op.hpp"
 #include "memstore.h"
-#include "tx_config.h"
+
+#include "core/logging.h"
+#include "util/util.h"
+
+#include <math.h>
 
 extern size_t total_partition;
 
@@ -17,7 +23,9 @@ class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM
  public:
   RHash(int expected_data, char *ptr) : drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM> (expected_data, ptr) {
 #if RDMA_CACHE
-    loc_cache_ = new loc_cache_t(2 * expected_data * total_partition / CACHE_BUCKET_NUM);
+    uint64_t expected_cached_num = ceil((double)(expected_data) / CACHE_BUCKET_NUM);
+    loc_cache_ = new loc_cache_t(2 * expected_cached_num * total_partition);
+    LOG(2) << "Cache size: " << get_memory_size_g(loc_cache_->size()) << "G";
 #endif
   }
 
@@ -51,7 +59,9 @@ class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM
     auto res = remote_get(key,qp,val);
 #if RDMA_CACHE
     auto ptr = loc_cache_->get_with_insert(key);
-    *ptr = res; // TODO, now only cache the MemNode's offset!
+    MemNode *node = (MemNode *)val;
+    //*ptr = res; // TODO, now only cache the MemNode's offset!
+    *ptr = node->off;
     return res;
 #endif
   }

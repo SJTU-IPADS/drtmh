@@ -106,6 +106,7 @@ class BankWorker : public BenchWorker {
 
  private:
   MemDB *store_;
+  std::map<int,int> mac_hotmap;
 
   static txn_result_t TxnSendPayment(BenchWorker *w,yield_func_t &yield) {
     //txn_result_t r = static_cast<BankWorker *>(w)->txn_send_payment(yield);

@@ -1,7 +1,6 @@
 #include "./db/config.h"
 #include "dbrad.h"
 #include "util/mapped_log.h"
-#include "util/printer.h"
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
 extern size_t current_partition;
@@ -201,8 +200,6 @@ void //__attribute__((optimize("O0")))
 DBRad::get_rpc_handler(int id,int cid,char *msg,void *arg) {
   /* no suprises, get rpc handler is exactly the same as OCC's rpc handler  */
   RemoteSet::RequestHeader *header = (RemoteSet::RequestHeader *)msg;
-  ASSERT_PRINT(header->cor_id == cid,stderr,
-               "Target :%d, required %d\n",header->cor_id,cid);
   /* prepare reply pointer */
   char *reply_msg = rpc_->get_reply_buf();
 

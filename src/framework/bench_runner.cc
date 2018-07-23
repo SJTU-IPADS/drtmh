@@ -7,6 +7,7 @@
 
 #include "core/tcp_adapter.hpp"
 #include "core/utils/util.h"
+#include "core/logging.h"
 
 #include "rtx/logger.hpp"
 
@@ -92,17 +93,7 @@ BenchRunner::BenchRunner(std::string &config_file)
 
 void
 BenchRunner::run() {
-#if TX_USE_LOG
-  Debugger::debug_fprintf(stdout, "Logger enabled, RPC style: %d\n",TX_LOG_STYLE);
-#else
-  Debugger::debug_fprintf(stdout, "Logger disabled\n");
-#endif
 
-#if USE_BACKUP_STORE
-  Debugger::debug_fprintf(stdout, "Backup Store enabled, using %lu backup_threads\n", backup_nthreads);
-#else
-  Debugger::debug_fprintf(stdout, "Backup Store disabled\n");
-#endif
   // init RDMA, basic parameters
   // DZY:do no forget to allow enough hugepages
   uint64_t M = 1024 * 1024;
@@ -196,11 +187,10 @@ BenchRunner::run() {
   int num_primaries = my_view->is_primary(current_partition);
   int backups[MAX_BACKUP_NUM];
   int num_backups = my_view->is_backup(current_partition,backups);
-  Debugger::debug_fprintf(stdout, "num_primaries: %d, num_backups: %d\n", num_primaries, num_backups);
+  LOG(2) << "num primaries: "<< num_primaries << " ;num backups: " << num_backups;
 
   /* loading database */
   init_store(store_);
-  fprintf(stdout,"init store done\n");
 
 #if RECORD_STALE
   MemNode::init_time = std::chrono::system_clock::now();
@@ -281,7 +271,6 @@ BenchRunner::run() {
 #endif
 
 
-  fprintf(stdout,"make workers\n");
   const pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
   vector<RWorker *> workers = make_workers();
 
@@ -302,6 +291,7 @@ BenchRunner::run() {
 
   for(auto it = workers.begin();it != workers.end();++it) {
     (*it)->join();
+    delete (*it);
   }
 
   //listener_->join();
@@ -320,7 +310,7 @@ BenchRunner::run() {
   } catch(...) {
 
   }
-  fprintf(stdout,"[RUNNER] main run ends\n");
+  LOG(2) << "main runner ends.";
   /* end main run */
 }
 
@@ -339,7 +329,8 @@ void BenchRunner::parse_config(std::string &config_file) {
       scale_factor   = pt.get<size_t>("bench.scale") * nthreads;
       //scale_factor   = pt.get<size_t>("bench.scale");
     } catch (const ptree_error &e) {
-      fprintf(stderr,"parse_config:%s, it may be an error, or not.\n", e.what() );
+      LOG(LOG_ERROR) << "parse config file " << config_file
+                     << "error. It may be an error, or not." << e.what();
     }
 
     try{
@@ -348,28 +339,21 @@ void BenchRunner::parse_config(std::string &config_file) {
       // pass
     }
 
-    //scale_factor = 2 * nthreads; // TODO!! now hard coded
-    if(scale_factor == 0) scale_factor = nthreads;
-    printf("scale_factor:%lu, nthreads:%lu\n",scale_factor, nthreads);
+    if(scale_factor == 0)
+      scale_factor = nthreads;
 
   } catch (const ptree_error &e) {
     /* using the default settings  */
-    fprintf(stdout,"some error happens, using the default setting.\n");
-    net_def_.push_back("10.0.0.100");
+    LOG(LOG_ERROR) << "some error happens in parse scale factor or clients. Maybe its not important";
   }
+  LOG(2) << "use scale factor: " << scale_factor << "; with total " << nthreads << "threads.";
+  ASSERT(coroutine_num >= 1) << "use error coroutine num " << coroutine_num;
 
-  try {
-    //coroutine_num = pt.get<size_t>("bench.routines");
-  } catch (const ptree_error &e) {
-    /* pass, using default setting  */
-  }
-  assert(coroutine_num >= 1);
-
-  //total_partition = net_def_.size();
   net_def_.clear();
   net_def_ = parse_network(total_partition,host_file);
 } // parse config parameter
 
 
 } // namespace oltp
+
 };  // namespace nocc

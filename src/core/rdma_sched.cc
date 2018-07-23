@@ -2,6 +2,7 @@
 #include "routine.h" // poll_comps will add_routine to scheduler
 
 #include "util/util.h"  // for rdtsc()
+#include "logging.h"
 
 
 extern size_t nthreads;
@@ -15,11 +16,7 @@ namespace nocc {
 
 namespace oltp {
 
-RDMA_sched::RDMA_sched():
-    pre_total_costs_(0),total_costs_(0),
-    pre_poll_costs_(0),poll_costs_(0),
-    counts_(0),pre_counts_(0)
-{
+RDMA_sched::RDMA_sched() {
 }
 
 RDMA_sched::~RDMA_sched() {
@@ -49,9 +46,8 @@ void RDMA_sched::poll_comps() {
     }
 
     if(unlikely(wc_.status != IBV_WC_SUCCESS)) {
-      fprintf (stderr,"got bad completion with status: 0x%x, vendor syndrome: 0x%x, with error %s, @node %d\n",
-               wc_.status, wc_.vendor_err,ibv_wc_status_str(wc_.status),qp->nid);
-      assert(false);
+      LOG(7) << "got bad completion with status: " << wc_.status << " with error " << ibv_wc_status_str(wc_.status)
+             << "@node " << qp->nid;
     }
 
     auto cor_id = wc_.wr_id;
@@ -59,7 +55,9 @@ void RDMA_sched::poll_comps() {
 
     assert(pending_counts_[cor_id] > 0);
     pending_counts_[cor_id] -= 1;
-    if(pending_counts_[cor_id] == 0) add_to_routine_list(cor_id);
+
+    if(pending_counts_[cor_id] == 0)
+      add_to_routine_list(cor_id);
 
     // update the iterator
     it = pending_qps_.erase(it);

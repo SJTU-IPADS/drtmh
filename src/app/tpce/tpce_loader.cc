@@ -254,8 +254,6 @@ namespace nocc {
 
           std::string key = std::string(record->TT_ID);
 
-          ASSERT_PRINT(TpceTradeTypeMap.find(key) == TpceTradeTypeMap.end(),
-                       stdout,"inserted key %s, %s\n",key.c_str(),v->tt_name);
           TpceTradeTypeMap.insert(std::make_pair(key,index++));
           TpceTradeHash.insert(std::make_pair(key,v));
         }

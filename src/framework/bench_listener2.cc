@@ -2,6 +2,8 @@
 #include "rocc_config.h"
 #include "bench_listener.h"
 
+#include "core/logging.h"
+
 #include <fstream>
 #include <signal.h>
 
@@ -59,7 +61,7 @@ BenchLocalListener::BenchLocalListener(unsigned worker_id,const std::vector<RWor
     char log_file_name[64];
     snprintf(log_file_name,64,"./results/%s_%s_%lu_%lu_%lu_%lu.log",
              exe_name.c_str(),bench_type.c_str(),total_partition,nthreads,coroutine_num,distributed_ratio);
-    Debugger::debug_fprintf(stdout,"log to %s\n",log_file_name);
+    LOG(2)<<"try log results to " << log_file_name;
     log_file.open(log_file_name,std::ofstream::out);
   } // end master extra stuff
 
@@ -72,10 +74,15 @@ void BenchLocalListener::run() {
 
   RThreadLocalInit();
   init_routines(1);
+
 #if USE_RDMA
   init_rdma();
   create_qps();
 #endif
+
+  // first ensures all worker has initilized
+  wait_worker_barrier(workers_);
+  inited = true;
 
   // currently, listener use UD for communication
   create_rdma_ud_connections(1);
@@ -85,9 +92,6 @@ void BenchLocalListener::run() {
   ROCC_BIND_STUB(rpc_,&BenchLocalListener::start_rpc_handler,this,START_RPC_ID);
   ROCC_BIND_STUB(rpc_,&BenchLocalListener::get_result_rpc_handler,this,RES_RPC_ID);
   ROCC_BIND_STUB(rpc_,&BenchLocalListener::exit_rpc_handler,this,EXIT_RPC_ID);
-
-  // first ensures all worker has initilized
-  wait_worker_barrier(workers_);
 
   routine_v1();    // routines are ready to start
   start_routine(); // start worker routines
@@ -106,7 +110,7 @@ WAIT_RETRY:
     const char *fmt = "%d worker finish initilization: ";
     char char_buf[32];
     snprintf(char_buf,32,fmt,done);
-    Debugger::print_progress((double)done / workers.size(),char_buf,stderr);
+    PrintProgress((double)done / workers.size(),char_buf,stderr);
     usleep(3000);
     done = 0;
     goto WAIT_RETRY;
@@ -125,21 +129,23 @@ void BenchLocalListener::worker_routine(yield_func_t &yield) {
 void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
 
   // a global barrier to wait for worker's connection
-  while(nresult_returned_ != total_partition - 1) {
+  while(nresult_returned_ != (total_partition - 1)) {
     yield_next(yield);
   }
   nresult_returned_ = 0;
 
   // start all servers
   char dummy; // it should be inlined, so no need to use Rmalloc
+  assert(total_partition > 0);
   for(int i = 1;i < total_partition;++i) {
     rpc_->append_req(&dummy,START_RPC_ID,sizeof(char),1,RRpc::REQ,i);
   }
   // then start at local
-  start_rpc_handler(0,0,NULL,NULL);
+  usleep(3000);start_workers(); // start the first server
 
   // routine's main loop
   while(true) {
+
     if(unlikely(this->running == false)) {
       fprintf(stdout,"[Listener] receive ending..\n");
 
@@ -156,7 +162,8 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
       get_result_rpc_handler(0,0,NULL,NULL);
     }
     else {
-      while(nresult_returned_ != total_partition - 1)
+      while((nresult_returned_ != total_partition - 1) // received all the replies
+            && running) // if the listener is not running, just not wait
         yield_next(yield);
       nresult_returned_ = 0;
     }
@@ -197,6 +204,7 @@ void BenchLocalListener::worker_routine_slave(yield_func_t &yield) {
 void BenchLocalListener::ending() {
 
   auto second_cycle = util::Breakdown_Timer::get_one_second_cycle();
+#if 0
 #if CS == 1
   int cid = nthreads;
 #if SI_TX == 1
@@ -215,9 +223,10 @@ void BenchLocalListener::ending() {
   auto m_av = timer.report_avg() / second_cycle * 1000;
   fprintf(stdout,"Medium latency %3f ms, 90th latency %3f ms, 99th latency %3f ms, avg %3f ms\n",
           m_l,m_9,m_99,m_av);
+#endif
 #ifdef LOG_RESULTS
   if(log_file.is_open()) {
-    log_file << m_l << " " << m_9<<" " << m_99 <<" "<<m_av<<std::endl;
+    //log_file << m_l << " " << m_9<<" " << m_99 <<" "<<m_av<<std::endl;
     log_file.close();
   }
 #endif
@@ -235,8 +244,7 @@ void BenchLocalListener::init_rpc_handler(int id,int cid,char *msg,void *arg) {
   nresult_returned_ += 1;
 }
 
-void BenchLocalListener::start_rpc_handler(int id,int cid,char *msg,void *arg) {
-
+void BenchLocalListener::start_workers() {
   clock_gettime(CLOCK_REALTIME,&start_t);
   fprintf(stdout,"[LISTENER] receive start RPC.\n");
 
@@ -250,6 +258,12 @@ void BenchLocalListener::start_rpc_handler(int id,int cid,char *msg,void *arg) {
   }
   global_inited = true;
   epoch_ = 0; // reset-the epoch
+}
+
+void BenchLocalListener::start_rpc_handler(int id,int cid,char *msg,void *arg) {
+  // only master should start the routine
+  assert(id == 0);
+  start_workers();
 }
 
 void BenchLocalListener::get_result_rpc_handler(int id, int cid,char *msg, void *arg) {

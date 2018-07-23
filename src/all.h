@@ -6,7 +6,6 @@
 /* Coroutine related staff */
 /* Using boost coroutine   */
 #include<boost/coroutine/all.hpp>
-#include "util/printer.h"
 
 typedef boost::coroutines::symmetric_coroutine<void>::call_type coroutine_func_t;
 typedef boost::coroutines::symmetric_coroutine<void>::yield_type yield_func_t;

@@ -4,7 +4,6 @@
 #include "rdma_hash.hpp"
 
 #include "util/util.h"
-#include "util/printer.h"
 
 using namespace nocc;
 
@@ -40,8 +39,8 @@ void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_l
       store_buffer_ += tabp->size();
       store_size_   += tabp->size();
       uint64_t M = 1024 * 1024;
-      ASSERT_PRINT(store_size_ < M * RDMA_STORE_SIZE,stdout,
-                   "store_size: %f\n", get_memory_size_g(store_size_));
+      ASSERT(store_size_ < M * RDMA_STORE_SIZE) <<
+          "store_size: ", get_memory_size_g(store_size_);
 #endif
     }
   }
@@ -99,15 +98,16 @@ void MemDB::PutIndex(int indexid, uint64_t key,uint64_t *value){
   mn->seq = 2;
 }
 
-void MemDB::Put(int tableid, uint64_t key, uint64_t *value) {
+MemNode *MemDB::Put(int tableid, uint64_t key, uint64_t *value) {
 
+  MemNode *mn = NULL;
 #if RECORD_STALE
   auto time = std::chrono::system_clock::now();
 #endif
   switch(_schemas[tableid].c) {
   case TAB_SBTREE: {
     assert(false);
-    MemNode *mn = _indexs[tableid]->Put(key,value);
+    mn = _indexs[tableid]->Put(key,value);
     mn->seq = 2;
 #if RECORD_STALE
     mn->time = time;
@@ -115,7 +115,7 @@ void MemDB::Put(int tableid, uint64_t key, uint64_t *value) {
   }
     break;
   default:
-    MemNode *mn = stores_[tableid]->Put(key,value);
+    mn = stores_[tableid]->Put(key,value);
     mn->seq = 2;
     mn->lock = 0;
 #if RECORD_STALE
@@ -123,4 +123,5 @@ void MemDB::Put(int tableid, uint64_t key, uint64_t *value) {
 #endif
     break;
   }
+  return mn;
 }

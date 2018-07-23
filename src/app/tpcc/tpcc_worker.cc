@@ -8,8 +8,6 @@
 
 #include "db/forkset.h"
 
-#include "util/printer.h"
-
 #include <set>
 #include <limits>
 #include <boost/bind.hpp>
@@ -598,7 +596,6 @@ txn_result_t TpccWorker::txn_delivery(yield_func_t &yield) {
         //fprintf(stderr,"delete %d %d, no key %lu\n",warehouse_id - 1,d-1, no_o_id);
         tx_->delete_(NEWO, no_key);
         // update here
-        //ASSERT_PRINT((last_no_o_ids_[warehouse_id - 1][d-1] == no_o_id) || (last_no_o_ids_[warehouse_id - 1][d-1] == 0),
         //stderr,"Last %lu, me %lu\n",last_no_o_ids_[warehouse_id - 1][d-1],no_o_id);
         last_no_o_ids_[warehouse_id - 1][d-1] = no_o_id + 1;
       }

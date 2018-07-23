@@ -24,38 +24,38 @@ inline ALWAYS_INLINE uint64_t rdtsc(void) { uint32_t hi, lo; __asm volatile("rdt
 
 namespace nocc {
 
-  namespace util {
+namespace util {
 
-    int BindToCore (int thread_id);
-    int CorePerSocket();
-    template <class Num> inline ALWAYS_INLINE  // Round "a" according to "b"
-      Num Round (Num a, Num b) { return (a + b - a % b);  }
-    int  DiffTimespec(const struct timespec &end, const struct timespec &start);
+int BindToCore (int thread_id);
+int CorePerSocket();
+template <class Num> inline ALWAYS_INLINE  // Round "a" according to "b"
+Num Round (Num a, Num b) {
+    auto r = a % b;
+    return r?a + (a - r) : a;
+}
+int  DiffTimespec(const struct timespec &end, const struct timespec &start);
 
-    // wrappers for parsing configure file
-    // !! notice that even a failed parsing will results for cursor advancing
-    bool NextDouble(std::istream &ist,double &res);
-    bool NextInt(std::istream &ist,int &res);
-    bool NextLine(std::istream &ist,std::string &res);
-    bool NextString(std::istream &ist,std::string &res);
-    void BypassLine(std::istream &ist);
+// wrappers for parsing configure file
+// !! notice that even a failed parsing will results for cursor advancing
+bool NextDouble(std::istream &ist,double &res);
+bool NextInt(std::istream &ist,int &res);
+bool NextLine(std::istream &ist,std::string &res);
+bool NextString(std::istream &ist,std::string &res);
+void BypassLine(std::istream &ist);
 
-    inline uint64_t TimeToMs(struct timespec &t) { return t.tv_sec * 1000 + t.tv_nsec / 1000000;}
+inline uint64_t TimeToMs(struct timespec &t) { return t.tv_sec * 1000 + t.tv_nsec / 1000000;}
 
-    std::pair<uint64_t, uint64_t> get_system_memory_info(); // instruction's memory comsuption
+std::pair<uint64_t, uint64_t> get_system_memory_info(); // instruction's memory comsuption
 
-    void *malloc_huge_pages(size_t size,uint64_t huge_page_sz,bool flag = true);
+void *malloc_huge_pages(size_t size,uint64_t huge_page_sz,bool flag = true);
 
-    inline double get_memory_size_g(uint64_t bytes) { static double G = 1024.0 * 1024 * 1024; return bytes / G; }
+inline double get_memory_size_g(uint64_t bytes) { static double G = 1024.0 * 1024 * 1024; return bytes / G; }
 
-    void print_stacktrace(FILE *out = stderr, unsigned int max_frames = 63);
+void print_stacktrace(FILE *out = stderr, unsigned int max_frames = 63);
 
-  } // namespace util
+} // namespace util
 }   // namespace nocc
 
 // other related utils
 #include "timer.h"     // timer helper
-#include "printer.h"   // print helper
-
 #endif
-

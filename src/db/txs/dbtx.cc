@@ -6,8 +6,6 @@
 #include "app/config.h"
 #include "framework/bench_worker.h"
 
-#include "util/printer.h"
-
 #include <unistd.h>
 #include <algorithm>
 
@@ -1278,7 +1276,6 @@ void DBTXIterator::Seek(uint64_t key)
     //printf("Not Valid!\n");
     //sleep(20);
     //assert(false);
-    //ASSERT_PRINT(false,stderr,"Tableid %d\n",tableid);
     tx_->readset->AddNext(iter_->GetLink(), iter_->GetLinkTarget());
     return;
   }

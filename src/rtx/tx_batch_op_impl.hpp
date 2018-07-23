@@ -1,5 +1,4 @@
 #include "msg_format.hpp"
-#include "util/printer.h"
 
 namespace nocc {
 

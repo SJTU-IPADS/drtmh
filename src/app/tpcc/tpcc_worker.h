@@ -79,6 +79,7 @@ class TpccWorker : public TpccMixin, public BenchWorker {
              MemDB *db,uint64_t total_ops,
              spin_barrier *a,spin_barrier *b,
              BenchRunner *context);
+  ~TpccWorker();
 
   txn_result_t txn_new_order(yield_func_t &yield);
   txn_result_t txn_new_order_new(yield_func_t &yield);

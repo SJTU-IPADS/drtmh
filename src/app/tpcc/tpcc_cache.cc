@@ -6,7 +6,7 @@
 
 #include "rdmaio.h"
 
-#include "util/printer.h"
+#include "core/logging.h"
 
 using namespace rdmaio;
 
@@ -31,7 +31,7 @@ namespace nocc {
             assert(off != 0);
 
           } // end fetch
-          Debugger::print_progress((double)wid / NumWarehouses());
+          PrintProgress((double)wid / NumWarehouses());
         }   // end iterating all warehouses
         Rfree(temp);
       }
@@ -47,7 +47,6 @@ namespace nocc {
                                                              cm->get_rc_qp(nthreads + nthreads + 1,pid,0),temp);
                 assert(off != 0);
           } // iterating all districts
-          Debugger::print_progress((double)wid / NumWarehouses());
         }
         Rfree(temp);
       }
@@ -73,9 +72,10 @@ namespace nocc {
             }
             b++;
           } // end iterating all stocks
-          Debugger::print_progress((double)wid / NumWarehouses());
+          PrintProgress((double)wid / NumWarehouses());
         }
         Rfree(temp);
+        LOG(2) << "total " << (NumWarehouses() * NumItems()) << " cache entries loaded.";
       }
 
     }; // namespace tpcc

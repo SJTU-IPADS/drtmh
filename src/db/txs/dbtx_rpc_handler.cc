@@ -1,9 +1,9 @@
 #include "tx_config.h"
 #include "dbtx.h"
 #include "util/mapped_log.h"
-#include "util/printer.h"
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
+
 extern size_t current_partition;
 extern size_t total_partition;
 
@@ -135,7 +135,6 @@ void DBTX::get_rpc_handler(int id,int cid,char *msg,void *arg) {
 #endif
 
       reply_item->seq = seq;
-      ASSERT_PRINT(seq > 0,stdout,"get seq %lu, at table %d, key %lu\n",seq,header->tableid,(uint64_t)(header->key.short_key));
       reply_item->node = node;
       reply_msg_t += (sizeof(RemoteSet::RemoteSetReplyItem) + vlen);
       reply_item->idx = i;
@@ -446,7 +445,6 @@ void DBTX::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
       memcpy(new_val + META_LENGTH,traverse_ptr,header->payload);
 #endif
     }
-    ASSERT_PRINT(node != NULL,stdout,"error key %lu, tableid %d\n",header->key,header->tableid);
     uint64_t old_seq = node->seq;
     node->seq   = 1;
     asm volatile("" ::: "memory");
@@ -556,8 +554,6 @@ void DBTX::log_clean_rpc_handler(int id,int cid,char *msg,void *arg) {
     }
     auto store = logger->get_backed_store(header->pid);
     assert(store != NULL);
-    ASSERT_PRINT(header->tableid == 1 || header->tableid == 2,stdout,
-                 "tabled id %d, num item processed %d %d\n",header->tableid,num_items,i);
     MemNode *node = store->stores_[header->tableid]->Get((uint64_t)(header->key));
     if(node == NULL) {
       fprintf(stderr,"backup key error %lu\n",header->key);

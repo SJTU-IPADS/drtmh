@@ -30,18 +30,8 @@ class RDMA_sched {
 
  private:
   std::deque<rdmaio::Qp *> pending_qps_;
-
   struct ibv_wc wc_;
 
-  /* Some performance counting statistics ********************************/
-  uint64_t total_costs_;
-  uint64_t pre_total_costs_;
-
-  uint64_t poll_costs_;
-  uint64_t pre_poll_costs_;
-
-  uint64_t counts_;
-  uint64_t pre_counts_;
 };
 
 }; // namespace db

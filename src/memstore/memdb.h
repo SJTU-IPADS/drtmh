@@ -82,7 +82,7 @@ class MemDB {
   void AddSecondIndex(int index_id,TABLE_CLASS c, int klen);
   uint64_t *Get(int tableid,uint64_t key);
   uint64_t *GetIndex(int tableid,uint64_t key);
-  void      Put(int tableid,uint64_t key,uint64_t *value);
+  MemNode  *Put(int tableid,uint64_t key,uint64_t *value);
   void      PutIndex(int indexid,uint64_t key,uint64_t *value);
 
   uint64_t store_size_ = 0; // store size alloced on the RDMA area

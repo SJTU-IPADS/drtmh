@@ -240,7 +240,6 @@ void DBSI::get_rpc_handler(int id,int cid,char *msg,void *arg) {
           memcpy(reply_msg_t + sizeof(RemoteSet::RemoteSetReplyItem),(char *)tmp_val + SI_META_LEN, vlen);
         }
         reply_item->seq = seq;
-        ASSERT_PRINT(seq > 0,stdout,"get seq %lu, at table %d, key %lu\n",seq,header->tableid,(uint64_t)(header->key.short_key));
         reply_item->node = node;
         reply_msg_t += (sizeof(RemoteSet::RemoteSetReplyItem) + vlen);
         reply_item->idx = i;
@@ -384,9 +383,7 @@ void DBSI::get_rpc_handler(int id,int cid,char *msg,void *arg) {
       assert(false);
     }
   }
-  //fprintf(stdout,"done %d\n",num_item_fetched);
-  ASSERT_PRINT(num_item_fetched > 0 && num_item_fetched < 256,
-               stderr,"Fetched item %d\n",num_item_fetched);
+  //fprintf(stdout,"done %d\n",num_item_fetched)
 
  REPLY_END:
   /* send reply */
@@ -529,8 +526,6 @@ void DBSI::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
     }
     header->node->old_value = cur;
     header->node->value = (uint64_t *)new_val;
-    //ASSERT_PRINT(header->node->seq < desired_seq,stderr,
-    //           "header %lu, desired %lu",header->node->seq,desired_seq);
     asm volatile("" ::: "memory");
 #ifndef EM_OCC
     header->node->seq = desired_seq;

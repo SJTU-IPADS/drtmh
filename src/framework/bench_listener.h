@@ -43,6 +43,11 @@ class BenchLocalListener : public RWorker {
   void worker_routine_slave(yield_func_t &yield);
 
   /**
+   * Re-set worker's running status to *running*
+   */
+  void start_workers();
+
+  /**
    * Used to monitor user inputs.
    */
   void sigint_handler(int);

@@ -9,11 +9,16 @@ namespace oltp {
 
 extern __thread util::fast_random   *random_generator;
 
+static std::map<int,int> *warehouse_hotmap = NULL;
+
 namespace tpcc {
 
 extern int g_new_order_remote_item_pct;
 
 txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
+
+  if(warehouse_hotmap == NULL && worker_id_ == 0)
+    warehouse_hotmap = new std::map<int,int>();
 
   // generate the req parameters ////////////////////////////////////////
   const uint warehouse_id = PickWarehouseId(random_generator[cor_id_], warehouse_id_start_, warehouse_id_end_);
@@ -74,6 +79,12 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
       }
       /* if possible, add remote stock to remote stocks */
       if(WarehouseToPartition(supplier_warehouse_id) != current_partition) {
+        if(worker_id_ == 0) {
+          if(warehouse_hotmap->find(supplier_warehouse_id) == warehouse_hotmap->end())
+            warehouse_hotmap->insert(std::make_pair(supplier_warehouse_id,1));
+          else
+            (*warehouse_hotmap)[supplier_warehouse_id] += 1;
+        }
         remote_stocks[num_remote_stocks] = s_key;
         remote_supplies[num_remote_stocks] = supplier_warehouse_id;
         remote_item_ids[num_remote_stocks++] = item_id;
@@ -200,6 +211,10 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
   }
   bool res = rtx_->commit(yield);
   return txn_result_t(res,1);
+}
+
+TpccWorker::~TpccWorker() {
+
 }
 
 } // namespace tpcc

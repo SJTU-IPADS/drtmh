@@ -1,7 +1,7 @@
 #include "rrpc.h"
-#include "all.h"
 
 #include "routine.h"
+#include "logging.h"
 
 namespace nocc {
 
@@ -53,9 +53,8 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
       callbacks_[header->meta.rpc_id](from,header->meta.cid,msg + sizeof(rrpc_header),
                                       (void *)(header->meta.payload));
     } catch (...) {
-      fprintf(stdout,"[RRpc] call rpc failed @thread %d, cid %d, rpc_id %d\n",
-              worker_id_,header->meta.cid,header->meta.rpc_id);
-      assert(false);
+      LOG(7) << "rpc called failed at " << worker_id_ << ";With rpc id "
+             << header->meta.rpc_id;
     }
   } else if (header->meta.type == Y_REQ) {
     // copy the msg
@@ -66,8 +65,8 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
   } else if (header->meta.type == REPLY) {
     // This is a reply
     if(unlikely(reply_counts_[header->meta.cid] == 0)) {
-      fprintf(stderr,"Receive a reply from cor %d, at %d, which is not required.\n",header->meta.cid,worker_id_);
-      assert(false);
+      LOG(7) << "receive a reply from " << header->meta.cid << "at " << worker_id_
+             << "which is not required.";
     }
 
     char *buf = reply_bufs_[header->meta.cid];
