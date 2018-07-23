@@ -6,9 +6,15 @@
 
 // whether to emulate FaSST's protocol
 #cmakedefine EM_FASST @EM_FASST@
+#ifndef EM_FASST
+#define EM_FASST 0
+#endif
 
 // whether to only execute execution phase
 #cmakedefine INLINE_OVERWRITE @INLINE_OVERWRITE@
+#ifndef INLINE_OVERWRITE
+#define INLINE_OVERWRITE 0
+#endif
 
 // whether to only execute execution phase
 #cmakedefine TX_ONLY_EXE @TX_ONLY_EXE@
@@ -40,7 +46,10 @@
 #define RDMA_STORE_SIZE 8
 #endif
 
-#define PA @PA@
+#cmakedefine PA @PA@
+#ifndef PA
+#define PA 0
+#endif
 
 // other TX specific configurations
 #define RECORD_STALE @RECORD_STALE@
@@ -54,3 +63,13 @@
 
 #define PROFILE_RW_SET 0     // whether profile TX's read/write set
 #define PROFILE_SERVER_NUM 0 // whether profile number of server accessed per TX
+
+
+/*****some sanity setting *********/
+#if EM_FASST
+static_assert(!PA,"FaSST emulation does not run with passive ack optimization.");
+#endif
+
+#if RDMA_CACHE
+static_assert(ONE_SIDED_READ,"RTX's RDMA location cache must work with an RDMA friendly store.")
+#endif

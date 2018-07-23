@@ -2,7 +2,6 @@
 
 #include "rtx_occ.h"
 
-
 namespace nocc {
 
 namespace rtx {
@@ -30,31 +29,50 @@ class RtxOCCFast : public RtxOCC {
         }
         read_set_[item->idx].data_ptr = ptr + sizeof(RtxOCCResponse);
         read_set_[item->idx].seq      = item->seq;
+        write_batch_helper_.add_mac(read_set_[item->idx].pid);
         ptr += (sizeof(RtxOCCResponse) + item->payload);
       }
     }
     return true;
   }
 
+  void prepare_write_contents_f() {
+
+    write_batch_helper_.clear();
+
+    for(auto it = write_set_.begin();it != write_set_.end();++it) {
+      add_batch_entry<RtxWriteItem>(write_batch_helper_,
+                                    (*it).pid,
+                                    /* init write item */ (*it).pid,(*it).tableid,(*it).key,(*it).len);
+      memcpy(write_batch_helper_.req_buf_end_,(*it).data_ptr,(*it).len);
+      write_batch_helper_.req_buf_end_ += (*it).len;
+    }
+  }
+
   bool commit(yield_func_t &yield) {
+
     bool ret = true;
     if(abort_) {
-      gc_writeset();
-      gc_readset();
       goto ABORT;
     }
-    if(unlikely(!validate_reads(yield))){
-      gc_writeset();
-      goto ABORT;
-    }
+
+    prepare_write_contents_f();
+
+    log_remote(yield); // log remote using *logger_*
     write_back(yield);
+
+    gc_readset();
+    gc_writeset();
     return true;
  ABORT:
     fast_release_writes(yield);
+    gc_readset();
+    gc_writeset();
     return false;
   }
 
   void fast_release_writes(yield_func_t &yield) {
+
     start_batch_rpc_op(write_batch_helper_);
     for(auto it = write_set_.begin();it != write_set_.end();++it) {
       if((*it).pid != node_id_) { // remote case

@@ -75,7 +75,6 @@ int RWorker::choose_rnic_port() {
   // warning!! This is the setting on our platform.
   // It should be overwritten, according to the usage platform.
   // The detailed configuration can be queried using cm.
-
   use_port_ = 1; // default usage
 
   int total_devices = cm_->query_devinfo();

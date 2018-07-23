@@ -5,8 +5,6 @@
 #include "db/txs/dbsi.h"
 #include "db/txs/dbrad.h"
 
-#include "core/logging.h"
-
 #include <set>
 
 using namespace std;

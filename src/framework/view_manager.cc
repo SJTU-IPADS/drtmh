@@ -36,7 +36,7 @@ View::View(std::string config,std::vector<std::string> &network)
   // assume that the number of backups is the same as the network
   num_partitions_ = net_def_.size();
   try{
-    rep_factor_ = pt.get<int>("bench.rep-factor");
+    rep_factor_ = pt.get<int>("bench.rep_factor");
   } catch (const ptree_error &e) {
     rep_factor_ = 2;
   }

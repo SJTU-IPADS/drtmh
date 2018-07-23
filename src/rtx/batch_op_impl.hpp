@@ -22,6 +22,10 @@ struct BatchOpCtrlBlock {
     clear();
   }
 
+  inline void add_mac(int pid) {
+    mac_set_.insert(pid);
+  }
+
   inline void clear() {
     mac_set_.clear();
     req_buf_end_ = req_buf_ + sizeof(RTXRequestHeader);

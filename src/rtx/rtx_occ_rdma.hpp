@@ -72,7 +72,6 @@ public:
 #endif
     }
 #endif
-    return dummy_commit();
 
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*

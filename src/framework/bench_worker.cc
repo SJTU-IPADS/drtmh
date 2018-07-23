@@ -249,7 +249,7 @@ BenchWorker::worker_routine(yield_func_t &yield) {
     ntxn_executed_ += 1;
     auto ret = workload[tx_idx].fn(this,yield);
 #if NO_ABORT == 1
-    ret.first = true;
+    //ret.first = true;
 #endif
     // if(current_partition == 0){
     if(likely(ret.first)) {

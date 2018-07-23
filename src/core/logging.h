@@ -1,5 +1,4 @@
-#ifndef ROCC_LOGGER
-#define ROCC_LOGER
+#pragma once
 
 #include "common.h"
 
@@ -107,7 +106,7 @@ MakeStringInternal(std::stringstream& ss, const T& t, const Args&... args) {
 }
 
 template <typename... Args>
-std::string MakeString(const Args&... args) {
+inline std::string MakeString(const Args&... args) {
     std::stringstream ss;
     MakeStringInternal(ss, args...);
     return std::string(ss.str());
@@ -124,6 +123,3 @@ inline std::string MakeString(const char* c_str) {
 
 
 } // namespace nocc
-
-
-#endif

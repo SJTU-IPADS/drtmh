@@ -346,7 +346,7 @@ void BenchRunner::parse_config(std::string &config_file) {
     /* using the default settings  */
     LOG(LOG_ERROR) << "some error happens in parse scale factor or clients. Maybe its not important";
   }
-  LOG(2) << "use scale factor: " << scale_factor << "; with total " << nthreads << "threads.";
+  LOG(2) << "use scale factor: " << scale_factor << "; with total " << nthreads << " threads.";
   ASSERT(coroutine_num >= 1) << "use error coroutine num " << coroutine_num;
 
   net_def_.clear();

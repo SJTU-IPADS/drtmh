@@ -179,9 +179,7 @@ txn_result_t BankWorker::txn_amal_new(yield_func_t &yield) {
   auto c0 = rtx_->get_readset<checking::value>(1,yield);
   auto c1 = rtx_->get_readset<checking::value>(2,yield);
 
-
   double total = 0;
-
 
   total = s0->s_balance + c0->c_balance;
 

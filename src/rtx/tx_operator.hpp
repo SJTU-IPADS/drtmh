@@ -2,6 +2,7 @@
 
 #include "memstore/memdb.h"
 #include "core/rworker.h"
+#include "core/logging.h"
 
 namespace nocc {
 
@@ -52,15 +53,17 @@ class TXOpBase {
   // get ops
   MemNode *local_get_op(int tableid,uint64_t key,char *val,int len,uint64_t &seq,int meta_len = 0);
 
+  MemNode *local_get_op(MemNode *node, char *val,uint64_t &seq,int len,int meta = 0);
+
   MemNode *local_insert_op(int tableid,uint64_t key,uint64_t &seq);
 
   // NULL: lock failed
-  MemNode *local_try_lock_op(int tableid,uint64_t key,int lock_content);
-  bool     local_try_lock_op(MemNode *node,int lock_content);
+  MemNode *local_try_lock_op(int tableid,uint64_t key,uint64_t lock_content);
+  bool     local_try_lock_op(MemNode *node,uint64_t lock_content);
 
   // whether release is succesfull, according to the lock_content
-  bool     local_try_release_op(int tableid,uint64_t key,int lock_content);
-  bool     local_try_release_op(MemNode *node,int lock_content);
+  bool     local_try_release_op(int tableid,uint64_t key,uint64_t lock_content);
+  bool     local_try_release_op(MemNode *node,uint64_t lock_content);
 
   bool     local_validate_op(int tableid,uint64_t key,uint64_t seq);
   bool     local_validate_op(MemNode *node,uint64_t seq);
@@ -127,6 +130,6 @@ class TXOpBase {
 }; // namespace nocc
 
 // Real implementations
-#include "tx_get_op_impl.hpp"
-#include "tx_batch_op_impl.hpp"
-#include "tx_rdma_op_impl.hpp"
+#include "local_op_impl.hpp"
+#include "batch_op_impl.hpp"
+#include "rdma_op_impl.hpp"

@@ -159,13 +159,11 @@ void RtxOCC::prepare_write_contents() {
   write_batch_helper_.clear_buf(); // only clean buf, not the mac_set
 
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
-    //if((*it).pid != node_id_) {
     add_batch_entry_wo_mac<RtxWriteItem>(write_batch_helper_,
                                          (*it).pid,
                                          /* init write item */ (*it).pid,(*it).tableid,(*it).key,(*it).len);
     memcpy(write_batch_helper_.req_buf_end_,(*it).data_ptr,(*it).len);
     write_batch_helper_.req_buf_end_ += (*it).len;
-    //}
   }
 }
 
@@ -173,6 +171,7 @@ void RtxOCC::write_back(yield_func_t &yield) {
 
   // write back local records
   int written_items = 0;
+#if 1
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
     if(it->pid == node_id_) {
       inplace_write_op(it->node,it->data_ptr,it->len);
@@ -185,8 +184,10 @@ void RtxOCC::write_back(yield_func_t &yield) {
 #endif
     return;
   }
+#endif
   // send the remote records
   send_batch_rpc_op(write_batch_helper_,cor_id_,RTX_COMMIT_RPC_ID,PA);
+  assert(write_batch_helper_.mac_set_.size() > 0);
 #if PA == 0
   worker_->indirect_yield(yield);
 #else
@@ -220,6 +221,9 @@ void RtxOCC::log_remote(yield_func_t &yield) {
 
 #if EM_FASST
     view_->add_backup(response_node_,cblock.mac_set_);
+    ASSERT(cblock.mac_set_.size() == view_->rep_factor_)
+        << "FaSST should uses rep-factor's log entries, current num "
+        << cblock.mac_set_.size() << "; rep-factor " << view_->rep_factor_;
 #else
     for(auto it = write_batch_helper_.mac_set_.begin();
         it != write_batch_helper_.mac_set_.end();++it) {
@@ -228,7 +232,6 @@ void RtxOCC::log_remote(yield_func_t &yield) {
     // add local server
     view_->add_backup(current_partition,cblock.mac_set_);
 #endif
-
     logger_->log_remote(cblock,cor_id_);
     worker_->indirect_yield(yield);
 
@@ -351,7 +354,9 @@ void RtxOCC::read_rpc_handler(int id,int cid,char *msg,void *arg) {
           reply_item->seq = node->seq;
           reply_item->idx = item->idx;
           reply_item->payload = item->len;
-          memcpy(reply + sizeof(RtxOCCResponse),node->padding,item->len);
+
+          local_get_op(node,reply + sizeof(RtxOCCResponse),seq,item->len);
+
           reply += (sizeof(RtxOCCResponse) + item->len);
         }
       }
@@ -424,6 +429,7 @@ void RtxOCC::commit_rpc_handler(int id,int cid,char *msg,void *arg) {
     inplace_write_op(item->tableid,item->key,  // find key
                      (char *)item + sizeof(RtxWriteItem),item->len);
   } // end for
+END:
 #if PA == 0
   char *reply_msg = rpc_->get_reply_buf();
   rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply

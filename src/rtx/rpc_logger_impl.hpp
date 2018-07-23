@@ -27,11 +27,11 @@ class RpcLogger : public Logger {
   }
 
   inline void log_remote(BatchOpCtrlBlock &clk,int cor_id) {
+    assert(clk.batch_size_ > 0);
     clk.send_batch_op(rpc_handler_,cor_id,log_rpc_id_,false);
   }
 
   void log_remote_handler(int id,int cid,char *msg,void *arg) {
-
     int size = (uint64_t)arg;
     char *local_ptr = mem_.get_next_log(id,rpc_handler_->worker_id_,size);
 

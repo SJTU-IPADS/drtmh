@@ -124,7 +124,7 @@ namespace nocc {
   }
 
 } // namespace nocc
-int  main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 
   exe_name = std::string(argv[0] + 2);
@@ -292,7 +292,7 @@ int  main(int argc, char **argv)
     argv[i] = (char *) bench_toks[i - 1].c_str();
 
   /* install the event handler if necessary */
-  signal(SIGSEGV, nocc::segfault_handler);
+  //signal(SIGSEGV, nocc::segfault_handler);
   signal(SIGABRT, nocc::segabort_handler);
 
   test_fn(argc, argv);
