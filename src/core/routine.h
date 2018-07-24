@@ -116,18 +116,10 @@ void inline __attribute__((always_inline)) add_one_shot_routine(int fm,int fc,in
 
 void inline print_chain() {
   // for debugging
-  auto cur = routine_header;
-  for(uint counter = 0;counter < 10;++counter) {
-    fprintf(stdout,"%d\t",cur->id_);
-    cur = cur->next_;
-    if(cur == routine_tailer)
-      break;
-  }
-  fprintf(stdout,"%d\n",cur->id_);
 }
 
-};
-};
+} // namespace oltp
+} // namespace nocc
 
 
 

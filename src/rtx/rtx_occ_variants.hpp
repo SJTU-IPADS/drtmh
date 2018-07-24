@@ -60,14 +60,11 @@ class RtxOCCFast : public RtxOCC {
 
     log_remote(yield); // log remote using *logger_*
     write_back(yield);
-
-    gc_readset();
-    gc_writeset();
+    gc_readset(); gc_writeset();
     return true;
  ABORT:
+    gc_readset(); gc_writeset();
     fast_release_writes(yield);
-    gc_readset();
-    gc_writeset();
     return false;
   }
 

@@ -79,12 +79,14 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
       }
       /* if possible, add remote stock to remote stocks */
       if(WarehouseToPartition(supplier_warehouse_id) != current_partition) {
+#if 0   // calculate warehouse access pattern
         if(worker_id_ == 0) {
           if(warehouse_hotmap->find(supplier_warehouse_id) == warehouse_hotmap->end())
             warehouse_hotmap->insert(std::make_pair(supplier_warehouse_id,1));
           else
             (*warehouse_hotmap)[supplier_warehouse_id] += 1;
         }
+#endif
         remote_stocks[num_remote_stocks] = s_key;
         remote_supplies[num_remote_stocks] = supplier_warehouse_id;
         remote_item_ids[num_remote_stocks++] = item_id;

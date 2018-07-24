@@ -23,12 +23,12 @@ class BenchLocalListener : public RWorker {
    */
   virtual void worker_routine(yield_func_t &yield);
 
- private:
   /**
    * End the benchmark, if necessary.
    */
   void ending();
 
+ private:
   /**
    * Worker routine at the master.
    * It start slaves, collect results from others

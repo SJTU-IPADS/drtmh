@@ -455,7 +455,7 @@ void TpccStockLoader::load() {
           const size_t sz = Size(*v);
           stock_total_sz += sz;
           n_stocks++;
-          auto node = store_->Put(STOC, key, (uint64_t *)wrapper);
+          auto node = store_->Put(STOC, key, (uint64_t *)wrapper,sizeof(stock::value));
           node->off = (uint64_t)wrapper - (uint64_t)(cm->conn_buf_);
           assert(node->off != 0);
         }

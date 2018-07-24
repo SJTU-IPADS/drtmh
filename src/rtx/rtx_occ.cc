@@ -1,6 +1,8 @@
 #include "tx_config.h" // some configurations
 #include "rtx_occ.h"
 
+#include "global_vars.h"
+
 namespace nocc {
 
 namespace rtx {
@@ -212,7 +214,7 @@ bool RtxOCC::release_writes(yield_func_t &yield) {
 
 void RtxOCC::log_remote(yield_func_t &yield) {
 
-  if(write_set_.size() > 0 && view_->rep_factor_ > 0) {
+  if(write_set_.size() > 0 && global_view->rep_factor_ > 0) {
 
     // re-use write_batch_helper_'s data structure
     BatchOpCtrlBlock cblock(write_batch_helper_.req_buf_,write_batch_helper_.reply_buf_);
@@ -220,14 +222,14 @@ void RtxOCC::log_remote(yield_func_t &yield) {
     cblock.req_buf_end_ = write_batch_helper_.req_buf_end_;
 
 #if EM_FASST
-    view_->add_backup(response_node_,cblock.mac_set_);
-    ASSERT(cblock.mac_set_.size() == view_->rep_factor_)
+    global_view->add_backup(response_node_,cblock.mac_set_);
+    ASSERT(cblock.mac_set_.size() == global_view->rep_factor_)
         << "FaSST should uses rep-factor's log entries, current num "
-        << cblock.mac_set_.size() << "; rep-factor " << view_->rep_factor_;
+        << cblock.mac_set_.size() << "; rep-factor " << global_view->rep_factor_;
 #else
     for(auto it = write_batch_helper_.mac_set_.begin();
         it != write_batch_helper_.mac_set_.end();++it) {
-      view_->add_backup(*it,cblock.mac_set_);
+      global_view->add_backup(*it,cblock.mac_set_);
     }
     // add local server
     view_->add_backup(current_partition,cblock.mac_set_);
@@ -415,6 +417,7 @@ void RtxOCC::release_rpc_handler(int id,int cid,char *msg,void *arg) {
   char* reply_msg = rpc_->get_reply_buf();
   rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply
 }
+
 
 void RtxOCC::commit_rpc_handler(int id,int cid,char *msg,void *arg) {
 

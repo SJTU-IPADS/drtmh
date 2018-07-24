@@ -128,22 +128,6 @@ class BenchWorker : public RWorker {
     change_ctx(cor_id_);
   }
 
-
-#if TX_USE_LOG
-  void  init_logger() {
-    assert(db_logger_ == NULL);
-    assert(cm_ != NULL);
-#if TX_LOG_STYLE == 0
-    db_logger_ = new DBLogger(worker_id_,cm_,my_view,rdma_sched_);
-#elif TX_LOG_STYLE == 1
-    db_logger_ = new DBLogger(worker_id_,cm_,my_view,rpc_);
-#elif TX_LOG_STYLE == 2
-    db_logger_ = new DBLogger(worker_id_,cm_,my_view,rdma_sched_,rpc_);
-#endif
-    db_logger_->thread_local_init();
-  };
-#endif
-
   void init_new_logger(MemDB **backup_stores) {
 
     assert(new_logger_ == NULL);
@@ -164,12 +148,17 @@ class BenchWorker : public RWorker {
 
     // add backup stores)
     if(new_logger_) {
-      int backups[MAX_BACKUP_NUM];
-      int num_backups = my_view->is_backup(current_partition,backups);
-      for(uint i = 0;i < num_backups;++i) {
-        int backed_id = backups[i]; // the machine id i need to store the backup
+      std::set<int> backups;
+      int num_backups = rtx::global_view->response_for(current_partition,backups);
+      ASSERT(num_backups <= MAX_BACKUP_NUM)
+          << "I'm backed for " << num_backups << "s!"
+          << "Max " << MAX_BACKUP_NUM << " supported.";
+
+      int i(0);
+      for(auto it = backups.begin();it != backups.end();++it) {
+        int backed_id = *it;
         assert(backed_id != current_partition);
-        new_logger_->add_backup_store(backed_id,backup_stores[i]);
+        new_logger_->add_backup_store(backed_id,backup_stores[i++]);
       }
     }
   }

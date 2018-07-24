@@ -66,7 +66,7 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
     // This is a reply
     if(unlikely(reply_counts_[header->meta.cid] == 0)) {
       LOG(7) << "receive a reply from " << header->meta.cid << "at " << worker_id_
-             << "which is not required.";
+             << " which is not required.";
     }
 
     char *buf = reply_bufs_[header->meta.cid];

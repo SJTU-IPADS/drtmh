@@ -10,6 +10,7 @@
 #include "core/logging.h"
 
 #include "rtx/logger.hpp"
+#include "rtx/global_vars.h"
 
 #include <boost/foreach.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -78,14 +79,11 @@ BenchRunner::BenchRunner(std::string &config_file)
   running = true;
 
   parse_config(config_file); // should fill net_def_
-  my_view = new View(config_file,net_def_);
-#if TX_USE_LOG
-  my_view->print_view();
-#endif
-  for(int i = 0; i < MAX_BACKUP_NUM; i++){
-    backup_stores_[i] = NULL;
-  }
 
+  std::fill_n(backup_stores_,RTX_MAX_BACKUP,static_cast<MemDB *>(NULL));
+
+  rtx::global_view = new rtx::SymmetricView(rep_factor,net_def_.size());
+  //rtx::global_view->print();
 
   /* reset the barrier number */
   barrier_a_.n = nthreads;
@@ -126,7 +124,7 @@ BenchRunner::run() {
   ringsz = total_ring_sz - ring_padding - MSG_META_SZ;
 
   ring_area_sz = (total_ring_sz * net_def_.size()) * (nthreads + 1);
-  fprintf(stdout,"[Mem], Total msg buf area:  %fG\n",get_memory_size_g(ring_area_sz));
+  LOG(3) << "[Mem] Total msg buf area: " << get_memory_size_g(ring_area_sz) << "G.";
 #elif USE_TCP_MSG
   // init TCP connections
   for(uint i = 0;i < nthreads + nclients + 4;++i) {
@@ -142,19 +140,10 @@ BenchRunner::run() {
 #endif // end if USE_RDMA
 
   // Calculating logger memory size
-#if TX_USE_LOG == 1
-  uint64_t logger_sz = DBLogger::get_memory_size(nthreads, net_def_.size());
-  logger_sz = logger_sz + M2 - logger_sz % M2;
-  // Set logger's global offset
-  DBLogger::set_base_offset(ring_area_sz + M2);
-#else
-  //LogHelper::configure(rdma_buffer + M2,total_partition,nthreads,coroutine_num,MAX_MSG_SIZE);
-  //uint64_t logger_sz = LogHelper::get_log_size();
   using namespace rtx;
   LogMemManager log_mem(NULL,total_partition,nthreads,(coroutine_num + 1) * RTX_LOG_ENTRY_SIZE);
   uint64_t logger_sz = log_mem.total_log_size();
-#endif
-  fprintf(stdout,"[Mem], Total logger area %fG\n",get_memory_size_g(logger_sz));
+  LOG(2) << "[Mem], Total logger area %f" << get_memory_size_g(logger_sz) << "G.";
 
   uint64_t total_sz = logger_sz + ring_area_sz + M2;
   assert(r_buffer_size > total_sz);
@@ -164,7 +153,7 @@ BenchRunner::run() {
   if(1){
     store_size = RDMA_STORE_SIZE * M;
     store_buffer = rdma_buffer + total_sz;
-    fprintf(stdout,"add RDMA store size %f\n",get_memory_size_g(store_size));
+    LOG(3) << "add RDMA store size %f" << get_memory_size_g(store_size) << "G.";
   }
 #endif
   total_sz += store_size;
@@ -173,7 +162,7 @@ BenchRunner::run() {
   free_buffer = rdma_buffer + total_sz; // use the free buffer as the local RDMA heap
   uint64_t real_alloced = RInit(free_buffer, r_buffer_size - total_sz);
   assert(real_alloced != 0);
-  fprintf(stdout,"[Mem], Real rdma alloced %fG\n",get_memory_size_g(real_alloced));
+  LOG(3) << "[Mem] RDMA heap size " << get_memory_size_g(real_alloced) <<"G.";
 
   RThreadLocalInit();
 
@@ -181,13 +170,8 @@ BenchRunner::run() {
 
   if(cm == NULL && net_def_.size() != 1) {
     fprintf(stdout,"Distributed transactions needs RDMA support!\n");
-    exit(-1);
+    LOG(7) << "Cannot create RDMA connection manger, or cannot find cluster setting.";
   }
-
-  int num_primaries = my_view->is_primary(current_partition);
-  int backups[MAX_BACKUP_NUM];
-  int num_backups = my_view->is_backup(current_partition,backups);
-  LOG(2) << "num primaries: "<< num_primaries << " ;num backups: " << num_backups;
 
   /* loading database */
   init_store(store_);
@@ -232,13 +216,16 @@ BenchRunner::run() {
   }
 #endif
 
-  for(int i = 0; i < num_backups; i++){
+  std::set<int> backed_list; // the primary id which I should backed
+  global_view->response_for(current_partition,backed_list);
 
-    assert(i < MAX_BACKUP_NUM);
-    int backed_id = backups[i];
+  int i(0);
+  for(auto it = backed_list.begin();it != backed_list.end();++it) {
+
+    int backed_id = *it;
 
     init_backup_store(backup_stores_[i]);
-    const vector<BenchLoader *> loaders = make_loaders(backups[i],backup_stores_[i]);
+    const vector<BenchLoader *> loaders = make_loaders(backed_id,backup_stores_[i]);
     {
       const pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
       {
@@ -255,21 +242,10 @@ BenchRunner::run() {
       const pair<uint64_t, uint64_t> mem_info_after = get_system_memory_info();
       const int64_t delta = int64_t(mem_info_before.first) - int64_t(mem_info_after.first); // free mem
       const double delta_mb = double(delta)/1048576.0;
-      cerr << "[Runner] Backup DB[" << i << "] for " << backed_id << " size: " << delta_mb << " MB" << endl;
+      LOG(2) << "[Runner] Backup DB[" << i << "] for " << backed_id << " size: " << delta_mb << " MB" << endl;
     }
-    logger->add_backup_store(backed_id,backup_stores_[i]);
+    logger->add_backup_store(backed_id,backup_stores_[i++]);
   }
-#if TX_USE_LOG
-  if(rep_factor){
-    const vector<BackupBenchWorker *> backup_workers = make_backup_workers();
-
-    for (vector<BackupBenchWorker *>::const_iterator it = backup_workers.begin();
-         it != backup_workers.end(); ++it){
-      (*it)->start();
-    }
-  }
-#endif
-
 
   const pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
   vector<RWorker *> workers = make_workers();
@@ -291,11 +267,10 @@ BenchRunner::run() {
 
   for(auto it = workers.begin();it != workers.end();++it) {
     (*it)->join();
-    delete (*it);
   }
 
-  //listener_->join();
   l->join();
+  l->ending(); //do some final calculations, i.e. latency
 
   // close TCP connections, if possible
   try {
@@ -337,6 +312,13 @@ void BenchRunner::parse_config(std::string &config_file) {
       nclients = pt.get<size_t>("bench.clients");
     } catch(const ptree_error &e) {
       // pass
+    }
+    try {
+      rep_factor = pt.get<size_t>("bench.rep_factor");
+    } catch (const ptree_error &e) {
+      LOG(LOG_ERROR) << "parse rep_factor " << config_file
+                     << "error. It may be an error, or not." << e.what();
+      rep_factor = 0;
     }
 
     if(scale_factor == 0)

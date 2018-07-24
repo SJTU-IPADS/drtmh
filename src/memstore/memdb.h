@@ -62,7 +62,7 @@ class MemDB {
   MemDB(char *s_buffer = NULL): store_buffer_(s_buffer) { }
 
   // expected_num: the number of records in table
-  void AddSchema(int tableid, TABLE_CLASS c, int klen,int vlen,int meta_len,int expected_num = 1024);
+  void AddSchema(int tableid, TABLE_CLASS c, int klen,int vlen,int meta_len,int expected_num = 1024,bool need_cache = true);
 
   /**
      Important!
@@ -82,7 +82,7 @@ class MemDB {
   void AddSecondIndex(int index_id,TABLE_CLASS c, int klen);
   uint64_t *Get(int tableid,uint64_t key);
   uint64_t *GetIndex(int tableid,uint64_t key);
-  MemNode  *Put(int tableid,uint64_t key,uint64_t *value);
+  MemNode  *Put(int tableid,uint64_t key,uint64_t *value,int len = 0);
   void      PutIndex(int indexid,uint64_t key,uint64_t *value);
 
   uint64_t store_size_ = 0; // store size alloced on the RDMA area

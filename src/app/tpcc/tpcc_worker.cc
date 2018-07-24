@@ -92,7 +92,6 @@ void TpccWorker::thread_local_init() {
       new_txs_[i] = new rtx::RtxOCCFast(this,store_,rpc_,current_partition,i,current_partition);
 #endif
       new_txs_[i]->set_logger(new_logger_);
-      new_txs_[i]->set_view(my_view);
     }
 #elif defined(SI_TX)
     txs_[i] = new DBSI(store_,worker_id_,rpc_,i);

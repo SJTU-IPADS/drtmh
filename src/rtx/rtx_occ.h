@@ -1,5 +1,5 @@
-#ifndef NOCC_RTX_OCC_
-#define NOCC_RTX_OCC_
+#ifndef NOCC_RTX_OCC_H_
+#define NOCC_RTX_OCC_H_
 
 #include "all.h"
 
@@ -38,8 +38,6 @@ class RtxOCC : public TXOpBase {
 
   void set_logger(Logger *log) { logger_ = log; }
 
-  void set_view(View *v) { view_ = v; }
-
   // start a TX
   virtual void begin(yield_func_t &yield);
 
@@ -58,6 +56,12 @@ class RtxOCC : public TXOpBase {
 
   template <typename V>
   V *get_writeset(int idx,yield_func_t &yield);
+
+  template <int tableid,typename V>
+  V *get(int pid,uint64_t key,yield_func_t &yield) {
+    int idx = add_to_read<tableid,V>(pid,key,yield);
+    return get_readset<V>(idx,yield);
+  }
 
   template <int tableid,typename V>
   int insert(int pid,uint64_t key,V *val,yield_func_t &yield);
@@ -100,7 +104,6 @@ class RtxOCC : public TXOpBase {
   const int response_node_;
 
   Logger *logger_       = NULL;
-  View   *view_         = NULL;
 
   bool abort_ = false;
   char reply_buf_[MAX_MSG_SIZE];

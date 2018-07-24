@@ -113,7 +113,7 @@ void RWorker::create_qps() {
     return;
   }
 
-  LOG(2) << "using RDMA device: " << use_port_ << " to create qps @" << worker_id_;
+  LOG(1) << "using RDMA device: " << use_port_ << " to create qps @" << worker_id_;
   assert(use_port_ >= 0); // check if init_rdma has been called
 
   int dev_id = cm->get_active_dev(use_port_);

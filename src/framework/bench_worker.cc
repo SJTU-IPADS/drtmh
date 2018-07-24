@@ -146,13 +146,11 @@ void BenchWorker::run() {
 
 #endif
 
-#if TX_USE_LOG
-  this->init_logger();
-#else
   this->init_new_logger(backup_stores_);
-#endif
   this->thread_local_init();   // application specific init
+
   register_callbacks();
+
 #if CS == 1
 #if LOCAL_CLIENT == 0
   create_client_connections(nthreads + nclients);
@@ -313,7 +311,7 @@ void BenchWorker::exit_handler() {
     auto &workload = workloads[1];
 
     auto second_cycle = Breakdown_Timer::get_one_second_cycle();
-
+#if 0
     //exit_lock.Lock();
     fprintf(stdout,"aborts: ");
     workload[0].latency_timer.calculate_detailed();
@@ -346,7 +344,7 @@ void BenchWorker::exit_handler() {
     }
     fprintf(stdout,"succs ratio %f\n",(double)(ntxn_executed_) /
             (double)(ntxn_commits_));
-
+#endif
 #if RECORD_STALE
     util::RecordsBuffer<double> total_buffer;
     for(uint i = 0; i < server_routine + 1;++i) {

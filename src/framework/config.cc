@@ -11,6 +11,8 @@
 #include <vector>
 #include <string>
 
+#include "core/logging.h"
+
 namespace nocc {
 
 namespace oltp {
@@ -67,7 +69,6 @@ std::vector<std::string> parse_network(int num, std::string &hosts) {
         if(network.size() + 1 > num)
           break;
         network.push_back(s);
-        fprintf(stdout,"[%d]: %s\n",network.size() - 1,s.c_str());
       }
     } // end iterating hosts
 

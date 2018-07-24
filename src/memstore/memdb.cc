@@ -7,7 +7,7 @@
 
 using namespace nocc;
 
-void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_len,int num) {
+void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_len,int num,bool need_cache) {
 
   int total_len = meta_len + vlen;
 
@@ -29,7 +29,7 @@ void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_l
     break;
   case TAB_HASH: {
     //auto tabp = new drtm::memstore::RdmaHashExt(1024 * 1024 * 8,store_buffer_); //FIXME!! hard coded
-    auto tabp = new RHash(num, store_buffer_);
+    auto tabp = new RHash(num, store_buffer_,need_cache);
     stores_[tableid] = tabp;
     // update the store buffer
     if(store_buffer_ != NULL) {
@@ -98,7 +98,7 @@ void MemDB::PutIndex(int indexid, uint64_t key,uint64_t *value){
   mn->seq = 2;
 }
 
-MemNode *MemDB::Put(int tableid, uint64_t key, uint64_t *value) {
+MemNode *MemDB::Put(int tableid, uint64_t key, uint64_t *value,int len) {
 
   MemNode *mn = NULL;
 #if RECORD_STALE
@@ -123,5 +123,11 @@ MemNode *MemDB::Put(int tableid, uint64_t key, uint64_t *value) {
 #endif
     break;
   }
+#if INLINE_OVERWRITE
+  // put the value in the index
+  if(len <= INLINE_OVERWRITE_MAX_PAYLOAD) {
+    memcpy(mn->padding,(char *)value + _schemas[tableid].meta_len,len);
+  }
+#endif
   return mn;
 }

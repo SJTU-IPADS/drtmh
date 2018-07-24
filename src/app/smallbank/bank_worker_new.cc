@@ -9,6 +9,14 @@ namespace oltp {
 
 extern __thread util::fast_random   *random_generator;
 
+bool verify_check_balance(const checking::value *c) {
+  return c->c_balance >= MIN_BALANCE && c->c_balance <= MAX_BALANCE;
+}
+
+bool verify_save_balance(const savings::value *s) {
+  return s->s_balance >= MIN_BALANCE && s->s_balance <= MAX_BALANCE;
+}
+
 namespace bank {
 
 txn_result_t BankWorker::txn_sp_new(yield_func_t &yield) {
@@ -106,8 +114,8 @@ retry:
   assert(cv != NULL);
   cv->c_balance += amount;
   rtx_->add_to_write();
+
   bool ret = rtx_->commit(yield);
-  //fprintf(stdout,"dc commit \n");sleep(1);
   return txn_result_t(ret,1);
 }
 

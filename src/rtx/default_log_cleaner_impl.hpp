@@ -3,7 +3,9 @@
 #include "tx_config.h"
 
 #include "core/rrpc.h"
-#include "framework/view_manager.h"
+#include "core/logging.h"
+
+#include "global_vars.h"
 
 #include "log_cleaner.hpp"
 #include "msg_format.hpp"
@@ -11,11 +13,6 @@
 extern size_t current_partition;
 
 namespace nocc {
-
-namespace oltp {
-extern int rep_factor;
-extern View* my_view; // replication setting of the data
-};
 
 namespace rtx {
 
@@ -42,18 +39,18 @@ class DefaultLogCleaner : public LogCleaner {
     RTX_ITER_ITEM(msg,sizeof(RtxWriteItem)) {
       auto item = (RtxWriteItem *)ttptr;
       ttptr += item->len;
-      if(!my_view->response_back(current_partition,item->pid)) {
+
+      // check whether to log
+      if(!global_view->is_backup(current_partition,item->pid))
         continue;
-      }
-      continue;
+
       assert(item->pid != current_partition);
       auto store = get_backed_store(item->pid);
       assert(store != NULL);
 
       MemNode *node = store->stores_[item->tableid]->Get((uint64_t)(item->key));
       if(node == NULL) {
-        fprintf(stderr,"backup key error %lu\n",item->key);
-        assert(false);
+        LOG(7) << "backup does not contains the key  " << (uint64_t)(item->key) << "@tab " << item->tableid;
       }
       char *new_val;
 

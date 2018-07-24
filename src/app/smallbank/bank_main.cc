@@ -155,11 +155,10 @@ void BankMainRunner::init_backup_store(MemDB* &store){
   assert(store == NULL);
   store = new MemDB();
   int meta_size = META_SIZE;
-  // store->AddSchema(ACCT, TAB_HASH,sizeof(uint64_t),sizeof(account::value),meta_size);
   store->AddSchema(SAV,  TAB_HASH,sizeof(uint64_t),sizeof(savings::value),meta_size,
-                   NumAccounts() / total_partition);
+                   NumAccounts() / total_partition,false);
   store->AddSchema(CHECK,TAB_HASH,sizeof(uint64_t),sizeof(checking::value),meta_size,
-                   NumAccounts() / total_partition);
+                   NumAccounts() / total_partition,false);
 }
 
 class BankLoader : public BenchLoader {
@@ -234,28 +233,21 @@ class BankLoader : public BenchLoader {
 
       account::value *a = (account::value*)(wrapper_acct + meta_size);
       a->a_name.assign(std::string(acct_name) );
-      //store_->Put(ACCT,i,(uint64_t *)wrapper_acct);
+
       float balance_c = (float)_RandomNumber(random_generator_, MIN_BALANCE, MAX_BALANCE);
       float balance_s = (float)_RandomNumber(random_generator_, MIN_BALANCE, MAX_BALANCE);
 
       savings::value *s = (savings::value *)(wrapper_saving + meta_size);
       s->s_balance = balance_s;
-      auto node = store_->Put(SAV,i,(uint64_t *)wrapper_saving);
+      auto node = store_->Put(SAV,i,(uint64_t *)wrapper_saving,sizeof(savings::value));
       node->off = (uint64_t)wrapper_saving - (uint64_t)(cm->conn_buf_);
 
       checking::value *c = (checking::value *)(wrapper_check + meta_size);
       c->c_balance = balance_c;
       assert(c->c_balance > 0);
-      node = store_->Put(CHECK,i,(uint64_t *)wrapper_check);
+      node = store_->Put(CHECK,i,(uint64_t *)wrapper_check,sizeof(checking::value));
       node->off =  (uint64_t)wrapper_check - (uint64_t)(cm->conn_buf_);
 
-#if INLINE_OVERWRITE
-      assert(sizeof(checking::value) <= 16);
-      memcpy(node->padding,(char *)wrapper_check + meta_size,sizeof(checking::value));
-      node = store_->stores_[SAV]->Get(i);
-      assert(sizeof(savings::value)  <= 16);
-      memcpy(node->padding,(char *)wrapper_saving + meta_size,sizeof(savings::value));
-#endif
       assert(node->seq == 2);
 
     }
@@ -328,7 +320,7 @@ std::vector<RWorker *> BankMainRunner::make_workers() {
 
 std::vector<BackupBenchWorker *> BankMainRunner::make_backup_workers() {
   std::vector<BackupBenchWorker *> ret;
-
+  assert(false);
   int num_backups = my_view->is_backup(current_partition);
   LogCleaner* log_cleaner = new BankLogCleaner;
   for(uint j = 0; j < num_backups; j++){

@@ -116,7 +116,7 @@ WAIT_RETRY:
     goto WAIT_RETRY;
   }
 
-  fprintf(stderr,"\n[Listener] Wait all worker status done. enter main loop\n");
+  LOG(2) << "All work has initilized.";
 }
 
 void BenchLocalListener::worker_routine(yield_func_t &yield) {
@@ -147,7 +147,8 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
   while(true) {
 
     if(unlikely(this->running == false)) {
-      fprintf(stdout,"[Listener] receive ending..\n");
+
+      LOG(2) << "Listener ends the benchmark.";
 
       // master send end RPCs to remotes
       for(uint i = 0;i < total_partition;++i) {
@@ -204,29 +205,19 @@ void BenchLocalListener::worker_routine_slave(yield_func_t &yield) {
 void BenchLocalListener::ending() {
 
   auto second_cycle = util::Breakdown_Timer::get_one_second_cycle();
-#if 0
-#if CS == 1
-  int cid = nthreads;
-#if SI_TX == 1
-  cid += 1;
-#endif
-  fprintf(stdout,"use tcid %d, total workers %d\n",cid,workers_->size());
-  BenchClient *c = (BenchClient *)(workers_[cid]);
-  auto &timer = c->timer_;
-#else
+#if 1
   auto &timer = workers_[0]->latency_timer_;
-#endif
   timer.calculate_detailed();
   auto m_l = timer.report_medium() / second_cycle * 1000;
   auto m_9 = timer.report_90() / second_cycle * 1000;
   auto m_99 = timer.report_99() / second_cycle * 1000;
   auto m_av = timer.report_avg() / second_cycle * 1000;
-  fprintf(stdout,"Medium latency %3f ms, 90th latency %3f ms, 99th latency %3f ms, avg %3f ms\n",
-          m_l,m_9,m_99,m_av);
+  LOG(2) << "Medium latency " << m_l << "ms, 90th latency " << m_9 << "ms, 99th latency "
+         << m_99 << "ms; average latency: " << m_av;
 #endif
 #ifdef LOG_RESULTS
   if(log_file.is_open()) {
-    //log_file << m_l << " " << m_9<<" " << m_99 <<" "<<m_av<<std::endl;
+    log_file << m_l << " " << m_9<<" " << m_99 <<" "<<m_av<<std::endl;
     log_file.close();
   }
 #endif
@@ -288,11 +279,11 @@ void BenchLocalListener::get_result_rpc_handler(int id, int cid,char *msg, void 
 
 void BenchLocalListener::exit_rpc_handler(int id,int cid, char *msg, void *arg) {
 
+  LOG(2) << "start to exit.";
   running = false;
   for(auto it = workers_.begin();it != workers_.end();++it) {
     (*it)->end_routine();
   }
-  ending();
 }
 
 

@@ -109,31 +109,26 @@ class BankWorker : public BenchWorker {
   std::map<int,int> mac_hotmap;
 
   static txn_result_t TxnSendPayment(BenchWorker *w,yield_func_t &yield) {
-    //txn_result_t r = static_cast<BankWorker *>(w)->txn_send_payment(yield);
     txn_result_t r = static_cast<BankWorker *>(w)->txn_sp_new(yield);
     return r;
   }
 
   static txn_result_t TxnDepositChecking(BenchWorker *w,yield_func_t &yield) {
-    //txn_result_t r = static_cast<BankWorker *>(w)->txn_deposit_checking(yield);
     txn_result_t r = static_cast<BankWorker *>(w)->txn_dc_new(yield);
     return r;
   }
 
   static txn_result_t TxnBalance(BenchWorker *w,yield_func_t &yield) {
-    //txn_result_t r = static_cast<BankWorker *>(w)->txn_balance2(yield);
     txn_result_t r = static_cast<BankWorker *>(w)->txn_balance_new(yield);
     return r;
   }
 
   static txn_result_t TxnTransactSavings(BenchWorker *w,yield_func_t &yield) {
-    //txn_result_t r = static_cast<BankWorker *>(w)->txn_transact_savings(yield);
     txn_result_t r = static_cast<BankWorker *>(w)->txn_ts_new(yield);
     return r;
   }
 
   static txn_result_t TxnWriteCheck(BenchWorker *w,yield_func_t &yield) {
-    //txn_result_t r = static_cast<BankWorker *>(w)->txn_write_check(yield);
     txn_result_t r = static_cast<BankWorker *>(w)->txn_wc_new(yield);
     return r;
   }

@@ -21,11 +21,13 @@ namespace nocc {
 typedef  drtm::ClusterHash<uint64_t,CACHE_BUCKET_NUM> loc_cache_t;
 class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM>  {
  public:
-  RHash(int expected_data, char *ptr) : drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM> (expected_data, ptr) {
+  RHash(int expected_data, char *ptr,bool cache) : drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM> (expected_data, ptr) {
 #if RDMA_CACHE
-    uint64_t expected_cached_num = ceil((double)(expected_data) / CACHE_BUCKET_NUM);
-    loc_cache_ = new loc_cache_t(2 * expected_cached_num * total_partition);
-    LOG(2) << "Cache size: " << get_memory_size_g(loc_cache_->size()) << "G";
+    if(cache) {
+      uint64_t expected_cached_num = ceil((double)(expected_data) / CACHE_BUCKET_NUM);
+      loc_cache_ = new loc_cache_t(1.5 * expected_cached_num * total_partition);
+      LOG(2) << "Cache size: " << get_memory_size_g(loc_cache_->size()) << "G";
+    }
 #endif
   }
 

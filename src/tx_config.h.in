@@ -15,12 +15,10 @@
 #ifndef INLINE_OVERWRITE
 #define INLINE_OVERWRITE 0
 #endif
+#define INLINE_OVERWRITE_MAX_PAYLOAD 16 // only can inline 16 byte data in index
 
 // whether to only execute execution phase
 #cmakedefine TX_ONLY_EXE @TX_ONLY_EXE@
-
-// logging related configurations
-#cmakedefine TX_USE_LOG @TX_USE_LOG@
 
 /**
  * 1: use RPC as logging
@@ -71,5 +69,5 @@ static_assert(!PA,"FaSST emulation does not run with passive ack optimization.")
 #endif
 
 #if RDMA_CACHE
-static_assert(ONE_SIDED_READ,"RTX's RDMA location cache must work with an RDMA friendly store.")
+static_assert(ONE_SIDED_READ,"RTX's RDMA location cache must work with an RDMA friendly store.");
 #endif
