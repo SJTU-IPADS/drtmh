@@ -59,7 +59,6 @@ void TpccWarehouseLoader::load() {
 
   uint64_t warehouse_total_sz = 0, n_warehouses = 0;
   try {
-    //  fprintf(stdout,"meta length %d %d\n",META_LENGTH,SI_META_LEN);
     vector<warehouse::value> warehouses;
     for (uint i = GetStartWarehouse(partition_); i <= GetEndWarehouse(partition_); i++) {
 

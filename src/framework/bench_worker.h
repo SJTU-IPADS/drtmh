@@ -131,16 +131,18 @@ class BenchWorker : public RWorker {
   void init_new_logger(MemDB **backup_stores) {
 
     assert(new_logger_ == NULL);
+    uint64_t M2 = HUGE_PAGE_SZ;
+
 #if TX_LOG_STYLE == 1 // RPC's case
     if(worker_id_ == 0)
       LOG(3) << "Use RPC for logging.";
-    new_logger_ = new rtx::RpcLogger(rpc_,RTX_LOG_RPC_ID,RTX_LOG_CLEAN_ID,
+    new_logger_ = new rtx::RpcLogger(rpc_,RTX_LOG_RPC_ID,RTX_LOG_CLEAN_ID,M2,
                                      MAX_BACKUP_NUM,(char *)(cm_->conn_buf_) + HUGE_PAGE_SZ,
                                      total_partition,nthreads,(coroutine_num + 1) * RTX_LOG_ENTRY_SIZE);
 #elif TX_LOG_STYLE == 2 // one-sided RDMA case
     if(worker_id_ == 0)
       LOG(3) << "Use RDMA for logging.";
-    new_logger_ = new rtx::RDMALogger(cm_,rdma_sched_,current_partition,worker_id_,
+    new_logger_ = new rtx::RDMALogger(cm_,rdma_sched_,current_partition,worker_id_,M2,
                                       rpc_,RTX_LOG_CLEAN_ID,
                                       MAX_BACKUP_NUM,(char *)(cm_->conn_buf_) + HUGE_PAGE_SZ,
                                       total_partition,nthreads,(coroutine_num + 1) * RTX_LOG_ENTRY_SIZE);

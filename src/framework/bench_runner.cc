@@ -40,23 +40,27 @@ int tcp_port = 33333;
 namespace nocc {
 
 volatile bool running;
-zmq::context_t recv_context(1);
-zmq::context_t send_context(1);
 
+/**
+ * Global config RDMA RC based message.
+ */
 uint64_t total_ring_sz;
 uint64_t ring_padding;
 uint64_t ringsz;
 
-AdapterPoller *poller = NULL;
+RdmaCtrl *cm;
 
-extern RdmaCtrl *cm;
-
-std::vector<SingleQueue *>   local_comm_queues;
 
 namespace oltp {
 
-extern int rep_factor;
+/**
+ * Replication factor in the cluster.
+ */
+int rep_factor;
 
+/**
+ * Globally defined RDMA related data structures
+ */
 char *rdma_buffer = NULL;
 char *store_buffer = NULL;
 char *free_buffer  = NULL;
@@ -153,7 +157,7 @@ BenchRunner::run() {
   if(1){
     store_size = RDMA_STORE_SIZE * M;
     store_buffer = rdma_buffer + total_sz;
-    LOG(3) << "add RDMA store size %f" << get_memory_size_g(store_size) << "G.";
+    LOG(3) << "add RDMA store size " << get_memory_size_g(store_size) << "G.";
   }
 #endif
   total_sz += store_size;

@@ -71,7 +71,9 @@ public:
   }
 
   void start();
+
   void join();
+
   void binding(int id) {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);

@@ -1,10 +1,19 @@
 #include "tx_config.h"
 
-namespace nocc {
-namespace rtx  {
 #include <utility> // for forward
 
+namespace nocc {
+
+namespace rtx  {
+
+#define RTX_IN_WRITE_MAGIC 73
+
 // implementations of TX's get operators
+inline __attribute__((always_inline))
+MemNode *TXOpBase::local_lookup_op(int tableid,uint64_t key) {
+  MemNode *node = db_->stores_[tableid]->Get(key);
+  return node;
+}
 
 inline __attribute__((always_inline))
 MemNode *TXOpBase::local_get_op(MemNode *node,char *val,uint64_t &seq,int len,int meta) {
@@ -12,15 +21,13 @@ retry: // retry if there is a concurrent writer
   char *cur_val = (char *)(node->value);
   seq = node->seq;
 
-  if(unlikely(seq == 1))
-    goto retry;
 #if INLINE_OVERWRITE
   memcpy(val,node->padding + meta,len);
 #else
   memcpy(val,cur_val + meta,len);
 #endif
   asm volatile("" ::: "memory");
-  if( unlikely(node->seq != seq) ) {
+  if( unlikely(node->seq != seq || seq == 73) ) {
     goto retry;
   }
   return node;
@@ -28,7 +35,7 @@ retry: // retry if there is a concurrent writer
 
 inline __attribute__((always_inline))
 MemNode * TXOpBase::local_get_op(int tableid,uint64_t key,char *val,int len,uint64_t &seq,int meta) {
-  MemNode *node = db_->stores_[tableid]->Get(key);
+  MemNode *node = local_lookup_op(tableid,key);
   assert(node != NULL && node->value != NULL);
   return local_get_op(node,val,seq,len,meta);
 }
@@ -85,7 +92,11 @@ bool TXOpBase::local_validate_op(int tableid,uint64_t key,uint64_t seq) {
 }
 
 inline __attribute__((always_inline))
-void TXOpBase::inplace_write_op(MemNode *node,char *val,int len) {
+MemNode *TXOpBase::inplace_write_op(MemNode *node,char *val,int len) {
+
+  auto old_seq = node->seq;assert(node->seq != 1);
+  node->seq = 73;
+  asm volatile("" ::: "memory");
 #if INLINE_OVERWRITE
   memcpy(node->padding,val,len);
 #else
@@ -94,15 +105,16 @@ void TXOpBase::inplace_write_op(MemNode *node,char *val,int len) {
   }
   memcpy(node->value,val,len);
 #endif
-
   // release the locks
-  node->seq += 2;
-  //assert(node->lock != 0);
+  asm volatile("" ::: "memory");
+  node->seq = old_seq + 2;
+  asm volatile("" ::: "memory");
   node->lock = 0;
+  return node;
 }
 
 inline __attribute__((always_inline))
-void TXOpBase::inplace_write_op(int tableid,uint64_t key,char *val,int len) {
+MemNode *TXOpBase::inplace_write_op(int tableid,uint64_t key,char *val,int len) {
   MemNode *node = db_->stores_[tableid]->Get(key);
   ASSERT(node != NULL) << "get node error, at [tab " << tableid
                        << "], key: "<< key;

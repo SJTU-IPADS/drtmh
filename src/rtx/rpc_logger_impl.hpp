@@ -12,9 +12,9 @@ using namespace oltp;
 
 class RpcLogger : public Logger {
  public:
-  RpcLogger(RRpc *rpc,int log_rpc_id,int ack_rpc_id,
+  RpcLogger(RRpc *rpc,int log_rpc_id,int ack_rpc_id,uint64_t base_off,
             int expected_store,char *local_p,int ms,int ts,int size,int entry_size = RTX_LOG_ENTRY_SIZE)
-      :Logger(rpc,ack_rpc_id,expected_store,local_p,ms,ts,size,entry_size),
+      :Logger(rpc,ack_rpc_id,base_off,expected_store,local_p,ms,ts,size,entry_size),
        log_rpc_id_(log_rpc_id)
   {
     // register RPC if necessary

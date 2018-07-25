@@ -9,6 +9,11 @@ namespace nocc {
 
 namespace rtx {
 
+struct RdmaValHeader {
+  uint64_t lock;
+  uint64_t seq;
+};
+
 // extend baseline RtxOCC with one-sided RDMA
 class RtxOCCR : public RtxOCC {
 public:
@@ -29,7 +34,7 @@ public:
 #if INLINE_OVERWRITE
     off = rdma_lookup_op(pid,tableid,key,data_ptr,yield);
 #else
-    off = rdma_read_val(pid,tableid,key,len,data_ptr,yield);
+    off = rdma_read_val(pid,tableid,key,len,data_ptr,yield,sizeof(RdmaValHeader));
 #endif
     MemNode *node = (MemNode *)data_ptr;
     ASSERT(off != 0) << "RDMA remote read key error: tab " << tableid << " key " << key;
@@ -44,8 +49,8 @@ public:
 #if TX_ONLY_EXE
     return dummy_commit();
 #endif
-    assert(false);
-#if 1 //USE_RDMA_COMMIT
+
+#if 0 //USE_RDMA_COMMIT
     if(!lock_writes_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -59,7 +64,7 @@ public:
     }
 #endif
 
-#if 1 //USE_RDMA_COMMIT
+#if 0 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -76,7 +81,7 @@ public:
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
 
-#if 1 //USE_RDMA_COMMIT
+#if 0 //USE_RDMA_COMMIT
     write_back_w_rdma(yield);
 #else
     write_back(yield);
@@ -277,6 +282,81 @@ public:
     return true;
   }
 
+  /**
+   * A specific lock handler, use the meta data encoded in value
+   * This is because we only cache one address, so it's not so easy to
+   * to encode meta data in the index (so that we need to cache the index).
+   */
+  void lock_rpc_handler2(int id,int cid,char *msg,void *arg) {
+
+    char* reply_msg = rpc_->get_reply_buf();
+    uint8_t res = LOCK_SUCCESS_MAGIC; // success
+
+    RTX_ITER_ITEM(msg,sizeof(RtxLockItem)) {
+      auto item = (RtxLockItem *)ttptr;
+
+      if(item->pid != response_node_)
+        continue;
+
+      MemNode *node = local_lookup_op(item->tableid,item->key);
+      assert(node != NULL && node->value != NULL);
+      RdmaValHeader *header = (RdmaValHeader *)(node->value);
+
+      volatile uint64_t *lockptr = (volatile uint64_t *)lockptr;
+      if( unlikely( (*lockptr != 0) ||
+                    !__sync_bool_compare_and_swap(lockptr,0,ENCODE_LOCK_CONTENT(id,worker_id_,cid + 1)))) {
+        res = LOCK_FAIL_MAGIC;
+        break;
+      }
+      if(unlikely(node->seq != item->seq)) {
+        res = LOCK_FAIL_MAGIC;
+        break;
+      }
+    }
+
+    *((uint8_t *)reply_msg) = res;
+    rpc_->send_reply(reply_msg,sizeof(uint8_t),id,cid);
+  }
+
+  void release_rpc_handler2(int id,int cid,char *msg,void *arg) {
+    RTX_ITER_ITEM(msg,sizeof(RtxLockItem)) {
+      auto item = (RtxLockItem *)ttptr;
+
+      if(item->pid != response_node_)
+        continue;
+      auto node = local_lookup_op(item->tableid,item->key);
+      assert(node != NULL && node->value != NULL);
+
+      RdmaValHeader *header = (RdmaValHeader *)(node->value);
+      volatile uint64_t *lockptr = (volatile uint64_t *)lockptr;
+      !__sync_bool_compare_and_swap(lockptr,ENCODE_LOCK_CONTENT(id,worker_id_,cid + 1),0);
+    }
+
+    char* reply_msg = rpc_->get_reply_buf();
+    rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply
+  }
+
+  void commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
+    RTX_ITER_ITEM(msg,sizeof(RtxWriteItem)) {
+
+      auto item = (RtxWriteItem *)ttptr;
+      ttptr += item->len;
+
+      if(item->pid != response_node_) {
+        continue;
+      }
+      auto node = inplace_write_op(item->tableid,item->key,  // find key
+                                   (char *)item + sizeof(RtxWriteItem),item->len);
+      RdmaValHeader *header = (RdmaValHeader *)(node->value);
+      header->seq += 2;
+      asm volatile("" ::: "memory");
+      header->lock = 0;
+    } // end for
+#if PA == 0
+    char *reply_msg = rpc_->get_reply_buf();
+    rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply
+#endif
+  }
 };
 
 } // namespace rtx

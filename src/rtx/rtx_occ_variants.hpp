@@ -63,8 +63,8 @@ class RtxOCCFast : public RtxOCC {
     gc_readset(); gc_writeset();
     return true;
  ABORT:
-    gc_readset(); gc_writeset();
     fast_release_writes(yield);
+    gc_readset(); gc_writeset();
     return false;
   }
 

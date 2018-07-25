@@ -55,7 +55,6 @@ bool RtxOCC::commit(yield_func_t &yield) {
   log_remote(yield); // log remote using *logger_*
   // write the modifications of records back
   write_back(yield);
-
   return true;
 ABORT:
   release_writes(yield);
@@ -232,7 +231,7 @@ void RtxOCC::log_remote(yield_func_t &yield) {
       global_view->add_backup(*it,cblock.mac_set_);
     }
     // add local server
-    view_->add_backup(current_partition,cblock.mac_set_);
+    global_view->add_backup(current_partition,cblock.mac_set_);
 #endif
     logger_->log_remote(cblock,cor_id_);
     worker_->indirect_yield(yield);
@@ -432,7 +431,6 @@ void RtxOCC::commit_rpc_handler(int id,int cid,char *msg,void *arg) {
     inplace_write_op(item->tableid,item->key,  // find key
                      (char *)item + sizeof(RtxWriteItem),item->len);
   } // end for
-END:
 #if PA == 0
   char *reply_msg = rpc_->get_reply_buf();
   rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply

@@ -8,6 +8,13 @@ namespace nocc {
 
 namespace rtx {
 
+struct KeyType {
+  union {
+    uint64_t ukey;
+    char    *string_key;
+  };
+};
+
 // This class implements multiple TX operators that is required for common concurrency control,
 // such as 2-phase locking, optimistic concurrency control and snapshot isolation
 using namespace nocc::oltp;
@@ -51,6 +58,8 @@ class TXOpBase {
   }
 
   // get ops
+  MemNode *local_lookup_op(int tableid,uint64_t);
+
   MemNode *local_get_op(int tableid,uint64_t key,char *val,int len,uint64_t &seq,int meta_len = 0);
 
   MemNode *local_get_op(MemNode *node, char *val,uint64_t &seq,int len,int meta = 0);
@@ -68,8 +77,8 @@ class TXOpBase {
   bool     local_validate_op(int tableid,uint64_t key,uint64_t seq);
   bool     local_validate_op(MemNode *node,uint64_t seq);
 
-  void     inplace_write_op(int tableid,uint64_t key,char *val,int len);
-  void     inplace_write_op(MemNode *node,char *val,int len);
+  MemNode  *inplace_write_op(int tableid,uint64_t key,char *val,int len);
+  MemNode  *inplace_write_op(MemNode *node,char *val,int len);
 
   // basically its only a wrapper to send a get request with Argument REQ
   template <typename REQ,typename... _Args>

@@ -17,6 +17,12 @@ namespace nocc {
 
 // whether to use a dedicated send socket per thread
 #define DEDICATED 0
+// these things needs to be refined. Since it's TCP, I will do this later.
+class AdapterPoller;
+extern zmq::context_t recv_context;
+extern zmq::context_t send_context;
+extern AdapterPoller *poller;
+extern std::vector<SingleQueue *>   local_comm_queues;
 
 /* The poller is usd to receive all in-coming messages at a given port.
  * It acts like a thread, and it is imlemented using *nocc_worker*.

@@ -129,5 +129,6 @@ MemNode *MemDB::Put(int tableid, uint64_t key, uint64_t *value,int len) {
     memcpy(mn->padding,(char *)value + _schemas[tableid].meta_len,len);
   }
 #endif
+  mn->value = value;
   return mn;
 }

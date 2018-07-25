@@ -20,7 +20,7 @@ namespace nocc {
 namespace oltp {
 
 std::deque<int> free_machines;
-int rep_factor;
+extern int rep_factor;
 
 View::View(std::string config,std::vector<std::string> &network)
     :net_def_(network)

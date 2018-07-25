@@ -36,9 +36,6 @@ namespace nocc {
 // per-thread log handler
 __thread MappedLog local_log;
 
-// global RDMA connection manager
-RdmaCtrl *cm = NULL;
-
 namespace oltp {
 
 // per coroutine random generator
@@ -46,6 +43,8 @@ __thread util::fast_random *random_generator = NULL;
 
 // A new event loop channel
 void  RWorker::new_master_routine(yield_func_t &yield,int cor_id) {
+
+  LOG(2) << "Worker " << worker_id_ << " on cpu " << sched_getcpu();
 
   auto routine_meta = get_routine_meta(MASTER_ROUTINE_ID);
 
@@ -71,11 +70,15 @@ void  RWorker::new_master_routine(yield_func_t &yield,int cor_id) {
 }
 
 int RWorker::choose_rnic_port() {
-  // decide which NIC to use
-  // warning!! This is the setting on our platform.
-  // It should be overwritten, according to the usage platform.
-  // The detailed configuration can be queried using cm.
-  use_port_ = 1; // default usage
+  /**
+   * Decide which NIC to use
+   * Warning!! This is the setting on our platform.
+   * It should be overwritten, according to the usage platform.
+   * The detailed configuration can be queried using cm.
+   */
+
+  // default as 1.
+  use_port_ = 1;
 
   int total_devices = cm_->query_devinfo();
   assert(total_devices > 0);
@@ -84,7 +87,7 @@ int RWorker::choose_rnic_port() {
     use_port_ = 0;
 
   if(worker_id_ >= util::CorePerSocket()) {
-    use_port_ = 0;
+    //use_port_ = 0;
   }
   return use_port_;
 }
@@ -94,17 +97,18 @@ void RWorker::init_rdma() {
   if(!USE_RDMA) // avoids calling cm on other networks
     return;
 
-  cm->thread_local_init();
+  cm_->thread_local_init();
   choose_rnic_port();
 
   // get the device id and port id used on the nic.
-  int dev_id = cm->get_active_dev(use_port_);
-  int port_idx = cm->get_active_port(use_port_);
-  assert(port_idx > 0);
+  int dev_id = cm_->get_active_dev(use_port_);
+  int port_idx = cm_->get_active_port(use_port_);
+  ASSERT(port_idx > 0) << "worker " << worker_id_
+                       << " get port idx " << port_idx;
 
   // open the specific RNIC handler, and register its memory
-  cm->open_device(dev_id);
-  cm->register_connect_mr(dev_id); // register memory on the specific device
+  cm_->open_device(dev_id);
+  cm_->register_connect_mr(dev_id); // register memory on the specific device
 }
 
 void RWorker::create_qps() {
@@ -116,15 +120,15 @@ void RWorker::create_qps() {
   LOG(1) << "using RDMA device: " << use_port_ << " to create qps @" << worker_id_;
   assert(use_port_ >= 0); // check if init_rdma has been called
 
-  int dev_id = cm->get_active_dev(use_port_);
-  int port_idx = cm->get_active_port(use_port_);
+  int dev_id = cm_->get_active_dev(use_port_);
+  int port_idx = cm_->get_active_port(use_port_);
 
   for(uint i = 0; i < QP_NUMS; i++){
-    cm->link_connect_qps(worker_id_, dev_id, port_idx, i, IBV_QPT_RC);
+    cm_->link_connect_qps(worker_id_, dev_id, port_idx, i, IBV_QPT_RC);
   }
   // note, link_connect_qps correctly handles duplicates creations
 #if USE_UD_MSG == 0 && USE_TCP_MSG == 0 // use RC QP, thus create its QP
-  cm->link_connect_qps(worker_id_, dev_id, port_idx, 0, IBV_QPT_RC);
+  cm_->link_connect_qps(worker_id_, dev_id, port_idx, 0, IBV_QPT_RC);
 #endif // USE_UD_MSG
 }
 
@@ -167,14 +171,14 @@ void RWorker::create_client_connections(int total_connections) {
     client_handler_ = static_cast<UDMsg *>(msg_handler_);
   } else {
     // create one
-    assert(cm != NULL);
+    ASSERT(cm_ != NULL) << "Currently client connection uses UD.";
     if(rpc_ == NULL)
       rpc_ = new RRpc(worker_id_,total_worker_coroutine);
     assert(use_port_ >= 0);
-    int dev_id = cm->get_active_dev(use_port_);
-    int port_idx = cm->get_active_port(use_port_);
+    int dev_id = cm_->get_active_dev(use_port_);
+    int port_idx = cm_->get_active_port(use_port_);
 
-    client_handler_ = new UDMsg(cm,worker_id_,total_connections,
+    client_handler_ = new UDMsg(cm_,worker_id_,total_connections,
                                 2048, // max concurrent msg received
                                 std::bind(&RRpc::poll_comp_callback,rpc_,
                                           std::placeholders::_1,std::placeholders::_2,std::placeholders::_3),
@@ -187,10 +191,10 @@ void RWorker::create_client_connections(int total_connections) {
 }
 
 void RWorker::create_rdma_rc_connections(char *start_buffer,uint64_t total_ring_sz,uint64_t total_ring_padding) {
-  assert(USE_RDMA);
-  assert(rpc_ == NULL && msg_handler_ == NULL);
+  ASSERT(USE_RDMA);
+  ASSERT(rpc_ == NULL && msg_handler_ == NULL);
   rpc_ = new RRpc(worker_id_,total_worker_coroutine);
-  msg_handler_ = new RingMessage(total_ring_sz,total_ring_padding,worker_id_,cm,start_buffer,
+  msg_handler_ = new RingMessage(total_ring_sz,total_ring_padding,worker_id_,cm_,start_buffer,
                                  std::bind(&RRpc::poll_comp_callback,rpc_,
                                            std::placeholders::_1,std::placeholders::_2,std::placeholders::_3));
   rpc_->set_msg_handler(msg_handler_);
@@ -199,17 +203,17 @@ void RWorker::create_rdma_rc_connections(char *start_buffer,uint64_t total_ring_
 // must be called after init rdma
 void RWorker::create_rdma_ud_connections(int total_connections) {
 
-  assert(cm != NULL);
+  assert(cm_ != NULL);
 
-  int dev_id = cm->get_active_dev(use_port_);
-  int port_idx = cm->get_active_port(use_port_);
+  int dev_id = cm_->get_active_dev(use_port_);
+  int port_idx = cm_->get_active_port(use_port_);
 
   assert(USE_RDMA);
 
   rpc_ = new RRpc(worker_id_,total_worker_coroutine);
 
   using namespace rdmaio::udmsg;
-  msg_handler_ = new UDMsg(cm,worker_id_,total_connections,
+  msg_handler_ = new UDMsg(cm_,worker_id_,total_connections,
                            2048, // max concurrent msg received
                            std::bind(&RRpc::poll_comp_callback,rpc_,
                                      std::placeholders::_1,std::placeholders::_2,std::placeholders::_3),
@@ -238,6 +242,8 @@ void RWorker::create_logger() {
   sprintf(log_path,"./%d_%d.log",cm_->get_nodeid(),worker_id_);
   new_mapped_log(log_path, &local_log,4096);
 }
+
+__thread RWorker *RWorker::thread_worker = NULL;
 
 }// end namespace oltp
 } // end namespace nocc

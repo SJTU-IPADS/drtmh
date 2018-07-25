@@ -25,9 +25,9 @@ class Logger {
    * size:               total log area of the mac
    * entry_size:         the max size of each log
    */
-  Logger(RRpc *rpc,int ack_rpc_id,
+  Logger(RRpc *rpc,int ack_rpc_id,uint64_t base_off,
          int expected_store_num,char *local_p,int ms,int ts,int size,int entry_size = RTX_LOG_ENTRY_SIZE):
-      mem_(local_p,ms,ts,size,entry_size),
+      mem_(local_p,ms,ts,size,entry_size,base_off),
       cleaner_(expected_store_num,rpc),
       rpc_handler_(rpc),
       ack_rpc_id_(ack_rpc_id),

@@ -24,9 +24,13 @@ namespace nocc {
 
 namespace oltp {
 
+#define INDIRECT_YIELD(yield) RWorker::thread_worker->indirect_yield(yield);
+#define DIRECT_YIELD(yield)   RWorker::thread_worker->yield_next(yield);
+
 // abstract worker
 class RWorker : public ndb_thread {
  public:
+
   // communication type supported by the Worker
   enum MSGER_TYPE {
     UD_MSG, RC_MSG, TCP_MSG
@@ -46,6 +50,13 @@ class RWorker : public ndb_thread {
   // a handler be called after exit
   virtual void exit_handler() {
 
+  }
+
+  /**
+   * TODO
+   */
+  void set_local_worker() {
+    RWorker::thread_worker = this;
   }
 
   // called after change context to cor_id
@@ -147,6 +158,9 @@ class RWorker : public ndb_thread {
   int    total_worker_coroutine;
 
   void new_master_routine(yield_func_t &yield,int cor_id);
+
+ public:
+  static __thread RWorker *thread_worker;
 
   DISABLE_COPY_AND_ASSIGN(RWorker);
 };

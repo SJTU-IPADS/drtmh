@@ -11,13 +11,14 @@ namespace rtx {
 
 class LogMemManager {
  public:
-  LogMemManager(char *local_p,int ms,int ts,int size,int entry_size = RTX_LOG_ENTRY_SIZE) :
+  LogMemManager(char *local_p,int ms,int ts,int size,int entry_size = RTX_LOG_ENTRY_SIZE,uint64_t base_off = 0) :
       mac_num_(ms),
       thread_num_(ts),
       local_buffer_(local_p),
       log_entry_size_(RTX_LOG_ENTRY_SIZE),
       thread_buf_size_(size + log_entry_size_),
-      total_mac_log_size_(thread_num_ * thread_buf_size_)
+      total_mac_log_size_(thread_num_ * thread_buf_size_),
+      base_offset_(base_off)
   {
     assert(log_entry_size_ <= size);
 
@@ -42,8 +43,9 @@ class LogMemManager {
 
   inline uint64_t get_remote_log_offset(int from_mac,int from_tid,int to_mid,int log_size) {
     uint64_t base_offset = from_tid * thread_buf_size_ + from_mac * total_mac_log_size_ +
-                           (remote_tailers_[to_mid] % (thread_buf_size_ - log_entry_size_));
-    remote_tailers_[to_mid] += log_size; // increment the ring buffer pointer
+                           (remote_tailers_[to_mid] % (thread_buf_size_ - log_entry_size_))
+                           + base_offset_; // the start pointer of log area
+    remote_tailers_[to_mid] += log_size;   // increment the ring buffer pointer
     return base_offset;
   }
 
@@ -81,6 +83,8 @@ class LogMemManager {
   uint64_t *remote_tailers_ = NULL;
   // local received header
   uint64_t *local_headers_  = NULL;
+
+  uint64_t base_offset_;
 };
 }; // namespace rtx
 

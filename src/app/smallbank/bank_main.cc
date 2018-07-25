@@ -1,6 +1,8 @@
 #include "tx_config.h"
 
 #include "core/logging.h"
+#include "rtx/rtx_occ.h"
+#include "rtx/rtx_occ_rdma.hpp"
 
 #include "bank_schema.h"
 #include "bank_worker.h"
@@ -136,7 +138,11 @@ void BankMainRunner::init_store(MemDB* &store){
   assert(store == NULL);
   // Should not give store_buffer to backup MemDB!
   store = new MemDB(store_buffer);
+
   int meta_size = META_SIZE;
+#if ONE_SIDED_READ
+  meta_size = sizeof(rtx::RdmaValHeader);
+#endif
 
   //store->AddSchema(ACCT, TAB_HASH,sizeof(uint64_t),sizeof(account::value),meta_size);
   store->AddSchema(SAV,  TAB_HASH,sizeof(uint64_t),sizeof(savings::value),meta_size,
@@ -155,6 +161,11 @@ void BankMainRunner::init_backup_store(MemDB* &store){
   assert(store == NULL);
   store = new MemDB();
   int meta_size = META_SIZE;
+
+#if ONE_SIDED_READ
+  meta_size = sizeof(rtx::RdmaValHeader);
+#endif
+
   store->AddSchema(SAV,  TAB_HASH,sizeof(uint64_t),sizeof(savings::value),meta_size,
                    NumAccounts() / total_partition,false);
   store->AddSchema(CHECK,TAB_HASH,sizeof(uint64_t),sizeof(checking::value),meta_size,
@@ -172,20 +183,18 @@ class BankLoader : public BenchLoader {
   }
 
   void load() {
-    printf("loading store\n");
+
 #if ONE_SIDED_READ == 1
     if(is_primary_)
       RThreadLocalInit();
 #endif
 
     fprintf(stdout,"[Bank], total %lu accounts loaded\n", NumAccounts());
-    //int meta_size = META_SIZE;
-    int meta_size = 0;
+    int meta_size = store_->_schemas[CHECK].meta_len;
 
     char acct_name[32];
     const char *acctNameFormat = "%lld 32 d";
 
-    //fprintf(stdout,"loadint .. from %d to %d\n",GetStartAcct(),GetEndAcct());
     uint64_t loaded_acct(0),loaded_hot(0);
 
     for(uint64_t i = 0;i <= NumAccounts();++i){
@@ -196,7 +205,7 @@ class BankLoader : public BenchLoader {
 
       uint64_t round_sz = CACHE_LINE_SZ << 1; // 128 = 2 * cacheline to avoid false sharing
 
-      char *wrapper_acct, *wrapper_saving, *wrapper_check;
+      char *wrapper_acct(NULL), *wrapper_saving(NULL), *wrapper_check(NULL);
       int save_size = meta_size + sizeof(savings::value);
       save_size = Round<int>(save_size,CACHE_LINE_SZ);
       int check_size = meta_size + sizeof(checking::value);
@@ -205,20 +214,19 @@ class BankLoader : public BenchLoader {
 #if ONE_SIDED_READ == 1
       if(is_primary_){
         wrapper_saving = (char *)Rmalloc(save_size);
-        assert(wrapper_saving != NULL);
         wrapper_check  = (char *)Rmalloc(check_size);
-        assert(wrapper_check != NULL);
       } else {
         wrapper_saving = new char[save_size];
         wrapper_check  = new char[check_size];
       }
-      wrapper_acct = new char[meta_size + sizeof(account::value)];
 #else
-      wrapper_acct = new char[meta_size + sizeof(account::value)];
-      wrapper_saving = new char[meta_size + sizeof(savings::value)];
-      wrapper_check  = new char[meta_size + sizeof(checking::value)];
+      wrapper_saving = new char[save_size];
+      wrapper_check  = new char[check_size];
 #endif
-
+      wrapper_acct = new char[meta_size + sizeof(account::value)];
+      assert(wrapper_saving != NULL);
+      assert(wrapper_check != NULL);
+      assert(wrapper_acct != NULL);
 
       loaded_acct += 1;
 
@@ -246,13 +254,13 @@ class BankLoader : public BenchLoader {
       c->c_balance = balance_c;
       assert(c->c_balance > 0);
       node = store_->Put(CHECK,i,(uint64_t *)wrapper_check,sizeof(checking::value));
-      node->off =  (uint64_t)wrapper_check - (uint64_t)(cm->conn_buf_);
+
+      if(is_primary_ && ONE_SIDED_READ)
+        node->off =  (uint64_t)wrapper_check - (uint64_t)(cm->conn_buf_);
 
       assert(node->seq == 2);
 
     }
-    fprintf(stdout,"[Bank] partition %d total %lu loaded ,hot %lu\n",partition_,loaded_acct,
-            loaded_hot);
     //check_remote_traverse();
   }
 

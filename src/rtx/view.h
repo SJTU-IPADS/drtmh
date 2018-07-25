@@ -45,7 +45,7 @@ class SymmetricView {
              << "Rep factor requires at least " << rep_factor_ + 1 <<" macs,"
              << "yet total " << total_mac << "in the setting.";
     }
-    LOG(3) << "Start with " << rep_factor_ << "backups.";
+    LOG(3) << "Start with " << rep_factor_ << " backups.";
     assign_backups(total_mac);
   }
 

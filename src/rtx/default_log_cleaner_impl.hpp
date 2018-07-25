@@ -2,10 +2,10 @@
 
 #include "tx_config.h"
 
+#include "global_vars.h"
+
 #include "core/rrpc.h"
 #include "core/logging.h"
-
-#include "global_vars.h"
 
 #include "log_cleaner.hpp"
 #include "msg_format.hpp"
@@ -48,21 +48,11 @@ class DefaultLogCleaner : public LogCleaner {
       auto store = get_backed_store(item->pid);
       assert(store != NULL);
 
-      MemNode *node = store->stores_[item->tableid]->Get((uint64_t)(item->key));
-      if(node == NULL) {
-        LOG(7) << "backup does not contains the key  " << (uint64_t)(item->key) << "@tab " << item->tableid;
-      }
+      MemNode *node = store->stores_[item->tableid]->GetWithInsert((uint64_t)(item->key));
       char *new_val;
-
       if(item->len == 0) {
         /* a delete case */
         new_val = NULL;
-      } else {
-#if EM_FASST || INLINE_OVERWRITE
-#else
-        new_val = (char *)malloc(item->len);
-        memcpy(new_val,(char *)item + sizeof(RtxWriteItem),item->len);
-#endif
       }
       volatile uint64_t *lockptr = &(node->lock);
       while(unlikely((*lockptr != 0) ||
@@ -75,8 +65,10 @@ class DefaultLogCleaner : public LogCleaner {
 #if EM_FASST || INLINE_OVERWRITE
       memcpy(node->padding, (char *)item + sizeof(RtxWriteItem),item->len);
 #else
-      delete node->value;
-      node->value = (uint64_t *)new_val;
+      if(unlikely(node->value == NULL)) {
+        node->value = (uint64_t *)malloc(item->len);
+      }
+      memcpy(node->value,(char *)item + sizeof(RtxWriteItem),item->len);
 #endif
       asm volatile("" ::: "memory");
       node->seq = old_seq + 2;

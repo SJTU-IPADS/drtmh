@@ -7,7 +7,6 @@
 #include "logger.hpp"
 
 #include "core/rworker.h"
-#include "framework/view_manager.h"
 
 #include <vector>
 
