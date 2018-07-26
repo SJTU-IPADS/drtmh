@@ -9,14 +9,19 @@ namespace nocc {
 
 namespace rtx {
 
+/**
+ * New meta data for each record
+ */
 struct RdmaValHeader {
   uint64_t lock;
   uint64_t seq;
 };
 
-// extend baseline RtxOCC with one-sided RDMA
+/**
+ * Extend baseline RtxOCC with one-sided RDMA support for execution, validation and commit.
+ */
 class RtxOCCR : public RtxOCC {
-public:
+ public:
   RtxOCCR(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int tid,int cid,int response_node,
           RdmaCtrl *cm,RDMA_sched* rdma_sched,int ms) :
       RtxOCC(worker,db,rpc_handler,nid,tid,cid,response_node,
@@ -33,13 +38,19 @@ public:
     uint64_t off = 0;
 #if INLINE_OVERWRITE
     off = rdma_lookup_op(pid,tableid,key,data_ptr,yield);
+    MemNode *node = (MemNode *)data_ptr;
+    auto seq = node->seq;
+    data_ptr = data_ptr + sizeof(MemNode);
 #else
     off = rdma_read_val(pid,tableid,key,len,data_ptr,yield,sizeof(RdmaValHeader));
+    RdmaValHeader *header = (RdmaValHeader *)data_ptr;
+    auto seq = header->seq;
+    data_ptr = data_ptr + sizeof(RdmaValHeader);
 #endif
-    MemNode *node = (MemNode *)data_ptr;
     ASSERT(off != 0) << "RDMA remote read key error: tab " << tableid << " key " << key;
-    read_set_.emplace_back(tableid,key,(MemNode *)off,(char *)data_ptr + sizeof(MemNode),
-                           node->seq, // seq shall be filled later
+
+    read_set_.emplace_back(tableid,key,(MemNode *)off,data_ptr,
+                           seq,
                            len,pid);
     return read_set_.size() - 1;
   }
@@ -50,7 +61,7 @@ public:
     return dummy_commit();
 #endif
 
-#if 0 //USE_RDMA_COMMIT
+#if 1 //USE_RDMA_COMMIT
     if(!lock_writes_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -64,7 +75,7 @@ public:
     }
 #endif
 
-#if 0 //USE_RDMA_COMMIT
+#if 1 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -77,7 +88,7 @@ public:
 #endif
     }
 #endif
-
+    return dummy_commit();
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
 
@@ -101,9 +112,65 @@ public:
     return false;
   }
 
+  /**
+   * We encode raw RDMA structure here.
+   * The lock requests contains two consecutive requests to one QP,
+   * one for lock and one for validate.
+   */
+  struct RDMALockReq {
+
+    struct ibv_send_wr sr[2];
+    struct ibv_send_wr *bad_sr;
+    struct ibv_sge     sge[2];
+
+    explicit RDMALockReq(int cid) {
+      // op code
+      sr[0].opcode = IBV_WR_ATOMIC_CMP_AND_SWP;
+      sr[1].opcode = IBV_WR_RDMA_READ;
+
+      // sge
+      sr[0].num_sge = 1; sr[0].sg_list = &sge[0];
+      sr[1].num_sge = 1; sr[1].sg_list = &sge[1];
+
+      // coroutine id
+      sr[0].send_flags = 0;
+      sr[0].wr_id = cid;
+      sr[1].send_flags = IBV_SEND_SIGNALED;
+      sr[1].wr_id = cid;
+
+      // meta data
+      sge[0].length = sizeof(uint64_t);
+      sge[1].length = sizeof(uint64_t);
+
+      // link together
+      sr[0].next = &sr[1];
+      sr[1].next = NULL;
+    }
+
+    inline void set_lock_meta(Qp *qp,uint64_t remote_off,uint64_t compare, uint64_t swap,
+                         char *local_addr) {
+      sr[0].wr.atomic.remote_addr = remote_off + qp->remote_attr_.buf;
+      sr[0].wr.atomic.compare_add = compare;
+      sr[0].wr.atomic.swap = swap;
+      sr[0].wr.atomic.rkey = qp->remote_attr_.rkey;
+
+      sge[0].addr = (uint64_t)local_addr;
+      sge[0].lkey = qp->dev_->conn_buf_mr->lkey;
+    }
+
+    inline void set_read_meta(Qp *qp,uint64_t remote_off,char *local_addr) {
+      sr[1].wr.rdma.remote_addr =  remote_off + qp->remote_attr_.buf;
+      sr[1].wr.rdma.rkey = qp->remote_attr_.rkey;
+
+      sge[1].addr = (uint64_t)local_addr;
+      sge[1].lkey = qp->dev_->conn_buf_mr->lkey;
+    }
+  };
+
   bool lock_writes_w_rdma(yield_func_t &yield) {
 
     uint64_t lock_content =  ENCODE_LOCK_CONTENT(response_node_,worker_id_,cor_id_ + 1);
+    RDMALockReq req(cor_id_);
 
     // send requests
     for(auto it = write_set_.begin();it != write_set_.end();++it) {
@@ -114,12 +181,12 @@ public:
         Qp *qp = qp_vec_[(*it).pid];
         assert(qp != NULL);
 
-        // MemNode : lock | seq | ...
-        qp->rc_post_compare_and_swap((char *)((*it).data_ptr) - sizeof(MemNode),off,0,
-                                     lock_content,0 /* flag */ ,cor_id_);
-        // read the seq
-        qp->rc_post_send(IBV_WR_RDMA_READ,(char *)((*it).data_ptr - sizeof(MemNode)) + sizeof(uint64_t), // the second position store the seq
-                         sizeof(uint64_t),off + sizeof(uint64_t),IBV_SEND_SIGNALED,cor_id_);
+        char *local_buf = (char *)((*it).data_ptr) - sizeof(MemNode);
+
+        req.set_lock_meta(qp,off,0,lock_content,local_buf);
+        req.set_read_meta(qp,off + sizeof(uint64_t),local_buf + sizeof(uint64_t));
+
+        qp->rc_post_batch(&(req.sr[0]),&(req.bad_sr));
         scheduler_->add_pending(cor_id_,qp);
       }
       else {
@@ -254,25 +321,32 @@ public:
     return true;
   }
 
-  // overwrite GC functions, to use Rfree
-  void gc_readset() {
-    for(auto it = read_set_.begin();it != read_set_.end();++it) {
-      // the first part of data_ptr is reserved to store MemNode
-      if(it->pid != node_id_)
+  /**
+   * GC the read/write set is a little complex using RDMA.
+   * Since some pointers are allocated from the RDMA heap, not from local heap.
+   */
+  void gc_helper(std::vector<ReadSetItem> &set) {
+    for(auto it = set.begin();it != set.end();++it) {
+      if(it->pid != node_id_) {
+#if INLINE_OVERWRITE
         Rfree((*it).data_ptr - sizeof(MemNode));
+#else
+        Rfree((*it).data_ptr - sizeof(RdmaValHeader));
+#endif
+      }
       else
         free((*it).data_ptr);
+
     }
   }
 
+  // overwrite GC functions, to use Rfree
+  void gc_readset() {
+    gc_helper(read_set_);
+  }
+
   void gc_writeset() {
-    for(auto it = write_set_.begin();it != write_set_.end();++it) {
-      // the first part of data_ptr is reserved to store MemNode
-      if(it->pid != node_id_)
-        Rfree((*it).data_ptr - sizeof(MemNode));
-      else
-        free((*it).data_ptr);
-    }
+    gc_helper(write_set_);
   }
 
   bool dummy_commit() {

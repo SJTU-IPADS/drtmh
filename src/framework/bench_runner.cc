@@ -50,7 +50,6 @@ uint64_t ringsz;
 
 RdmaCtrl *cm;
 
-
 namespace oltp {
 
 /**
@@ -321,7 +320,7 @@ void BenchRunner::parse_config(std::string &config_file) {
       rep_factor = pt.get<size_t>("bench.rep_factor");
     } catch (const ptree_error &e) {
       LOG(LOG_ERROR) << "parse rep_factor " << config_file
-                     << "error. It may be an error, or not." << e.what();
+                     << " error. It may be an error, or not." << e.what();
       rep_factor = 0;
     }
 

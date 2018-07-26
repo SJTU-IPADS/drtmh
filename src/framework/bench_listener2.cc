@@ -70,7 +70,7 @@ BenchLocalListener::BenchLocalListener(unsigned worker_id,const std::vector<RWor
 
 void BenchLocalListener::run() {
 
-  fprintf(stdout,"[Listener] New monitor running!\n");
+  LOG(2) << "New monitor running!\n";
 
   RThreadLocalInit();
   init_routines(1);

@@ -210,6 +210,7 @@ class BankLoader : public BenchLoader {
       save_size = Round<int>(save_size,CACHE_LINE_SZ);
       int check_size = meta_size + sizeof(checking::value);
       check_size = Round<int>(check_size, CACHE_LINE_SZ);
+      ASSERT(check_size % CACHE_LINE_SZ == 0) << "cache size " << CACHE_LINE_SZ;
 
 #if ONE_SIDED_READ == 1
       if(is_primary_){
@@ -248,15 +249,20 @@ class BankLoader : public BenchLoader {
       savings::value *s = (savings::value *)(wrapper_saving + meta_size);
       s->s_balance = balance_s;
       auto node = store_->Put(SAV,i,(uint64_t *)wrapper_saving,sizeof(savings::value));
-      node->off = (uint64_t)wrapper_saving - (uint64_t)(cm->conn_buf_);
+      if(is_primary_ && ONE_SIDED_READ) {
+        node->off = (uint64_t)wrapper_saving - (uint64_t)(cm->conn_buf_);
+        ASSERT(node->off % sizeof(uint64_t) == 0) << "saving value size " << save_size;
+      }
 
       checking::value *c = (checking::value *)(wrapper_check + meta_size);
       c->c_balance = balance_c;
       assert(c->c_balance > 0);
       node = store_->Put(CHECK,i,(uint64_t *)wrapper_check,sizeof(checking::value));
 
-      if(is_primary_ && ONE_SIDED_READ)
+      if(is_primary_ && ONE_SIDED_READ) {
         node->off =  (uint64_t)wrapper_check - (uint64_t)(cm->conn_buf_);
+        ASSERT(node->off % sizeof(uint64_t) == 0) << "check value size " << check_size;
+      }
 
       assert(node->seq == 2);
 
@@ -346,7 +352,7 @@ std::vector<BackupBenchWorker *> BankMainRunner::make_backup_workers() {
 void BankMainRunner::populate_cache() {
 
 #if ONE_SIDED_READ == 1 && RDMA_CACHE == 1
-  LOG(2) << "loading cache.\n";
+  LOG(2) << "loading cache.";
 
   // create a temporal QP for usage
   int dev_id = cm->get_active_dev(0);
@@ -379,7 +385,7 @@ void BankMainRunner::populate_cache() {
                                            cm->get_rc_qp(nthreads + nthreads + 1,pid,0),temp);
     assert(off != 0);
 
-    if(i % 10000 == 0)
+    if(i % (total_partition * 10000) == 0)
       PrintProgress((double)i / NumAccounts());
 
   }

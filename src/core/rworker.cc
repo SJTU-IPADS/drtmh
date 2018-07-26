@@ -87,7 +87,7 @@ int RWorker::choose_rnic_port() {
     use_port_ = 0;
 
   if(worker_id_ >= util::CorePerSocket()) {
-    //use_port_ = 0;
+    use_port_ = 0;
   }
   return use_port_;
 }

@@ -30,8 +30,9 @@ int BindToCore (int thread_id);
 int CorePerSocket();
 template <class Num> inline ALWAYS_INLINE  // Round "a" according to "b"
 Num Round (Num a, Num b) {
-    auto r = a % b;
-    return r?a + (a - r) : a;
+    if(a < b) return b;
+    Num r = a % b;
+    return r?(a + (a - r)): a ;
 }
 int  DiffTimespec(const struct timespec &end, const struct timespec &start);
 

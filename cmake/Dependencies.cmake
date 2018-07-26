@@ -75,7 +75,7 @@ else()
     )
 endif()
 
-find_path(ZMQ_CPP NAMES zmq.hpp HINTS  $ENV{HOME}/local/zeromq/include) 
+find_path(ZMQ_CPP NAMES zmq.hpp HINTS  $ENV{HOME}/local/zeromq/include/)
 include_directories( BEFORE ${LIBSSMALLOC_HEADERS} )
 include_directories( BEFORE ${LIBBOOST_HEADERS} )
 include_directories( BEFORE ${ZMQ_CPP} )
