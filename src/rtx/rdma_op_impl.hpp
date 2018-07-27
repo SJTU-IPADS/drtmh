@@ -24,12 +24,10 @@ uint64_t TXOpBase::rdma_read_val(int pid,int tableid,uint64_t key,int len,char *
 #if !RDMA_CACHE
   data_off = node->off; // fetch the offset from the content
 #endif
-  ASSERT(data_off % sizeof(uint64_t) == 0) << " check lock " << node->lock
-                                           << " check seq "  << node->seq << " key " << key;
 
   // fetch the content
   Qp* qp = qp_vec_[pid];
-  qp->rc_post_send(IBV_WR_RDMA_READ,val + sizeof(MemNode),len,data_off,
+  qp->rc_post_send(IBV_WR_RDMA_READ,val,len + meta_len,data_off,
                    IBV_SEND_SIGNALED,worker_->cor_id());
   scheduler_->add_pending(worker_->cor_id(),qp);
   worker_->indirect_yield(yield); // yield for waiting for NIC's completion

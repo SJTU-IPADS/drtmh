@@ -86,7 +86,7 @@ void BenchWorker::init_tx_ctx() {
   worker = this;
   txs_              = new TXHandler*[1 + server_routine + 2];
   new_txs_          = new rtx::RtxOCC*[1 + server_routine + 2];
-  msg_buf_alloctors = new RPCMemAllocator[1 + server_routine];
+  //msg_buf_alloctors = new RPCMemAllocator[1 + server_routine];
 
   txn_counts = new std::vector<size_t> ();
   txn_aborts = new std::vector<size_t> ();
@@ -314,7 +314,7 @@ void BenchWorker::exit_handler() {
     auto &workload = workloads[1];
 
     auto second_cycle = Breakdown_Timer::get_one_second_cycle();
-#if 0
+#if 1
     //exit_lock.Lock();
     fprintf(stdout,"aborts: ");
     workload[0].latency_timer.calculate_detailed();

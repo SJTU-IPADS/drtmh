@@ -186,6 +186,7 @@ retry:
 #else
   bool ret = tx_->end(yield);
 #endif
+
   return txn_result_t(ret,73);
 }
 

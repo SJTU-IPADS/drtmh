@@ -34,7 +34,9 @@ class RtxOCCR : public RtxOCC {
   // without cache's version
   int remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
 
-    char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len);
+    char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len + sizeof(RdmaValHeader));
+    ASSERT(data_ptr != NULL);
+
     uint64_t off = 0;
 #if INLINE_OVERWRITE
     off = rdma_lookup_op(pid,tableid,key,data_ptr,yield);

@@ -50,6 +50,13 @@ class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM
                           nocc::oltp::RDMA_sched *sched, yield_func_t &yield,char *val) {
 #if RDMA_CACHE
     auto res = *(loc_cache_->get(key));
+#if 0
+    auto res2 = remote_get(key,qp,sched,yield,val);
+    MemNode *node = (MemNode *)val;
+    res2 = node->off;
+    ASSERT(res == res2) << "cached loc " << res
+                        << "; real loc " << res2;
+#endif
     return res;
 #else
     return remote_get(key,qp,sched,yield,val);
@@ -62,8 +69,7 @@ class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM
 #if RDMA_CACHE
     auto ptr = loc_cache_->get_with_insert(key);
     MemNode *node = (MemNode *)val;
-    //*ptr = res; // TODO, now only cache the MemNode's offset!
-    *ptr = node->off;
+    *ptr = node->off; // cache the real data offset
     return res;
 #endif
   }

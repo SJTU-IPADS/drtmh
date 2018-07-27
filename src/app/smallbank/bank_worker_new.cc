@@ -116,6 +116,21 @@ retry:
   rtx_->add_to_write();
 
   bool ret = rtx_->commit(yield);
+
+#if 0 // check the correctness
+  {
+    if(ret == true) {
+      rtx_->begin();
+      rtx_->start_batch_read();
+      rtx_->add_batch_read(CHECK,id,pid,sizeof(checking::value));
+      rtx_->send_batch_read();
+      checking::value *cv1 = rtx_->get_readset<checking::value>(0,yield);
+      ASSERT(cv1->c_balance == cv->c_balance) << "exe return: " << cv->c_balance
+                                              << "; check return: " << cv1->c_balance;
+    }
+  }
+#endif
+
   return txn_result_t(ret,1);
 }
 
@@ -176,7 +191,6 @@ txn_result_t BankWorker::txn_amal_new(yield_func_t &yield) {
   rtx_->add_to_read<SAV,savings::value>(pid0,id0,yield);
   rtx_->add_to_read<CHECK,checking::value>(pid0,id0,yield);
   rtx_->add_to_read<CHECK,checking::value>(pid1,id1,yield);
-
 #else
   rtx_->add_to_write<SAV,savings::value>(pid0,id0,yield);
   rtx_->add_to_write<CHECK,checking::value>(pid0,id0,yield);
