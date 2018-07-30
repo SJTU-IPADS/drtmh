@@ -269,7 +269,9 @@ bool RtxOCC::validate_reads(yield_func_t &yield) {
   // parse the results
   for(uint i = 0;i < read_batch_helper_.mac_set_.size();++i) {
     if(*(get_batch_res<uint8_t>(read_batch_helper_,i)) == LOCK_FAIL_MAGIC) { // lock failed
+#if !NO_ABORT
       return false;
+#endif
     }
   }
   return true;
@@ -304,7 +306,9 @@ bool RtxOCC::lock_writes(yield_func_t &yield) {
   // parse the results
   for(uint i = 0;i < write_batch_helper_.mac_set_.size();++i) {
     if(*(get_batch_res<uint8_t>(write_batch_helper_,i)) == LOCK_FAIL_MAGIC) { // lock failed
+#if !NO_ABORT
       return false;
+#endif
     }
   }
   return true;
@@ -331,7 +335,8 @@ void RtxOCC::read_rpc_handler(int id,int cid,char *msg,void *arg) {
       case RTX_REQ_READ: {
         // fetch the record
         uint64_t seq;
-        auto node = local_get_op(item->tableid,item->key,reply + sizeof(RtxOCCResponse),item->len,seq);
+        auto node = local_get_op(item->tableid,item->key,reply + sizeof(RtxOCCResponse),item->len,seq,
+                                 db_->_schemas[item->tableid].meta_len);
         reply_item->seq = seq;
         reply_item->idx = item->idx;
         reply_item->payload = item->len;
@@ -380,6 +385,9 @@ void RtxOCC::lock_rpc_handler(int id,int cid,char *msg,void *arg) {
   uint8_t res = LOCK_SUCCESS_MAGIC; // success
 
   RTX_ITER_ITEM(msg,sizeof(RtxLockItem)) {
+
+    ASSERT(num < 25) << "[Lock RPC handler] lock " << num << " items.";
+
     auto item = (RtxLockItem *)ttptr;
 
     if(item->pid != response_node_)

@@ -9,6 +9,12 @@ namespace oltp {
 
 extern __thread util::fast_random   *random_generator;
 
+bool diff_check(const checking::value *c0,const checking::value *c1) {
+  if(std::abs(c0->c_balance - c1->c_balance) < 5.0)
+    return true;
+  return false;
+}
+
 bool verify_check_balance(const checking::value *c) {
   return c->c_balance >= MIN_BALANCE && c->c_balance <= MAX_BALANCE;
 }
@@ -109,6 +115,7 @@ retry:
 #endif
 
   checking::value *cv = rtx_->get_readset<checking::value>(0,yield);
+  ASSERT(verify_check_balance(cv));
 
   // fetch cached record from read-set
   assert(cv != NULL);
@@ -120,13 +127,13 @@ retry:
 #if 0 // check the correctness
   {
     if(ret == true) {
-      rtx_->begin();
+      rtx_->begin(yield);
       rtx_->start_batch_read();
       rtx_->add_batch_read(CHECK,id,pid,sizeof(checking::value));
       rtx_->send_batch_read();
       checking::value *cv1 = rtx_->get_readset<checking::value>(0,yield);
-      ASSERT(cv1->c_balance == cv->c_balance) << "exe return: " << cv->c_balance
-                                              << "; check return: " << cv1->c_balance;
+      ASSERT(diff_check(cv,cv1)) << "exe return: " << cv->c_balance
+                                 << "; check return: " << cv1->c_balance;
     }
   }
 #endif

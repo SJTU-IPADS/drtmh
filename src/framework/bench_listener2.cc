@@ -116,7 +116,7 @@ WAIT_RETRY:
     goto WAIT_RETRY;
   }
 
-  LOG(2) << "All work has initilized.";
+  LOG(2) << "All workers has initilized.";
 }
 
 void BenchLocalListener::worker_routine(yield_func_t &yield) {

@@ -31,10 +31,11 @@ class RtxOCCR : public RtxOCC {
     register_default_rpc_handlers();
   }
 
-  // without cache's version
   int remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
 
     char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len + sizeof(RdmaValHeader));
+    assert(data_ptr != NULL);
+
     ASSERT(data_ptr != NULL);
 
     uint64_t off = 0;
@@ -63,7 +64,7 @@ class RtxOCCR : public RtxOCC {
     return dummy_commit();
 #endif
 
-#if 1 //USE_RDMA_COMMIT
+#if 0 //USE_RDMA_COMMIT
     if(!lock_writes_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -77,7 +78,7 @@ class RtxOCCR : public RtxOCC {
     }
 #endif
 
-#if 1 //USE_RDMA_COMMIT
+#if 0 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -136,9 +137,8 @@ class RtxOCCR : public RtxOCC {
 
       // coroutine id
       sr[0].send_flags = 0;
-      sr[0].wr_id = cid;
       sr[1].send_flags = IBV_SEND_SIGNALED;
-      sr[1].wr_id = cid;
+      sr[1].wr_id = RDMA_sched::encode_wrid(cid,1);
 
       // meta data
       sge[0].length = sizeof(uint64_t);
@@ -150,7 +150,7 @@ class RtxOCCR : public RtxOCC {
     }
 
     inline void set_lock_meta(Qp *qp,uint64_t remote_off,uint64_t compare, uint64_t swap,
-                         char *local_addr) {
+                              char *local_addr) {
       sr[0].wr.atomic.remote_addr = remote_off + qp->remote_attr_.buf;
       sr[0].wr.atomic.compare_add = compare;
       sr[0].wr.atomic.swap = swap;
@@ -183,13 +183,23 @@ class RtxOCCR : public RtxOCC {
         Qp *qp = qp_vec_[(*it).pid];
         assert(qp != NULL);
 
+#if INLINE_OVERWRITE
         char *local_buf = (char *)((*it).data_ptr) - sizeof(MemNode);
+#else
+        char *local_buf = (char *)((*it).data_ptr) - sizeof(RdmaValHeader);
+#endif
 
         req.set_lock_meta(qp,off,0,lock_content,local_buf);
         req.set_read_meta(qp,off + sizeof(uint64_t),local_buf + sizeof(uint64_t));
 
-        qp->rc_post_batch(&(req.sr[0]),&(req.bad_sr));
+        assert(qp->need_to_poll() == false);
+        qp->rc_post_batch(&(req.sr[0]),&(req.bad_sr),1);
         scheduler_->add_pending(cor_id_,qp);
+
+        // two request need to be polled
+        if(unlikely(qp->need_to_poll())) {
+          worker_->indirect_yield(yield);
+        }
       }
       else {
         if(unlikely(!local_try_lock_op(it->node,
@@ -213,10 +223,14 @@ class RtxOCCR : public RtxOCC {
       if((*it).pid != node_id_) {
         MemNode *node = (MemNode *)((*it).data_ptr - sizeof(MemNode));
         if(node->lock != 0){ // check locks
+#if !NO_ABORT
           return false;
+#endif
         }
         if(node->seq != (*it).seq) {     // check seqs
+#if !NO_ABORT
           return false;
+#endif
         }
       }
     }
@@ -292,9 +306,15 @@ class RtxOCCR : public RtxOCC {
   }
 
   bool validate_reads_w_rdma(yield_func_t &yield) {
+
     for(auto it = read_set_.begin();it != read_set_.end();++it) {
       if((*it).pid != node_id_) {
+
+#if INLINE_OVERWRITE
         MemNode *node = (MemNode *)((*it).data_ptr - sizeof(MemNode));
+#else
+        RdmaValHeader *node = (RdmaValHeader *)((*it).data_ptr - sizeof(RdmaValHeader));
+#endif
         Qp *qp = qp_vec_[(*it).pid];
         assert(qp != NULL);
 
@@ -316,8 +336,11 @@ class RtxOCCR : public RtxOCC {
     for(auto it = read_set_.begin();it != read_set_.end();++it) {
       if((*it).pid != node_id_) {
         MemNode *node = (MemNode *)((*it).data_ptr - sizeof(MemNode));
-        if(node->seq != (*it).seq || node->lock != 0) // check lock and versions
+        if(node->seq != (*it).seq || node->lock != 0) { // check lock and versions
+#if NO_ABORT
           return false;
+#endif
+        }
       }
     }
     return true;
@@ -384,7 +407,7 @@ class RtxOCCR : public RtxOCC {
         res = LOCK_FAIL_MAGIC;
         break;
       }
-      if(unlikely(node->seq != item->seq)) {
+      if(unlikely(header->seq != item->seq)) {
         res = LOCK_FAIL_MAGIC;
         break;
       }

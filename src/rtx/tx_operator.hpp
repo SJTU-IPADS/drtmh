@@ -78,7 +78,7 @@ class TXOpBase {
   bool     local_validate_op(MemNode *node,uint64_t seq);
 
   MemNode  *inplace_write_op(int tableid,uint64_t key,char *val,int len);
-  MemNode  *inplace_write_op(MemNode *node,char *val,int len);
+  MemNode  *inplace_write_op(MemNode *node,char *val,int len,int meta = 0);
 
   // basically its only a wrapper to send a get request with Argument REQ
   template <typename REQ,typename... _Args>

@@ -130,6 +130,7 @@ class ClusterHash {
   inline uint64_t remote_get(uint64_t key,Qp *qp,char *val) {
     assert(base_off_ != 0);
     HeaderNode *node = (HeaderNode *)Rmalloc(sizeof(HeaderNode));
+    assert(node != NULL);
 
     uint64_t idx = get_hash(key);
     uint64_t node_off = idx * sizeof(HeaderNode) + base_off_;
@@ -161,6 +162,7 @@ class ClusterHash {
 
     assert(base_off_ != 0);
     HeaderNode *node = (HeaderNode *)Rmalloc(sizeof(HeaderNode));
+    assert(node != NULL);
 
     uint64_t idx = get_hash(key);
     uint64_t node_off = idx * sizeof(HeaderNode) + base_off_;

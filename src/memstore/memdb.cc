@@ -40,7 +40,7 @@ void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_l
       store_size_   += tabp->size();
       uint64_t M = 1024 * 1024;
       ASSERT(store_size_ < M * RDMA_STORE_SIZE) <<
-          "store_size: ", get_memory_size_g(store_size_);
+          "store_size: " << get_memory_size_g(store_size_);
 #endif
     }
   }

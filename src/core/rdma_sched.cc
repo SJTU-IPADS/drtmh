@@ -46,18 +46,31 @@ void RDMA_sched::poll_comps() {
     }
 
     if(unlikely(wc_.status != IBV_WC_SUCCESS)) {
-      LOG(7) << "got bad completion with status: " << wc_.status << " with error " << ibv_wc_status_str(wc_.status)
+      LOG(3) << "got bad completion with status: " << wc_.status << " with error " << ibv_wc_status_str(wc_.status)
              << "@node " << qp->nid;
+      if(wc_.status != IBV_WC_RETRY_EXC_ERR)
+        assert(false);
+      else {
+        it++;
+        continue;
+      }
     }
 
-    auto cor_id = wc_.wr_id;
-    if(cor_id == 0) continue;  // ignore null completion
+    ASSERT(qp->pendings > 0);
+    qp->pendings -= 1;
+    qp->pending_doorbell -= decode_pending_doorbell(wc_.wr_id);
+    auto cor_id = decode_corid(wc_.wr_id);
 
-    assert(pending_counts_[cor_id] > 0);
+    if(cor_id == 0)
+      continue;  // ignore null completion
+
+    ASSERT(pending_counts_[cor_id] > 0) << "cor id " << cor_id
+                                        << "; pendings " << pending_counts_[cor_id];
     pending_counts_[cor_id] -= 1;
 
-    if(pending_counts_[cor_id] == 0)
+    if(pending_counts_[cor_id] == 0) {
       add_to_routine_list(cor_id);
+    }
 
     // update the iterator
     it = pending_qps_.erase(it);
@@ -66,5 +79,8 @@ void RDMA_sched::poll_comps() {
 
 void RDMA_sched::report() {
 }
+
+
 } // namespace db
+
 }   // namespace nocc

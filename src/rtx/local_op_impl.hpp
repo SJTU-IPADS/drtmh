@@ -92,7 +92,7 @@ bool TXOpBase::local_validate_op(int tableid,uint64_t key,uint64_t seq) {
 }
 
 inline __attribute__((always_inline))
-MemNode *TXOpBase::inplace_write_op(MemNode *node,char *val,int len) {
+MemNode *TXOpBase::inplace_write_op(MemNode *node,char *val,int len,int meta) {
 
   auto old_seq = node->seq;assert(node->seq != 1);
   node->seq = 73;
@@ -103,7 +103,7 @@ MemNode *TXOpBase::inplace_write_op(MemNode *node,char *val,int len) {
   if(node->value == NULL) {
     node->value = (uint64_t *)malloc(len);
   }
-  memcpy(node->value,val,len);
+  memcpy(node->value + meta,val,len);
 #endif
   // release the locks
   asm volatile("" ::: "memory");
@@ -118,7 +118,7 @@ MemNode *TXOpBase::inplace_write_op(int tableid,uint64_t key,char *val,int len) 
   MemNode *node = db_->stores_[tableid]->Get(key);
   ASSERT(node != NULL) << "get node error, at [tab " << tableid
                        << "], key: "<< key;
-  return inplace_write_op(node,val,len);
+  return inplace_write_op(node,val,len,db_->_schemas[tableid].meta_len);
 }
 
 

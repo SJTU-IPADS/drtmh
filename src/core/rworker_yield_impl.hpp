@@ -38,8 +38,11 @@ void RWorker::yield_next(yield_func_t &yield) {
   routine_meta_ = routine_meta_->next_;
   cor_id_  = next;
   change_ctx(cor_id_);
+
   routine_meta_->yield_to(yield);
+
   change_ctx(cor_id_);
+  assert(cor_id_ == routine_meta_->id_);
 }
 
 // end class nocc_worker

@@ -11,6 +11,8 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>    /* sort  */
+#include <climits>
+
 #include <math.h>       /* floor */
 
 #include <unistd.h>
@@ -25,6 +27,14 @@ inline ALWAYS_INLINE uint64_t rdtsc(void) { uint32_t hi, lo; __asm volatile("rdt
 namespace nocc {
 
 namespace util {
+
+template <typename R>
+constexpr R BitMask(unsigned int const onecount)
+{
+    return static_cast<R>(-(onecount != 0))
+            & (static_cast<R>(-1) >> ((sizeof(R) * CHAR_BIT) - onecount));
+}
+
 
 int BindToCore (int thread_id);
 int CorePerSocket();

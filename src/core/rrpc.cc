@@ -11,6 +11,9 @@ RRpc::RRpc(int tid,int coroutines,int req_buf_num,int reply_buf_num)
     : worker_id_(tid),
       reply_buf_slot_(0)
 {
+  if(tid == 0)
+    LOG(2) << "Using " << reply_buf_num <<" in flight reply bufs.";
+
   for(uint i = 0;i < MAX_RPC_SUPPORT;++i) register_[i] = false;
 
   // init buf
@@ -64,8 +67,9 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
 
   } else if (header->meta.type == REPLY) {
     // This is a reply
+    ASSERT(header->meta.cid != 0);
     if(unlikely(reply_counts_[header->meta.cid] == 0)) {
-      LOG(7) << "receive a reply from " << header->meta.cid << "at " << worker_id_
+      LOG(7) << "receive a reply from " << header->meta.cid << " at " << worker_id_
              << " which is not required.";
     }
 
