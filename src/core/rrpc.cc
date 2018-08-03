@@ -11,9 +11,6 @@ RRpc::RRpc(int tid,int coroutines,int req_buf_num,int reply_buf_num)
     : worker_id_(tid),
       reply_buf_slot_(0)
 {
-  if(tid == 0)
-    LOG(2) << "Using " << reply_buf_num <<" in flight reply bufs.";
-
   for(uint i = 0;i < MAX_RPC_SUPPORT;++i) register_[i] = false;
 
   // init buf
