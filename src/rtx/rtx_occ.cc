@@ -3,7 +3,12 @@
 
 #include "global_vars.h"
 
+#include "util/mapped_log.h"
+
+
 namespace nocc {
+
+extern __thread MappedLog local_log;
 
 namespace rtx {
 
@@ -11,9 +16,13 @@ RtxOCC::RtxOCC(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int cid
     TXOpBase(worker,db,rpc_handler,response_node),
     read_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),
     write_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),
+    read_set_(),
+    write_set_(),
     cor_id_(cid),response_node_(nid)
 {
   register_default_rpc_handlers();
+  memset(reply_buf_,0,MAX_MSG_SIZE);
+
   // resize the read/write set
   read_set_.reserve(12);
   write_set_.reserve(12);
@@ -50,7 +59,7 @@ bool RtxOCC::commit(yield_func_t &yield) {
   if(unlikely(!validate_reads(yield))) {
     goto ABORT;
   }
-
+  return true;
   prepare_write_contents();
   log_remote(yield); // log remote using *logger_*
   // write the modifications of records back
@@ -251,6 +260,7 @@ void RtxOCC::log_remote(yield_func_t &yield) {
 bool RtxOCC::validate_reads(yield_func_t &yield) {
 
   start_batch_rpc_op(read_batch_helper_);
+
   for(auto it = read_set_.begin();it != read_set_.end();++it) {
     if((*it).pid != node_id_) { // remote case
       add_batch_entry<RtxLockItem>(read_batch_helper_, (*it).pid,
@@ -406,6 +416,10 @@ void RtxOCC::lock_rpc_handler(int id,int cid,char *msg,void *arg) {
     }
   }
 
+  //char *log_buf = next_log_entry(&local_log,32);
+  //assert(log_buf != NULL);
+  //sprintf(log_buf,"reply to  %d c:%d, \n",id,cid);
+
   *((uint8_t *)reply_msg) = res;
   rpc_->send_reply(reply_msg,sizeof(uint8_t),id,cid);
 }
@@ -446,10 +460,14 @@ void RtxOCC::commit_rpc_handler(int id,int cid,char *msg,void *arg) {
 }
 
 void RtxOCC::validate_rpc_handler(int id,int cid,char *msg,void *arg) {
+
   char* reply_msg = rpc_->get_reply_buf();
   uint8_t res = LOCK_SUCCESS_MAGIC; // success
 
   RTX_ITER_ITEM(msg,sizeof(RtxLockItem)) {
+
+    ASSERT(num < 25) << "[Release RPC handler] lock " << num << " items.";
+
     auto item = (RtxLockItem *)ttptr;
 
     if(item->pid != response_node_)

@@ -1,5 +1,5 @@
 #include "ring_imm_msg.h"
-#include "utils/utils.h"
+#include "utils.h"
 #include "ralloc.h"
 
 #include <string.h>

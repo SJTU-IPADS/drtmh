@@ -1,9 +1,7 @@
 #ifndef RDMA_IO_UTIL
 #define RDMA_IO_UTIL
 
-#include <stdio.h>
 #include <byteswap.h>
-#include <string.h>
 #include <errno.h>
 
 // time utilites
@@ -12,10 +10,18 @@
 
 #include <iostream>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 
 #define _VERBOSE 1
-#define DEBUG(t,a)  if(_VERBOSE != 0)            \
-    if(_VERBOSE == 1 && t == 0){a;}              \
+#define DEBUG(t,a)  if(_VERBOSE != 0)           \
+    if(_VERBOSE == 1 && t == 0){a;}             \
     else if (_VERBOSE == 2){a;}
 
 
@@ -67,25 +73,36 @@ rdtsc(void)
 }
 
 namespace rdmaio {
-  namespace util {
+namespace util {
 
-    class Timer {
-      std::clock_t start_;
-      std::clock_t end_;
-    public:
-      Timer() {
-        start_ = std::clock();
-      }
-
-      void end() { end_ = std::clock();}
-
-      void reset() { start_ = std::clock(); end_ = start_; }
-
-      double elapsed_sec() {
-        return ( (double) (end_ - start_) / CLOCKS_PER_SEC);
-      }
-    };
+class Timer {
+  std::clock_t start_;
+  std::clock_t end_;
+ public:
+  Timer() {
+    start_ = std::clock();
   }
+
+  void end() { end_ = std::clock();}
+
+  void reset() { start_ = std::clock(); end_ = start_; }
+
+  double elapsed_sec() {
+    return ( (double) (end_ - start_) / CLOCKS_PER_SEC);
+  }
+};
+
+
+
+} // end namespace util
+
+
+
+struct QPReplyHeader {
+  int8_t status;
+  uint64_t qid;
+}  __attribute__ ((aligned (8)));
+
 };
 
 

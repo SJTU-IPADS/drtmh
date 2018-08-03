@@ -198,6 +198,8 @@ void RWorker::create_rdma_rc_connections(char *start_buffer,uint64_t total_ring_
                                  std::bind(&RRpc::poll_comp_callback,rpc_,
                                            std::placeholders::_1,std::placeholders::_2,std::placeholders::_3));
   rpc_->set_msg_handler(msg_handler_);
+
+  server_type_ = RC_MSG;
 }
 
 // must be called after init rdma
@@ -219,6 +221,8 @@ void RWorker::create_rdma_ud_connections(int total_connections) {
                                      std::placeholders::_1,std::placeholders::_2,std::placeholders::_3),
                            dev_id,port_idx,1);
   rpc_->set_msg_handler(msg_handler_);
+
+  server_type_ == UD_MSG;
 }
 
 void RWorker::create_tcp_connections(util::SingleQueue *queue, int tcp_port, zmq::context_t &context) {
@@ -235,6 +239,8 @@ void RWorker::create_tcp_connections(util::SingleQueue *queue, int tcp_port, zmq
 #endif  // create sockets for the adapter
   msg_handler_ = adapter;
   rpc_->set_msg_handler(msg_handler_);
+
+  server_type_ = TCP_MSG;
 }
 
 void RWorker::create_logger() {

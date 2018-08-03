@@ -64,7 +64,8 @@ namespace rdmaio {
   struct QPConnArg {
     uint64_t checksum;
     uint64_t qid; // the src qp id
-    char padding[16];
+    uint8_t  tid;
+    uint8_t  nid;
     uint64_t sign;
     void calculate_checksum() {
       checksum = get_checksum();

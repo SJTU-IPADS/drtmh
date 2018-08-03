@@ -108,8 +108,8 @@ WAIT_RETRY:
   }
   if(done != workers.size()) {
     const char *fmt = "%d worker finish initilization: ";
-    char char_buf[32];
-    snprintf(char_buf,32,fmt,done);
+    char char_buf[64];
+    snprintf(char_buf,64,fmt,done);
     PrintProgress((double)done / workers.size(),char_buf,stderr);
     usleep(3000);
     done = 0;
@@ -132,13 +132,14 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
   while(nresult_returned_ != (total_partition - 1)) {
     yield_next(yield);
   }
+
   nresult_returned_ = 0;
 
   // start all servers
-  char dummy; // it should be inlined, so no need to use Rmalloc
+  char *dummy = rpc_->get_static_buf(64);
   assert(total_partition > 0);
   for(int i = 1;i < total_partition;++i) {
-    rpc_->append_req(&dummy,START_RPC_ID,sizeof(char),1,RRpc::REQ,i);
+    rpc_->append_req(dummy,START_RPC_ID,sizeof(char),1,RRpc::REQ,i);
   }
   // then start at local
   usleep(3000);start_workers(); // start the first server
@@ -152,7 +153,7 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
 
       // master send end RPCs to remotes
       for(uint i = 0;i < total_partition;++i) {
-        rpc_->append_req(&dummy,EXIT_RPC_ID,sizeof(char),1,RRpc::REQ,i);
+        rpc_->append_req(dummy,EXIT_RPC_ID,sizeof(char),1,RRpc::REQ,i);
       }
       exit_rpc_handler(0,0,NULL,NULL);
       return; // exit worker_routine
@@ -178,25 +179,27 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
 
 void BenchLocalListener::worker_routine_slave(yield_func_t &yield) {
 
-  fprintf(stdout,"slave started!\n");
-  char dummy; // it should be inlined, so no need to use Rmalloc
-  rpc_->append_req(&dummy,INIT_RPC_ID,sizeof(char),1 /* cor_id */,RRpc::REQ,0 /* master id */);
+  char *dummy = rpc_->get_static_buf(64);
+  *((int *)dummy) = current_partition;
+  rpc_->append_req(dummy,INIT_RPC_ID,sizeof(char),1 /* cor_id */,RRpc::REQ,0 /* master id */);
 
   // wait for master's start RPC
   while(!global_inited)
     yield_next(yield);
 
   // slave's main loop
-  while(true) {
-    sleep(1);
+  while(running) {
 
-    char *msg_buf = rpc_->get_static_buf(reporter_->data_len());
+    sleep(1); // report per one second
+
+    char *msg_buf = rpc_->get_fly_buf(cor_id_);
     reporter_->collect_data(msg_buf,start_t);
     rpc_->append_req(msg_buf,RES_RPC_ID,reporter_->data_len(),1,RRpc::REQ,0);
 
     epoch_ += 1;
-    if(epoch_ > MASTER_EPOCH + 20)
+    if(epoch_ > MASTER_EPOCH + 20) {
       exit_rpc_handler(0,0,NULL,NULL);
+    }
 
     yield_next(yield); // wait to receive RPC requests
   }
@@ -223,7 +226,7 @@ void BenchLocalListener::ending() {
 #endif
 
   // really end the benchmark
-  fprintf(stdout,"Benchmark ends... \n");
+  LOG(2) << "benchmark ends";
   reporter_->end();
 }
 
@@ -232,12 +235,14 @@ void BenchLocalListener::sigint_handler(int) {
 }
 
 void BenchLocalListener::init_rpc_handler(int id,int cid,char *msg,void *arg) {
+  assert(*((int *)msg) == id);
   nresult_returned_ += 1;
 }
 
 void BenchLocalListener::start_workers() {
+
   clock_gettime(CLOCK_REALTIME,&start_t);
-  fprintf(stdout,"[LISTENER] receive start RPC.\n");
+  LOG(2) << "[LISTENER] receive start RPC.";
 
   try {
     for(auto it = workers_.begin();it != workers_.end();++it) {

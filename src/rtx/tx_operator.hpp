@@ -48,7 +48,7 @@ class TXOpBase {
       int ms)  // total macs in the cluster setting
       :worker_(w),
        db_(db),
-       cm_(cm),scheduler_(rdma_sched),node_id_(nid),worker_id_(tid),rpc_(rpc_handler) {
+       cm_(cm),scheduler_(rdma_sched),node_id_(nid),worker_id_(tid),rpc_(rpc_handler),qp_vec_() {
     // fetch QPs
     for(uint i = 0;i < ms;++i) {
       auto qp = cm->get_rc_qp(tid,i,0);

@@ -9,6 +9,8 @@
 
 #include "ralloc.h" // RDMA malloc
 
+#include "logging.h"
+
 #define MAX_RPC_SUPPORT 16
 
 #include <functional>
@@ -75,7 +77,7 @@ class RRpc {
   bool  poll_comp_callback(char *msg,int nid,int tid);
 
   // Meta-data reserved for each message. It includes a header, and some implementation specific padding
-  inline const int rpc_padding() const { return msg_padding_ + sizeof(rrpc_header);}
+  inline int rpc_padding() const { return msg_padding_ + sizeof(rrpc_header);}
 
   // Get a buffer for sending RPC request. The buffer will not be allocate to other
   inline char *get_static_buf(int size) {
@@ -100,7 +102,7 @@ class RRpc {
   }
 
   inline void prepare_header(char *msg, int rpc_id,int size,int cid,int type) {
-    rrpc_header *header = (rrpc_header *) (msg - sizeof(rrpc_header));
+    volatile rrpc_header *header = (rrpc_header *) (msg - sizeof(rrpc_header));
     header->meta.type = type;
     header->meta.payload = size;
     header->meta.cid = cid;
@@ -108,6 +110,7 @@ class RRpc {
   }
 
   inline void prepare_multi_req(char *reply_buf,int num_of_replies,int cid) {
+    assert(num_of_replies > 0);
     reply_bufs_[cid] = reply_buf;  // the buffer to hold responses
     reply_counts_[cid] += num_of_replies; // the number of replies to receive
   }
@@ -156,6 +159,7 @@ class RRpc {
   }
 
   inline void send_reply(char *msg,int size,int server_id,int cid) {
+    ASSERT(size + rpc_padding() < 1024) << " send size " << size;
     return send_reply(msg,size,server_id,worker_id_,cid);
   }
 
@@ -191,6 +195,9 @@ class RRpc {
   // reply data structures, used for replying message
   char        **reply_bufs_ ;
   int          *reply_counts_;
+
+  // some statics count
+  uint64_t processed_rpc_ = 0;
 
   DISABLE_COPY_AND_ASSIGN(RRpc);
 }; // class rrpc

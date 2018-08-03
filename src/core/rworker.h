@@ -95,6 +95,12 @@ class RWorker : public ndb_thread {
   // Really start the routine
   void start_routine() {
     assert(inited == true);
+
+    // pre-checks
+    for(uint it = 0;it < total_worker_coroutine;++it) {
+      assert(rpc_->has_pending_reqs(it) == false);
+      assert(rdma_sched_->pending_counts_[it] == 0);
+    }
     routines_[0]();
   }
 
@@ -151,11 +157,11 @@ class RWorker : public ndb_thread {
  private:
   MsgHandler *msg_handler_ = NULL;  // communication between servers
   UDMsg *client_handler_   = NULL;  // communication with clients
-  MSGER_TYPE  server_type_;
+  MSGER_TYPE  server_type_ = UD_MSG;
   coroutine_func_t *routines_ = NULL;
 
   // coroutine related stuffs
-  int    total_worker_coroutine;
+  int    total_worker_coroutine = 0;
 
   void new_master_routine(yield_func_t &yield,int cor_id);
 

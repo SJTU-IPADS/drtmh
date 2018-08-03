@@ -113,7 +113,7 @@ namespace nocc {
 #endif
 
 #ifdef LOG_RESULTS
-      if(epoch > 10 && log_file.is_open()) {
+      if(epoch > 5 && log_file.is_open()) {
         /* warm up for 5 seconds, also the calcuation script will skip some seconds*/
         /* record the result */
         log_file << (throughput) << " "<< abort_ratio <<" "

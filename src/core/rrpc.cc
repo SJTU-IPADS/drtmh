@@ -55,6 +55,7 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
     try {
       callbacks_[header->meta.rpc_id](from,header->meta.cid,msg + sizeof(rrpc_header),
                                       (void *)(header->meta.payload));
+      processed_rpc_ += 1;
     } catch (...) {
       LOG(7) << "rpc called failed at " << worker_id_ << ";With rpc id "
              << header->meta.rpc_id;
@@ -68,12 +69,13 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
   } else if (header->meta.type == REPLY) {
     // This is a reply
     ASSERT(header->meta.cid != 0);
-    if(unlikely(reply_counts_[header->meta.cid] == 0)) {
-      LOG(7) << "receive a reply from " << header->meta.cid << " at " << worker_id_
-             << " which is not required.";
+    if(unlikely(reply_counts_[header->meta.cid] <= 0)) {
+      LOG(7) << "receive a reply from cid" << header->meta.cid << " at worker " << worker_id_ << " @mac " << from
+             << " which is not required." << "Total " << processed_rpc_ << " processed.";
     }
 
     char *buf = reply_bufs_[header->meta.cid];
+    assert(header->meta.payload < 1024 - rpc_padding());
     memcpy(buf,msg + sizeof(rrpc_header),header->meta.payload);
 
     reply_bufs_[header->meta.cid] += header->meta.payload;

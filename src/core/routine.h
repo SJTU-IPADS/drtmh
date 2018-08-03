@@ -77,7 +77,8 @@ struct RoutineMeta {
 
   void inline  __attribute__ ((always_inline))
       add_to_routine_list() {
-    if(active_) return; //skip add to the routine chain
+    if(active_)
+      return; //skip add to the routine chain
     auto prev = routine_tailer;
     prev->next_ = this;
     routine_tailer = this;

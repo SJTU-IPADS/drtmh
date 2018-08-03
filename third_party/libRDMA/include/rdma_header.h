@@ -1,4 +1,3 @@
-
 #define DUAL_PORT 1
 
 #define _RDMA_INDEX_MASK (0xffff)

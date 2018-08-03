@@ -116,18 +116,6 @@ class BenchWorker : public RWorker {
     routine_meta_ = cur->next_;
   }
 
-  //tempraraily solve indirect_yield bug for logger
-  inline void indirect_must_yield(yield_func_t& yield){
-    int next = routine_meta_->next_->id_;
-    tx_      = txs_[next];
-    cor_id_  = next;
-    auto cur = routine_meta_;
-    routine_meta_ = cur->next_;
-    cur->yield_from_routine_list(yield);
-    assert(routine_meta_->id_ == cor_id_);
-    change_ctx(cor_id_);
-  }
-
   void init_new_logger(MemDB **backup_stores) {
 
     assert(new_logger_ == NULL);
@@ -178,7 +166,7 @@ class BenchWorker : public RWorker {
   DBLogger *db_logger_;
   rtx::Logger *new_logger_;
   TXHandler *tx_;       /* current coroutine's tx handler */
-  //TXHandler *routine_1_tx_;
+
   rtx::RtxOCC *rtx_;
   LAT_VARS(yield);
 

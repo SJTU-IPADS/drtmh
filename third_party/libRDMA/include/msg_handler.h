@@ -24,6 +24,14 @@ namespace rdmaio {
     }
     virtual Qp::IOStatus broadcast_to(int *node_ids, int num_of_node, char *msg,int len) = 0;
 
+    virtual Qp::IOStatus broadcast_to(const std::set<int> &server_set, char *msg,int len) {
+      prepare_pending();
+      for(auto it = server_set.begin();it != server_set.end();++it) {
+        post_pending(*it,msg,len);
+      }
+      flush_pending();
+    }
+
     // delayed send methods; the message shall be sent after flush_pending
     virtual Qp::IOStatus prepare_pending() {
 
@@ -44,7 +52,7 @@ namespace rdmaio {
 
     }
 
-    // receive the msg
+    // poll all pending messages
     virtual void  poll_comps() = 0;
 
     virtual int get_num_nodes() = 0;

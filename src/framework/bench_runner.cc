@@ -275,6 +275,8 @@ BenchRunner::run() {
   l->join();
   l->ending(); //do some final calculations, i.e. latency
 
+  cm->end_server();
+
   // close TCP connections, if possible
   try {
     recv_context.close();

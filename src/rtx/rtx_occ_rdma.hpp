@@ -29,13 +29,12 @@ class RtxOCCR : public RtxOCC {
   {
     // register normal RPC handlers
     register_default_rpc_handlers();
+    //ROCC_BIND_STUB(rpc_,&RtxOCCR::lock_rpc_handler2,this,RTX_LOCK_RPC_ID); // overwrites with default RPC handler
   }
 
   int remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
 
     char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len + sizeof(RdmaValHeader));
-    assert(data_ptr != NULL);
-
     ASSERT(data_ptr != NULL);
 
     uint64_t off = 0;
@@ -77,7 +76,7 @@ class RtxOCCR : public RtxOCC {
 #endif
     }
 #endif
-
+    asm volatile("" ::: "memory");
 #if 0 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
 #if !NO_ABORT
@@ -92,9 +91,10 @@ class RtxOCCR : public RtxOCC {
     }
 #endif
     return dummy_commit();
+    asm volatile("" ::: "memory");
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
-
+    asm volatile("" ::: "memory");
 #if 0 //USE_RDMA_COMMIT
     write_back_w_rdma(yield);
 #else
@@ -401,7 +401,7 @@ class RtxOCCR : public RtxOCC {
       assert(node != NULL && node->value != NULL);
       RdmaValHeader *header = (RdmaValHeader *)(node->value);
 
-      volatile uint64_t *lockptr = (volatile uint64_t *)lockptr;
+      volatile uint64_t *lockptr = (volatile uint64_t *)header;
       if( unlikely( (*lockptr != 0) ||
                     !__sync_bool_compare_and_swap(lockptr,0,ENCODE_LOCK_CONTENT(id,worker_id_,cid + 1)))) {
         res = LOCK_FAIL_MAGIC;
@@ -455,6 +455,10 @@ class RtxOCCR : public RtxOCC {
     char *reply_msg = rpc_->get_reply_buf();
     rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply
 #endif
+  }
+
+  void validate_rpc_handler2(int id,int cid,char *msg,void *arg) {
+
   }
 };
 

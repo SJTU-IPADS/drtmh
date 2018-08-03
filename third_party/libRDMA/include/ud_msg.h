@@ -82,10 +82,9 @@ namespace rdmaio {
       //-------------------------------------
 
       // sender's data structure
-      ibv_send_wr sr_[16];
-      ibv_sge     ssge_[16];
+      ibv_send_wr sr_[UD_MAX_DOORBELL_SIZE];
+      ibv_sge     ssge_[UD_MAX_DOORBELL_SIZE];
       struct ibv_send_wr *bad_sr_;
-      int sender_batch_size_;
 
       // used for pending reqs
       int current_idx_;

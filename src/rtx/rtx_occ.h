@@ -30,6 +30,7 @@ class RtxOCC : public TXOpBase {
       TXOpBase(worker,db,rpc_handler,cm,sched,response_node,tid,ms),// response_node shall always equal *real node id*
       read_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),
       write_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),
+      read_set_(),write_set_(),
       cor_id_(cid),response_node_(nid)
   {
 

@@ -709,7 +709,7 @@ void DBTX::insert(int tableid, uint64_t key, char *val, int len) {
   int vlen = META_LENGTH + len;
 
   RWSet::RWSetItem item;
-  item.addr = (uint64_t *) (new char[vlen]);
+  item.addr = (uint64_t *) (new char[vlen + META_LENGTH]);
   memset(item.addr,0,META_LENGTH);
   memcpy( (char *)item.addr + META_LENGTH, val,len);
 
