@@ -20,7 +20,7 @@ namespace nocc {
 #define MAX_VAL_SZ (1024 - sizeof(RRWSet::Meta) - sizeof(RRWSet::Meta)) // max value per record
     // VAL buffer format: | meta (read phase) | payload | meta (for validation) |
 
-    RRWSet::RRWSet(rdmaio::RdmaCtrl *cm,RDMA_sched *sched,MemDB *db,int tid,int cid,int meta)
+    RRWSet::RRWSet(rdmaio::RdmaCtrl *cm,RScheduler *sched,MemDB *db,int tid,int cid,int meta)
       :tid_(tid),cor_id_(cid),db_(db),meta_len_(meta),sched_(sched),
        elems_(0),read_num_(0)
     {

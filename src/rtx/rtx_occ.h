@@ -26,7 +26,7 @@ class RtxOCC : public TXOpBase {
 
   // provide a hook to init RDMA based contents, using TXOpBase
   RtxOCC(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int tid,int cid,int response_node,
-         RdmaCtrl *cm,RDMA_sched *sched,int ms):
+         RdmaCtrl *cm,RScheduler *sched,int ms):
       TXOpBase(worker,db,rpc_handler,cm,sched,response_node,tid,ms),// response_node shall always equal *real node id*
       read_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),
       write_batch_helper_(rpc_->get_static_buf(MAX_MSG_SIZE),reply_buf_),

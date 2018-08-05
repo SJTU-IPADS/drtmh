@@ -40,7 +40,7 @@ class RRWSet {
     uint64_t seq;
   };
 
-  RRWSet(rdmaio::RdmaCtrl *cm,RDMA_sched *sched,MemDB *db,int tid,int cid,int meta);
+  RRWSet(rdmaio::RdmaCtrl *cm,RScheduler *sched,MemDB *db,int tid,int cid,int meta);
 
   int  add(int pid,int tableid,uint64_t key,int len); // fetch the remote key to the cache
   // the data off is written after meta off has been written
@@ -64,7 +64,7 @@ class RRWSet {
   int elems_;
   int read_num_;
 
-  RDMA_sched *sched_;
+  RScheduler *sched_;
 
   rdmaio::Qp* get_qp(int pid){
     int idx = (qp_idx_[pid]++) % QP_NUMS;

@@ -85,11 +85,11 @@ namespace nocc  {
 
       //DZY: use set_base_offset before constructor!!
 #if  TX_LOG_STYLE == 0
-      DBLogger(int tid,RdmaCtrl *rdma,View *v, RDMA_sched* rdma_sched);
+      DBLogger(int tid,RdmaCtrl *rdma,View *v, RScheduler* rdma_sched);
 #elif TX_LOG_STYLE == 1
       DBLogger(int tid,RdmaCtrl *rdma,View *v, RRpc *rpc_handler);
 #elif TX_LOG_STYLE == 2
-      DBLogger(int tid,RdmaCtrl *rdma,View *v, RDMA_sched* rdma_sched, RRpc *rpc_handler);
+      DBLogger(int tid,RdmaCtrl *rdma,View *v, RScheduler* rdma_sched, RRpc *rpc_handler);
 #endif
       ~DBLogger();
 
@@ -158,7 +158,7 @@ namespace nocc  {
       RdmaCtrl *rdma_;
 #if TX_LOG_STYLE == 0
 
-      RDMA_sched * rdma_sched_;
+      RScheduler * rdma_sched_;
 
 #elif TX_LOG_STYLE == 1
 
@@ -166,7 +166,7 @@ namespace nocc  {
 
 #elif TX_LOG_STYLE == 2
 
-      RDMA_sched * rdma_sched_;
+      RScheduler * rdma_sched_;
       RRpc *rpc_handler_;
 
 #endif

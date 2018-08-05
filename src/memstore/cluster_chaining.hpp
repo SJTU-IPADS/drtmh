@@ -86,7 +86,7 @@ class ClusterHash {
 
   void fetch_node(Qp *qp,uint64_t off,char *buf,int size);
   void fetch_node(Qp *qp,uint64_t off,char *buf,int size,
-                  nocc::oltp::RDMA_sched *sched,yield_func_t &yield);
+                  nocc::oltp::RScheduler *sched,yield_func_t &yield);
 
 
   inline uint64_t get_indirect_loc(int i) {
@@ -158,7 +158,7 @@ class ClusterHash {
   }
 
   //
-  inline uint64_t remote_get(uint64_t key, Qp *qp, nocc::oltp::RDMA_sched *sched,yield_func_t &yield,char *val) {
+  inline uint64_t remote_get(uint64_t key, Qp *qp, nocc::oltp::RScheduler *sched,yield_func_t &yield,char *val) {
 
     assert(base_off_ != 0);
     HeaderNode *node = (HeaderNode *)Rmalloc(sizeof(HeaderNode));

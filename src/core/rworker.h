@@ -146,7 +146,7 @@ class RWorker : public ndb_thread {
   unsigned int cor_id_ = 0;
   RdmaCtrl *cm_ = NULL;
   RRpc *rpc_    = NULL;
-  RDMA_sched *rdma_sched_ = NULL;
+  RScheduler *rdma_sched_ = NULL;
   int       use_port_ = -1;  // which RNIC's device to use
 
   // running status

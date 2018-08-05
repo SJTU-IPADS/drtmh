@@ -120,14 +120,14 @@ namespace drtm {
       }
 
       inline void fetch_node(Qp *qp,uint64_t off,char *buf,int size,
-                             nocc::oltp::RDMA_sched *sched,yield_func_t &yield) {
+                             nocc::oltp::RScheduler *sched,yield_func_t &yield) {
         qp->rc_post_send(IBV_WR_RDMA_READ,buf,size,off,IBV_SEND_SIGNALED,worker->cor_id());
         sched->add_pending(worker->cor_id(),qp);
         worker->indirect_yield(yield);
       }
 
       virtual uint64_t RemoteTraverse(uint64_t key,rdmaio::Qp *qp,
-                                      nocc::oltp::RDMA_sched *sched,yield_func_t &yield) {
+                                      nocc::oltp::RScheduler *sched,yield_func_t &yield) {
 
 #if CACHING == 1
         if(loc_cache.find(key) != loc_cache.end())

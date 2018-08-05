@@ -153,7 +153,7 @@ void RWorker::init_routines(int coroutines) {
   }
 
   // create RDMA scheduler
-  rdma_sched_ = new RDMA_sched();
+  rdma_sched_ = new RScheduler();
   rdma_sched_->thread_local_init(coroutines); // init rdma sched
 
   // init coroutine related data, 256: normal, 512: large scale

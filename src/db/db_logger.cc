@@ -20,13 +20,13 @@ namespace nocc {
 		uint64_t DBLogger::base_offset_  = 0;
 
 #if TX_LOG_STYLE == 0
-		DBLogger::DBLogger(int thread_id,RdmaCtrl *rdma,View *view, RDMA_sched* rdma_sched)
+		DBLogger::DBLogger(int thread_id,RdmaCtrl *rdma,View *view, RScheduler* rdma_sched)
 			: rdma_(rdma), view_(view), thread_id_(thread_id), rdma_sched_(rdma_sched) {
 #elif TX_LOG_STYLE == 1
 		DBLogger::DBLogger(int thread_id,RdmaCtrl *rdma,View *view,RRpc *rpc_handler)
 			: rdma_(rdma), view_(view), thread_id_(thread_id), rpc_handler_(rpc_handler) {
 #elif TX_LOG_STYLE == 2
-		DBLogger::DBLogger(int thread_id,RdmaCtrl *rdma,View *view, RDMA_sched* rdma_sched, RRpc *rpc_handler)
+		DBLogger::DBLogger(int thread_id,RdmaCtrl *rdma,View *view, RScheduler* rdma_sched, RRpc *rpc_handler)
 			: rdma_(rdma), view_(view), thread_id_(thread_id), rdma_sched_(rdma_sched), rpc_handler_(rpc_handler) {
 #endif
 			assert(rdma != NULL);

@@ -335,7 +335,7 @@ namespace nocc {
 
 
     // Real implementation of FaRM's OCC //////////////////////////////////////
-    DBFarm::DBFarm(rdmaio::RdmaCtrl *cm,RDMA_sched *sched,MemDB *tables,int t_id,RRpc *rpc,int c_id)
+    DBFarm::DBFarm(rdmaio::RdmaCtrl *cm,RScheduler *sched,MemDB *tables,int t_id,RRpc *rpc,int c_id)
       :lock_buf_(NULL),reply_buf_(NULL),
        commit_buf_(NULL),                 // init of msg buffer
        read_server_num_(0),               // number of server to read

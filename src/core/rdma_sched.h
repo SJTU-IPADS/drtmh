@@ -10,10 +10,10 @@ namespace nocc {
 
 namespace oltp {
 
-class RDMA_sched {
+class RScheduler {
  public:
-  RDMA_sched();
-  ~RDMA_sched();
+  RScheduler();
+  ~RScheduler();
 
   static const int  COR_ID_BIT = 8;
   static const uint  COR_ID_MASK = ::nocc::util::BitMask<uint>(COR_ID_BIT);

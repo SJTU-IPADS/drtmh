@@ -111,7 +111,7 @@ class Memstore {
   }
 
   virtual uint64_t RemoteTraverse(uint64_t key,rdmaio::Qp *qp,
-                                  nocc::oltp::RDMA_sched *sched, yield_func_t &yield,char *val) {
+                                  nocc::oltp::RScheduler *sched, yield_func_t &yield,char *val) {
     NOCC_NOT_IMPLEMENT("RemoteTraverseYield");
     return 0;
   }

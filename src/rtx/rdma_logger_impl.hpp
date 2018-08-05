@@ -11,7 +11,7 @@ using namespace oltp;
 
 class RDMALogger : public Logger {
  public:
-  RDMALogger(RdmaCtrl *cm, RDMA_sched* rdma_sched,int nid,int tid,uint64_t base_off,
+  RDMALogger(RdmaCtrl *cm, RScheduler* rdma_sched,int nid,int tid,uint64_t base_off,
              RRpc *rpc,int ack_rpc_id,
              int expected_store,char *local_p,int ms,int ts,int size,int entry_size = RTX_LOG_ENTRY_SIZE)
       :Logger(rpc,ack_rpc_id,base_off,expected_store,local_p,ms,ts,size,entry_size),
@@ -45,7 +45,7 @@ class RDMALogger : public Logger {
 
  private:
   std::vector<Qp *> qp_vec_;
-  RDMA_sched *scheduler_;
+  RScheduler *scheduler_;
   int node_id_;
   int worker_id_;
 };

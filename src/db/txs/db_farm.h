@@ -31,7 +31,7 @@ namespace nocc {
       } __attribute__ ((aligned (8)));
 
     public:
-      DBFarm(rdmaio::RdmaCtrl *cm,RDMA_sched *sched,MemDB *tables, int t_id,RRpc *rpc,int c_id = 0); // constructor
+      DBFarm(rdmaio::RdmaCtrl *cm,RScheduler *sched,MemDB *tables, int t_id,RRpc *rpc,int c_id = 0); // constructor
       void thread_local_init();                      // local init constructor
 
       bool lock_remote(yield_func_t &yield);
@@ -103,7 +103,7 @@ namespace nocc {
       int thread_id;
       RRpc *rpc_handler_;
       DBLogger *db_logger_;
-      RDMA_sched *sched_;
+      RScheduler *sched_;
 
       RWSet  *rwset_;
       RRWSet *rrwset_;

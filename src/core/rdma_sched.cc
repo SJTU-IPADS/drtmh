@@ -16,24 +16,26 @@ namespace nocc {
 
 namespace oltp {
 
-RDMA_sched::RDMA_sched() {
+RScheduler::RScheduler() {
+
 }
 
-RDMA_sched::~RDMA_sched() {
+RScheduler::~RScheduler() {
+
 }
 
-void RDMA_sched::thread_local_init(int coroutines) {
+void RScheduler::thread_local_init(int coroutines) {
   pending_counts_ = new int[coroutines + 1];
   for(uint i = 0;i <= coroutines;++i)
     pending_counts_[i] = 0;
 }
 
-void RDMA_sched::add_pending(int cor_id, Qp* qp) {
+void RScheduler::add_pending(int cor_id, Qp* qp) {
   pending_qps_.push_back(qp);
   pending_counts_[cor_id] += 1;
 }
 
-void RDMA_sched::poll_comps() {
+void RScheduler::poll_comps() {
 
   for(auto it = pending_qps_.begin();it != pending_qps_.end();) {
 
@@ -77,7 +79,7 @@ void RDMA_sched::poll_comps() {
   }
 }
 
-void RDMA_sched::report() {
+void RScheduler::report() {
 }
 
 

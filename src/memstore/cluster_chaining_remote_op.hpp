@@ -20,7 +20,7 @@ void ClusterHash<Data,DRTM_CLUSTER_NUM>::fetch_node(Qp *qp,uint64_t off,char *bu
 
 template <typename Data, int DRTM_CLUSTER_NUM>
 void ClusterHash<Data,DRTM_CLUSTER_NUM>::fetch_node(Qp *qp,uint64_t off,char *buf,int size,
-                                                    nocc::oltp::RDMA_sched *sched,yield_func_t &yield) {
+                                                    nocc::oltp::RScheduler *sched,yield_func_t &yield) {
   int flag = IBV_SEND_SIGNALED;
   if(size < 64) flag |= IBV_SEND_INLINE;
 

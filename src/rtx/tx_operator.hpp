@@ -42,7 +42,7 @@ class TXOpBase {
 
   // allow op implementation based on RDMA one-sided operations
   TXOpBase(RWorker *w,
-      MemDB *db,RRpc *rpc_handler,RdmaCtrl *cm, RDMA_sched* rdma_sched,
+      MemDB *db,RRpc *rpc_handler,RdmaCtrl *cm, RScheduler* rdma_sched,
       int nid, // my node id
       int tid, // worker thread's id
       int ms)  // total macs in the cluster setting
@@ -117,7 +117,7 @@ class TXOpBase {
   MemDB *db_       = NULL;
   RRpc  *rpc_      = NULL;
   RdmaCtrl *cm_    = NULL;
-  RDMA_sched *scheduler_ = NULL;
+  RScheduler *scheduler_ = NULL;
 
   std::vector<Qp *> qp_vec_;
 

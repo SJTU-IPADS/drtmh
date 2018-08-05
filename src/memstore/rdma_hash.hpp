@@ -47,7 +47,7 @@ class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM
   }
 
   uint64_t RemoteTraverse(uint64_t key,rdmaio::Qp *qp,
-                          nocc::oltp::RDMA_sched *sched, yield_func_t &yield,char *val) {
+                          nocc::oltp::RScheduler *sched, yield_func_t &yield,char *val) {
 #if RDMA_CACHE
     auto res = *(loc_cache_->get(key));
 #if 0
