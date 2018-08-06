@@ -24,9 +24,8 @@ void ClusterHash<Data,DRTM_CLUSTER_NUM>::fetch_node(Qp *qp,uint64_t off,char *bu
   int flag = IBV_SEND_SIGNALED;
   if(size < 64) flag |= IBV_SEND_INLINE;
 
-  qp->rc_post_send(IBV_WR_RDMA_READ,buf,size,off,flag,worker->cor_id());
-  sched->add_pending(worker->cor_id(),qp);
-
+  sched->post_send(qp,worker->cor_id(),
+                   IBV_WR_RDMA_READ,buf,size,off,flag);
   worker->indirect_yield(yield);
 }
 

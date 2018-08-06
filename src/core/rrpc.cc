@@ -3,6 +3,8 @@
 #include "routine.h"
 #include "logging.h"
 
+#include "rdma_sched.h"
+
 namespace nocc {
 
 namespace oltp {
@@ -37,10 +39,8 @@ RRpc::RRpc(int tid,int coroutines,int req_buf_num,int reply_buf_num)
   reply_bufs_       = new char*[1 + coroutines];
   reply_counts_     = new int[1 +   coroutines];
 
-  for(uint i = 0;i < 1 + coroutines;++i){
-    reply_counts_[i] = 0;
-    reply_bufs_[i]   = NULL;
-  }
+  std::fill_n(reply_counts_,1 + coroutines,0);
+  std::fill_n(reply_bufs_,1 + coroutines,static_cast<char *>(NULL));
 }
 
 bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
@@ -78,7 +78,9 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
     reply_bufs_[header->meta.cid] += header->meta.payload;
 
     reply_counts_[header->meta.cid] -= 1;
-    if(reply_counts_[header->meta.cid] == 0){
+    if(reply_counts_[header->meta.cid] == 0
+       && RScheduler::pending_counts_[header->meta.cid] == 0) { // avoid the chain from being added twice
+
       reply_bufs_[header->meta.cid] = NULL;
       add_to_routine_list(header->meta.cid);
     }
@@ -87,6 +89,8 @@ bool RRpc::poll_comp_callback(char *msg,int from,int from_t) {
   }
   return true;
 }
+
+__thread int *RRpc::reply_counts_ = NULL;
 
 } // namespace oltp
 

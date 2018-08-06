@@ -49,6 +49,13 @@ struct RtxLockItem {
   }
 } __attribute__ ((aligned (8)));
 
+struct CommitItem {
+  uint32_t len;
+  uint32_t tableid;
+  uint64_t key;
+} __attribute__ ((aligned (8)));
+
+
 
 struct RtxReplyHeader {
   uint16_t num;

@@ -92,6 +92,8 @@ class RtxOCC : public TXOpBase {
   virtual void write_back(yield_func_t &yield);
   virtual void log_remote(yield_func_t &yield);
 
+  void write_back_oneshot(yield_func_t &yield);
+
  protected:
   std::vector<ReadSetItem>  read_set_;
   std::vector<ReadSetItem>  write_set_;  // stores the index of readset
@@ -118,6 +120,8 @@ class RtxOCC : public TXOpBase {
   void release_rpc_handler(int id,int cid,char *msg,void *arg);
   void commit_rpc_handler(int id,int cid,char *msg,void *arg);
   void validate_rpc_handler(int id,int cid,char *msg,void *arg);
+
+  void commit_oneshot_handler(int id,int cid,char *msg,void *arg);
  protected:
   void prepare_write_contents();
 

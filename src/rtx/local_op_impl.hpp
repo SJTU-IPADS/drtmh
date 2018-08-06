@@ -103,7 +103,7 @@ MemNode *TXOpBase::inplace_write_op(MemNode *node,char *val,int len,int meta) {
   if(node->value == NULL) {
     node->value = (uint64_t *)malloc(len);
   }
-  memcpy(node->value + meta,val,len);
+  memcpy((char *)(node->value) + meta,val,len);
 #endif
   // release the locks
   asm volatile("" ::: "memory");

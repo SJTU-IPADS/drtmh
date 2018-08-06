@@ -28,13 +28,12 @@ bool RtxOCCR::lock_writes_w_rdma(yield_func_t &yield) {
       req.set_lock_meta(off,0,lock_content,local_buf);
       req.set_read_meta(off + sizeof(uint64_t),local_buf + sizeof(uint64_t));
 
-      assert(qp->need_to_poll() == false);
+      assert(qp->rc_need_poll() == false);
 
-      req.post_reqs(qp);
-      scheduler_->add_pending(cor_id_,qp);
+      req.post_reqs(scheduler_,qp);
 
       // two request need to be polled
-      if(unlikely(qp->need_to_poll())) {
+      if(unlikely(qp->rc_need_poll())) {
         worker_->indirect_yield(yield);
       }
     }
@@ -86,9 +85,8 @@ void RtxOCCR::release_writes_w_rdma(yield_func_t &yield) {
         Qp *qp = qp_vec_[(*it).pid];
         assert(qp != NULL);
         node->lock = 0;
-        qp->rc_post_send(IBV_WR_RDMA_WRITE,(char *)(node),sizeof(uint64_t),
-                         (*it).off,IBV_SEND_INLINE | IBV_SEND_SIGNALED,cor_id_);
-        scheduler_->add_pending(cor_id_,qp);
+        scheduler_->post_send(qp,cor_id_,IBV_WR_RDMA_WRITE,(char *)(node),sizeof(uint64_t),
+                              (*it).off,IBV_SEND_INLINE | IBV_SEND_SIGNALED);
       }
     } else {
       assert(false); // not implemented
@@ -100,8 +98,12 @@ void RtxOCCR::release_writes_w_rdma(yield_func_t &yield) {
 
 void RtxOCCR::write_back_w_rdma(yield_func_t &yield) {
 
-  RDMAWriteReq req(cor_id_);
-
+  /**
+   * XD: it is harder to apply PA for one-sided operations.
+   * This is because signaled requests are mixed with unsignaled requests.
+   * It got little improvements, though. So I skip it now.
+   */
+  RDMAWriteReq req(cor_id_,false /* whether to use passive ack*/);
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
 
     if((*it).pid != node_id_) {
@@ -116,22 +118,20 @@ void RtxOCCR::write_back_w_rdma(yield_func_t &yield) {
       node->seq = (*it).seq + 2; // update the seq
       node->lock = 0;            // re-set lock
 
-      int flag = IBV_SEND_INLINE; // flag used for RDMA write
-#if !PA
-      flag |= IBV_SEND_SIGNALED;
-#endif
+      req.set_write_meta((*it).off + sizeof(RdmaValHeader),(*it).data_ptr,(*it).len);
+      req.set_unlock_meta((*it).off);
+      req.post_reqs(scheduler_,qp);
+      // avoid send queue from overflow
+      if(unlikely(qp->rc_need_poll())) {
+        worker_->indirect_yield(yield);
+      }
 
-#if !PA // if not use passive ack, add qp to the pending list
-      scheduler_->add_pending(cor_id_,qp);
-#endif
     } else { // local write
       inplace_write_op(it->node,it->data_ptr,it->len);
     } // check pid
   }   // for
   // gather results
-#if !PA
   worker_->indirect_yield(yield);
-#endif
 }
 
 bool RtxOCCR::validate_reads_w_rdma(yield_func_t &yield) {
@@ -147,10 +147,12 @@ bool RtxOCCR::validate_reads_w_rdma(yield_func_t &yield) {
       Qp *qp = qp_vec_[(*it).pid];
       assert(qp != NULL);
 
-      qp->rc_post_send(IBV_WR_RDMA_READ,(char *)node,
-                       sizeof(uint64_t) + sizeof(uint64_t), // lock + version
-                       (*it).off,IBV_SEND_SIGNALED,cor_id_);
-      scheduler_->add_pending(cor_id_,qp);
+      scheduler_->post_send(qp,cor_id_,
+                            IBV_WR_RDMA_READ,(char *)node,
+                            sizeof(uint64_t) + sizeof(uint64_t), // lock + version
+                            (*it).off,IBV_SEND_SIGNALED);
+
+
     } else { // local case
       if(!local_validate_op(it->node,it->seq)) {
 #if !NO_ABORT
@@ -195,8 +197,8 @@ void RtxOCCR::lock_rpc_handler2(int id,int cid,char *msg,void *arg) {
     RdmaValHeader *header = (RdmaValHeader *)(node->value);
 
     volatile uint64_t *lockptr = (volatile uint64_t *)header;
-    if( unlikely( (*lockptr != 0) ||
-                  !__sync_bool_compare_and_swap(lockptr,0,ENCODE_LOCK_CONTENT(id,worker_id_,cid + 1)))) {
+    if(unlikely( (*lockptr != 0) ||
+                 !__sync_bool_compare_and_swap(lockptr,0,ENCODE_LOCK_CONTENT(id,worker_id_,cid + 1)))) {
       res = LOCK_FAIL_MAGIC;
       break;
     }
@@ -229,6 +231,7 @@ void RtxOCCR::release_rpc_handler2(int id,int cid,char *msg,void *arg) {
 }
 
 void RtxOCCR::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
+
   RTX_ITER_ITEM(msg,sizeof(RtxWriteItem)) {
 
     auto item = (RtxWriteItem *)ttptr;

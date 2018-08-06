@@ -20,7 +20,9 @@ namespace nocc {
 
 namespace oltp {
 
+class RScheduler;
 class RRpc {
+
   // The RPC callback takes 4 parameters:
   // calling server's id, calling coroutine id, a pointer to the msg, and an extra(typically not used argument)
   typedef std::function<void(int,int,char *,void *)> rpc_func_t;
@@ -51,7 +53,11 @@ class RRpc {
   RRpc(int tid, int cs, int req_buf_num = MAX_INFLIGHT_REQS, int reply_buf_num = MAX_INFLIGHT_REPLY);
 
   inline bool has_pending_reqs(int cid) {
-    return reply_counts_[cid] != 0;
+    return pending_reqs(cid) != 0;
+  }
+
+  inline int pending_reqs(int cid) {
+    return reply_counts_[cid];
   }
 
   void set_msg_handler(rdmaio::MsgHandler *msg) {
@@ -194,11 +200,12 @@ class RRpc {
 
   // reply data structures, used for replying message
   char        **reply_bufs_ ;
-  int          *reply_counts_;
+  static __thread int *reply_counts_;
 
   // some statics count
   uint64_t processed_rpc_ = 0;
 
+  friend class RScheduler;
   DISABLE_COPY_AND_ASSIGN(RRpc);
 }; // class rrpc
 

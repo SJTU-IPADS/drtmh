@@ -24,9 +24,9 @@ class BenchLocalListener : public RWorker {
   virtual void worker_routine(yield_func_t &yield);
 
   /**
-   * End the benchmark, if necessary.
+   * Print necessary information
    */
-  void ending();
+  void exit_handler();
 
  private:
   /**

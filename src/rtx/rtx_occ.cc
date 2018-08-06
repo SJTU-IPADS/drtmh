@@ -5,7 +5,6 @@
 
 #include "util/mapped_log.h"
 
-
 namespace nocc {
 
 extern __thread MappedLog local_log;
@@ -189,9 +188,7 @@ void RtxOCC::write_back(yield_func_t &yield) {
     }
   }
   if(written_items == write_set_.size()) {// not remote records
-#if !PA
     worker_->indirect_yield(yield);
-#endif
     return;
   }
 #endif
@@ -203,6 +200,35 @@ void RtxOCC::write_back(yield_func_t &yield) {
 #else
   write_batch_helper_.req_buf_ = rpc_->get_fly_buf(cor_id_); // update the buf to avoid on-flight overwrite
 #endif
+}
+
+void RtxOCC::write_back_oneshot(yield_func_t &yield) {
+  char *cur_ptr = write_batch_helper_.req_buf_;
+
+  for(auto it = write_set_.begin();it != write_set_.end();++it) {
+    if((*it).pid != node_id_) {
+
+      CommitItem *item = (CommitItem *)cur_ptr;
+
+      item->tableid = (*it).tableid;
+      item->key = (*it).key;
+      item->len = (*it).len;
+
+      memcpy(cur_ptr + sizeof(CommitItem),it->data_ptr,it->len);
+
+#if !PA
+      rpc_->prepare_multi_req(write_batch_helper_.reply_buf_,1,cor_id_);
+#endif
+      rpc_->append_pending_req(cur_ptr,RTX_COMMIT_RPC_ID,sizeof(CommitItem) + it->len,cor_id_,RRpc::REQ,(*it).pid);
+
+      cur_ptr += (sizeof(RtxLockItem) + it->len + rpc_->rpc_padding());
+    } else {
+      inplace_write_op(it->node,it->data_ptr,it->len);
+    }
+  }
+  rpc_->flush_pending();
+
+  worker_->indirect_yield(yield);
 }
 
 bool RtxOCC::release_writes(yield_func_t &yield) {
@@ -481,12 +507,22 @@ void RtxOCC::validate_rpc_handler(int id,int cid,char *msg,void *arg) {
   rpc_->send_reply(reply_msg,sizeof(uint8_t),id,cid);
 }
 
+void RtxOCC::commit_oneshot_handler(int id,int cid,char *msg,void *arg) {
+  CommitItem *item = (CommitItem *)msg;
+  inplace_write_op(item->tableid,item->key,msg + sizeof(CommitItem),item->len);
+#if !PA
+  char *reply = rpc_->get_reply_buf();
+  rpc_->send_reply(reply,sizeof(uint8_t),id,cid);
+#endif
+}
+
 void RtxOCC::register_default_rpc_handlers() {
   // register rpc handlers
   ROCC_BIND_STUB(rpc_,&RtxOCC::read_rpc_handler,this,RTX_READ_RPC_ID);
   ROCC_BIND_STUB(rpc_,&RtxOCC::lock_rpc_handler,this,RTX_LOCK_RPC_ID);
   ROCC_BIND_STUB(rpc_,&RtxOCC::release_rpc_handler,this,RTX_RELEASE_RPC_ID);
-  ROCC_BIND_STUB(rpc_,&RtxOCC::commit_rpc_handler,this,RTX_COMMIT_RPC_ID);
+  //ROCC_BIND_STUB(rpc_,&RtxOCC::commit_rpc_handler,this,RTX_COMMIT_RPC_ID);
+  ROCC_BIND_STUB(rpc_,&RtxOCC::commit_oneshot_handler,this,RTX_COMMIT_RPC_ID);
   ROCC_BIND_STUB(rpc_,&RtxOCC::validate_rpc_handler,this,RTX_VAL_RPC_ID);
 }
 

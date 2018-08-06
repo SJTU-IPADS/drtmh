@@ -259,6 +259,9 @@ class BankLoader : public BenchLoader {
       assert(c->c_balance > 0);
       node = store_->Put(CHECK,i,(uint64_t *)wrapper_check,sizeof(checking::value));
 
+      if(i == 0)
+        LOG(3) << "check cv balance " << c->c_balance;
+
       if(is_primary_ && ONE_SIDED_READ) {
         node->off =  (uint64_t)wrapper_check - (uint64_t)(cm->conn_buf_);
         ASSERT(node->off % sizeof(uint64_t) == 0) << "check value size " << check_size;

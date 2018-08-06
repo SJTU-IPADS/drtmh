@@ -273,7 +273,6 @@ BenchRunner::run() {
   }
 
   l->join();
-  l->ending(); //do some final calculations, i.e. latency
 
   cm->end_server();
 

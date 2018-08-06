@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rdmaio.h"
+#include "core/rdma_sched.h"
 #include "tx_config.h"
 
 namespace nocc {
@@ -15,7 +15,7 @@ namespace rtx {
  */
 class RDMAReqBase {
  protected:
-  explicit RDMAReqBase(int cid) {
+  explicit RDMAReqBase(int cid) : cor_id(cid) {
     // fill the reqs with initial value
     sr[0].num_sge = 1; sr[0].sg_list = &sge[0];
     sr[1].num_sge = 1; sr[1].sg_list = &sge[1];
@@ -23,7 +23,6 @@ class RDMAReqBase {
     // coroutine id
     sr[0].send_flags = 0;
     sr[1].send_flags = IBV_SEND_SIGNALED;
-    sr[1].wr_id = RScheduler::encode_wrid(cid,1);
 
     sr[0].next = &sr[1];
     sr[1].next = NULL;
@@ -32,6 +31,7 @@ class RDMAReqBase {
   struct ibv_send_wr sr[2];
   struct ibv_sge     sge[2];
   struct ibv_send_wr *bad_sr;
+  int cor_id;
 };
 
 /**
@@ -65,7 +65,7 @@ class RDMALockReq  : public RDMAReqBase {
     sge[1].length = sizeof(uint64_t);
   }
 
-  inline void post_reqs(Qp *qp) {
+  inline void post_reqs(oltp::RScheduler *s,Qp *qp) {
 
     sr[0].wr.atomic.remote_addr += qp->remote_attr_.buf;
     sr[0].wr.atomic.rkey = qp->remote_attr_.rkey;
@@ -75,7 +75,7 @@ class RDMALockReq  : public RDMAReqBase {
     sr[1].wr.rdma.rkey = qp->remote_attr_.rkey;
     sge[1].lkey = qp->dev_->conn_buf_mr->lkey;
 
-    qp->rc_post_batch(&(sr[0]),&bad_sr,1);
+    s->post_batch(qp,cor_id,&(sr[0]),&bad_sr,1);
   }
 };
 
@@ -89,25 +89,34 @@ class RDMALockReq  : public RDMAReqBase {
  */
 class RDMAWriteReq : RDMAReqBase {
  public:
-  explicit RDMAWriteReq(int cid) : RDMAReqBase(cid) {
+  RDMAWriteReq(int cid,bool pa) : RDMAReqBase(cid),pa(pa)
+  {
     sr[0].opcode = IBV_WR_RDMA_WRITE;
     sr[1].opcode = IBV_WR_RDMA_WRITE;
+
+    // clear the flags if passive ACK is used
+    if(pa)
+      sr[1].send_flags = 0;
+    sr[1].send_flags |= IBV_SEND_INLINE;
   }
 
   inline void set_write_meta(uint64_t remote_off,char *local_addr,int size) {
     sr[0].wr.rdma.remote_addr =  remote_off;
     sge[0].addr = (uint64_t)local_addr;
     sge[0].length = size;
+    if(size < 64) {
+      sr[0].send_flags |= IBV_SEND_INLINE;
+    }
   }
 
   inline void set_unlock_meta(uint64_t remote_off) {
-    assert(dummy = 0);
+    assert(dummy == 0);
     sr[1].wr.rdma.remote_addr =  remote_off;
     sge[1].addr = (uint64_t)(&dummy);
     sge[1].length = sizeof(uint64_t);
   }
 
-  inline void post_reqs(Qp *qp) {
+  inline void post_reqs(oltp::RScheduler *s,Qp *qp) {
     sr[0].wr.rdma.remote_addr += qp->remote_attr_.buf;
     sr[0].wr.rdma.rkey = qp->remote_attr_.rkey;
     sge[0].lkey = qp->dev_->conn_buf_mr->lkey;
@@ -116,10 +125,15 @@ class RDMAWriteReq : RDMAReqBase {
     sr[1].wr.rdma.rkey = qp->remote_attr_.rkey;
     sge[1].lkey = qp->dev_->conn_buf_mr->lkey;
 
-    qp->rc_post_batch(&(sr[0]),&bad_sr,1);
+    if(!pa) {
+      s->post_batch(qp,cor_id,&(sr[0]),&bad_sr,1);
+    } else {
+      s->post_batch_pending(qp,cor_id,&(sr[0]),&bad_sr,1);
+    }
   }
  private:
   uint64_t dummy = 0;
+  bool pa;
 };
 
 

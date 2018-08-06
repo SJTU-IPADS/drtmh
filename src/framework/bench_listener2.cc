@@ -70,7 +70,7 @@ BenchLocalListener::BenchLocalListener(unsigned worker_id,const std::vector<RWor
 
 void BenchLocalListener::run() {
 
-  LOG(2) << "New monitor running!\n";
+  LOG(2) << "New monitor running!";
 
   RThreadLocalInit();
   init_routines(1);
@@ -149,14 +149,12 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
 
     if(unlikely(this->running == false)) {
 
-      LOG(2) << "Listener ends the benchmark.";
-
       // master send end RPCs to remotes
       for(uint i = 0;i < total_partition;++i) {
         rpc_->append_req(dummy,EXIT_RPC_ID,sizeof(char),1,RRpc::REQ,i);
       }
       exit_rpc_handler(0,0,NULL,NULL);
-      return; // exit worker_routine
+      yield_next(yield);
     }
 
     if(total_partition == 1) {
@@ -203,31 +201,6 @@ void BenchLocalListener::worker_routine_slave(yield_func_t &yield) {
 
     yield_next(yield); // wait to receive RPC requests
   }
-}
-
-void BenchLocalListener::ending() {
-
-  auto second_cycle = util::Breakdown_Timer::get_one_second_cycle();
-#if 1
-  auto &timer = workers_[0]->latency_timer_;
-  timer.calculate_detailed();
-  auto m_l = timer.report_medium() / second_cycle * 1000;
-  auto m_9 = timer.report_90() / second_cycle * 1000;
-  auto m_99 = timer.report_99() / second_cycle * 1000;
-  auto m_av = timer.report_avg() / second_cycle * 1000;
-  LOG(2) << "Medium latency " << m_l << "ms, 90th latency " << m_9 << "ms, 99th latency "
-         << m_99 << "ms; average latency: " << m_av;
-#endif
-#ifdef LOG_RESULTS
-  if(log_file.is_open()) {
-    log_file << m_l << " " << m_9<<" " << m_99 <<" "<<m_av<<std::endl;
-    log_file.close();
-  }
-#endif
-
-  // really end the benchmark
-  LOG(2) << "benchmark ends";
-  reporter_->end();
 }
 
 void BenchLocalListener::sigint_handler(int) {
@@ -291,6 +264,31 @@ void BenchLocalListener::exit_rpc_handler(int id,int cid, char *msg, void *arg) 
   }
 }
 
+
+void BenchLocalListener::exit_handler() {
+
+  auto second_cycle = util::Breakdown_Timer::get_one_second_cycle();
+#if 1
+  auto &timer = workers_[0]->latency_timer_;
+  timer.calculate_detailed();
+  auto m_l = timer.report_medium() / second_cycle * 1000;
+  auto m_9 = timer.report_90() / second_cycle * 1000;
+  auto m_99 = timer.report_99() / second_cycle * 1000;
+  auto m_av = timer.report_avg() / second_cycle * 1000;
+  LOG(2) << "Medium latency " << m_l << "ms, 90th latency " << m_9 << "ms, 99th latency "
+         << m_99 << "ms; average latency: " << m_av;
+#endif
+#ifdef LOG_RESULTS
+  if(log_file.is_open()) {
+    log_file << m_l << " " << m_9<<" " << m_99 <<" "<<m_av<<std::endl;
+    log_file.close();
+  }
+#endif
+
+  // really end the benchmark
+  LOG(2) << "benchmark ends";
+  reporter_->end();
+}
 
 
 } // namespace oltp

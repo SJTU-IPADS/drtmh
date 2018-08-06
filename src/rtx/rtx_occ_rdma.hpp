@@ -10,14 +10,6 @@ namespace nocc {
 namespace rtx {
 
 /**
- * New meta data for each record
- */
-struct RdmaValHeader {
-  uint64_t lock;
-  uint64_t seq;
-};
-
-/**
  * Extend baseline RtxOCC with one-sided RDMA support for execution, validation and commit.
  */
 class RtxOCCR : public RtxOCC {
@@ -31,8 +23,13 @@ class RtxOCCR : public RtxOCC {
     register_default_rpc_handlers();
 
     // overwrites with default RPC handler
+    /**
+     * These RPC handlers does not operate on value/meta data in the index.
+     * This can be slightly slower than default RPC handler for *LOCK* and *validate*.
+     */
     ROCC_BIND_STUB(rpc_,&RtxOCCR::lock_rpc_handler2,this,RTX_LOCK_RPC_ID);
     ROCC_BIND_STUB(rpc_,&RtxOCCR::validate_rpc_handler2,this,RTX_VAL_RPC_ID);
+    //ROCC_BIND_STUB(rpc_,&RtxOCCR::commit_rpc_handler2,this,RTX_COMMIT_RPC_ID);
   }
 
   /**
@@ -74,7 +71,7 @@ class RtxOCCR : public RtxOCC {
     return dummy_commit();
 #endif
 
-#if 1 //USE_RDMA_COMMIT
+#if 0 //USE_RDMA_COMMIT
     if(!lock_writes_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -88,7 +85,7 @@ class RtxOCCR : public RtxOCC {
     }
 #endif
     asm volatile("" ::: "memory");
-#if 1 //USE_RDMA_COMMIT
+#if 0 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -101,15 +98,19 @@ class RtxOCCR : public RtxOCC {
 #endif
     }
 #endif
-    return dummy_commit();
+
     asm volatile("" ::: "memory");
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
     asm volatile("" ::: "memory");
-#if 0 //USE_RDMA_COMMIT
+#if 0
     write_back_w_rdma(yield);
 #else
-    write_back(yield);
+    /**
+     * Fixme! write back w RPC now can only work with *lock_w_rpc*.
+     * This is because lock_w_rpc helps fill the mac_set used in write_back.
+     */
+    write_back_oneshot(yield);
 #endif
 
     gc_readset();

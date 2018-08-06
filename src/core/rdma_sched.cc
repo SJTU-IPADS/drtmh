@@ -4,6 +4,7 @@
 #include "util/util.h"  // for rdtsc()
 #include "logging.h"
 
+#include "rrpc.h"
 
 extern size_t nthreads;
 extern size_t current_partition;
@@ -26,14 +27,9 @@ RScheduler::~RScheduler() {
 
 void RScheduler::thread_local_init(int coroutines) {
   pending_counts_ = new int[coroutines + 1];
-  for(uint i = 0;i <= coroutines;++i)
-    pending_counts_[i] = 0;
+  std::fill_n(pending_counts_,1 + coroutines,0);
 }
 
-void RScheduler::add_pending(int cor_id, Qp* qp) {
-  pending_qps_.push_back(qp);
-  pending_counts_[cor_id] += 1;
-}
 
 void RScheduler::poll_comps() {
 
@@ -58,10 +54,14 @@ void RScheduler::poll_comps() {
       }
     }
 
-    ASSERT(qp->pendings > 0);
-    qp->pendings -= 1;
-    qp->pending_doorbell -= decode_pending_doorbell(wc_.wr_id);
+    static_assert(sizeof(wc_.wr_id) == sizeof(uint64_t),"Un supported wr_id size!");
+    uint64_t low_watermark = decode_watermark(wc_.wr_id);
+    ASSERT(low_watermark > qp->low_watermark_) << "encoded watermark: " << low_watermark
+                                               << "; current watermark: " << qp->low_watermark_;
+    qp->low_watermark_ = low_watermark;
+
     auto cor_id = decode_corid(wc_.wr_id);
+    //LOG(2) << "polled " << cor_id << " with " << qp->low_watermark_;
 
     if(cor_id == 0)
       continue;  // ignore null completion
@@ -70,7 +70,7 @@ void RScheduler::poll_comps() {
                                         << "; pendings " << pending_counts_[cor_id];
     pending_counts_[cor_id] -= 1;
 
-    if(pending_counts_[cor_id] == 0) {
+    if(pending_counts_[cor_id] == 0 && RRpc::reply_counts_[cor_id] == 0) {
       add_to_routine_list(cor_id);
     }
 
@@ -81,6 +81,8 @@ void RScheduler::poll_comps() {
 
 void RScheduler::report() {
 }
+
+__thread int *RScheduler::pending_counts_ = NULL;
 
 
 } // namespace db

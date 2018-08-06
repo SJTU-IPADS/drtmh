@@ -3,6 +3,8 @@
 #include "bank_worker.h"
 #include "tx_config.h"
 
+#include "core/logging.h"
+
 namespace nocc {
 
 namespace oltp {
@@ -115,7 +117,6 @@ retry:
 #endif
 
   checking::value *cv = rtx_->get_readset<checking::value>(0,yield);
-  ASSERT(verify_check_balance(cv));
 
   // fetch cached record from read-set
   assert(cv != NULL);

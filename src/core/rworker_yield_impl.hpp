@@ -12,22 +12,17 @@ void RWorker::indirect_yield(yield_func_t &yield) {
   indirect_must_yield(yield);
 }
 
-
 inline ALWAYS_INLINE
 void RWorker::indirect_must_yield(yield_func_t &yield) {
+
   int next = routine_meta_->next_->id_;
   cor_id_  = next;
   auto cur = routine_meta_;
   routine_meta_ = cur->next_;
   change_ctx(cor_id_);
-
   cur->yield_from_routine_list(yield);
 
-  assert(rdma_sched_->pending_counts_[cor_id_] == 0);
-  assert(rpc_->has_pending_reqs(cor_id_) == 0);
-
   change_ctx(cor_id_);
-  assert(routine_meta_->id_ == cor_id_);
 }
 
 

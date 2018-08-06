@@ -27,9 +27,8 @@ uint64_t TXOpBase::rdma_read_val(int pid,int tableid,uint64_t key,int len,char *
 
   // fetch the content
   Qp* qp = qp_vec_[pid];
-  qp->rc_post_send(IBV_WR_RDMA_READ,val,len + meta_len,data_off,
-                   IBV_SEND_SIGNALED,worker_->cor_id());
-  scheduler_->add_pending(worker_->cor_id(),qp);
+  scheduler_->post_send(qp,worker_->cor_id(),
+                        IBV_WR_RDMA_READ,val,len + meta_len,data_off, IBV_SEND_SIGNALED);
   worker_->indirect_yield(yield); // yield for waiting for NIC's completion
   return data_off;
 }
