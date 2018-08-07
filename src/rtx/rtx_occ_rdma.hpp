@@ -10,13 +10,13 @@ namespace nocc {
 namespace rtx {
 
 /**
- * Extend baseline RtxOCC with one-sided RDMA support for execution, validation and commit.
+ * Extend baseline OCC with one-sided RDMA support for execution, validation and commit.
  */
-class RtxOCCR : public RtxOCC {
+class OCCR : public OCC {
  public:
-  RtxOCCR(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int tid,int cid,int response_node,
+  OCCR(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int tid,int cid,int response_node,
           RdmaCtrl *cm,RScheduler* rdma_sched,int ms) :
-      RtxOCC(worker,db,rpc_handler,nid,tid,cid,response_node,
+      OCC(worker,db,rpc_handler,nid,tid,cid,response_node,
              cm,rdma_sched,ms)
   {
     // register normal RPC handlers
@@ -27,9 +27,9 @@ class RtxOCCR : public RtxOCC {
      * These RPC handlers does not operate on value/meta data in the index.
      * This can be slightly slower than default RPC handler for *LOCK* and *validate*.
      */
-    ROCC_BIND_STUB(rpc_,&RtxOCCR::lock_rpc_handler2,this,RTX_LOCK_RPC_ID);
-    ROCC_BIND_STUB(rpc_,&RtxOCCR::validate_rpc_handler2,this,RTX_VAL_RPC_ID);
-    //ROCC_BIND_STUB(rpc_,&RtxOCCR::commit_rpc_handler2,this,RTX_COMMIT_RPC_ID);
+    ROCC_BIND_STUB(rpc_,&OCCR::lock_rpc_handler2,this,RTX_LOCK_RPC_ID);
+    ROCC_BIND_STUB(rpc_,&OCCR::validate_rpc_handler2,this,RTX_VAL_RPC_ID);
+    //ROCC_BIND_STUB(rpc_,&OCCR::commit_rpc_handler2,this,RTX_COMMIT_RPC_ID);
   }
 
   /**
@@ -102,8 +102,9 @@ class RtxOCCR : public RtxOCC {
     asm volatile("" ::: "memory");
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
+    return dummy_commit();
     asm volatile("" ::: "memory");
-#if 0
+#if 1
     write_back_w_rdma(yield);
 #else
     /**

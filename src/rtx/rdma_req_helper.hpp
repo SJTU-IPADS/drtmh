@@ -95,8 +95,9 @@ class RDMAWriteReq : RDMAReqBase {
     sr[1].opcode = IBV_WR_RDMA_WRITE;
 
     // clear the flags if passive ACK is used
-    if(pa)
+    if(pa) {
       sr[1].send_flags = 0;
+    }
     sr[1].send_flags |= IBV_SEND_INLINE;
   }
 
@@ -117,6 +118,7 @@ class RDMAWriteReq : RDMAReqBase {
   }
 
   inline void post_reqs(oltp::RScheduler *s,Qp *qp) {
+
     sr[0].wr.rdma.remote_addr += qp->remote_attr_.buf;
     sr[0].wr.rdma.rkey = qp->remote_attr_.rkey;
     sge[0].lkey = qp->dev_->conn_buf_mr->lkey;

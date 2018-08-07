@@ -56,15 +56,20 @@ void RScheduler::poll_comps() {
 
     static_assert(sizeof(wc_.wr_id) == sizeof(uint64_t),"Un supported wr_id size!");
     uint64_t low_watermark = decode_watermark(wc_.wr_id);
+
+    ASSERT(qp->pendings > 0);
+    qp->pendings -= 1;
+
     ASSERT(low_watermark > qp->low_watermark_) << "encoded watermark: " << low_watermark
                                                << "; current watermark: " << qp->low_watermark_;
     qp->low_watermark_ = low_watermark;
 
     auto cor_id = decode_corid(wc_.wr_id);
-    //LOG(2) << "polled " << cor_id << " with " << qp->low_watermark_;
 
     if(cor_id == 0)
       continue;  // ignore null completion
+
+    //LOG(2) << "polled " << cor_id  << " low " << low_watermark;
 
     ASSERT(pending_counts_[cor_id] > 0) << "cor id " << cor_id
                                         << "; pendings " << pending_counts_[cor_id];

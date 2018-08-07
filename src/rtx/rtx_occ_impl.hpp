@@ -6,7 +6,7 @@ namespace rtx  {
 
 template <int tableid,typename V>
 inline __attribute__((always_inline))
-int RtxOCC::add_to_read(int pid,uint64_t key,yield_func_t &yield) {
+int OCC::read(int pid,uint64_t key,yield_func_t &yield) {
   if(pid == node_id_)
     return local_read(tableid,key,sizeof(V),yield);
   else {
@@ -18,7 +18,7 @@ int RtxOCC::add_to_read(int pid,uint64_t key,yield_func_t &yield) {
 
 template <int tableid,typename V>
 inline __attribute__((always_inline))
-int RtxOCC::insert(int pid,uint64_t key,V *val,yield_func_t &yield) {
+int OCC::insert(int pid,uint64_t key,V *val,yield_func_t &yield) {
   if(pid == node_id_)
     return local_insert(tableid,key,(char *)val,sizeof(V),yield);
   else {
@@ -30,7 +30,7 @@ int RtxOCC::insert(int pid,uint64_t key,V *val,yield_func_t &yield) {
 
 template <int tableid,typename V>
 inline __attribute__((always_inline))
-int RtxOCC::add_to_write(int pid,uint64_t key,yield_func_t &yield) {
+int OCC::add_to_write(int pid,uint64_t key,yield_func_t &yield) {
   if(pid == node_id_){
     assert(false); // not implemented
   }
@@ -42,7 +42,7 @@ int RtxOCC::add_to_write(int pid,uint64_t key,yield_func_t &yield) {
 }
 
 inline __attribute__((always_inline))
-int RtxOCC::add_to_write(int idx) {
+int OCC::add_to_write(int idx) {
   assert(idx >= 0 && idx < read_set_.size());
   write_set_.emplace_back(read_set_[idx]);
 
@@ -53,13 +53,13 @@ int RtxOCC::add_to_write(int idx) {
 }
 
 inline __attribute__((always_inline))
-int RtxOCC::add_to_write() {
+int OCC::add_to_write() {
   return add_to_write(read_set_.size() - 1);
 }
 
 template <typename V>
 inline __attribute__((always_inline))
-V *RtxOCC::get_readset(int idx,yield_func_t &yield) {
+V *OCC::get_readset(int idx,yield_func_t &yield) {
   assert(idx < read_set_.size());
   assert(sizeof(V) == read_set_[idx].len);
 
@@ -80,7 +80,7 @@ V *RtxOCC::get_readset(int idx,yield_func_t &yield) {
 
 template <typename V>
 inline __attribute__((always_inline))
-V *RtxOCC::get_writeset(int idx,yield_func_t &yield) {
+V *OCC::get_writeset(int idx,yield_func_t &yield) {
   V *v = get_readset<V>(idx,yield);
   add_to_write(idx);
   return v;
@@ -88,7 +88,7 @@ V *RtxOCC::get_writeset(int idx,yield_func_t &yield) {
 
 
 inline __attribute__((always_inline))
-void RtxOCC::gc_readset() {
+void OCC::gc_readset() {
   for(auto it = read_set_.begin();it != read_set_.end();++it) {
     if(it->pid == node_id_)
       free((*it).data_ptr);
@@ -96,7 +96,7 @@ void RtxOCC::gc_readset() {
 }
 
 inline __attribute__((always_inline))
-void RtxOCC::gc_writeset() {
+void OCC::gc_writeset() {
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
     if(it->pid == node_id_)
       free((*it).data_ptr);

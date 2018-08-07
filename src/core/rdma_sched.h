@@ -36,11 +36,13 @@ class RScheduler {
   void add_pending(int cor_id,rdmaio::Qp *qp) {
     pending_qps_.push_back(qp);
     pending_counts_[cor_id] += 1;
+    qp->pendings += 1;
   }
 
   void post_send(rdmaio::Qp *qp,int cor_id,ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags) {
     qp->high_watermark_ += 1;
     qp->rc_post_send(op,local_buf,len,off,flags,encode_wrid(cor_id,qp->high_watermark_));
+    //    LOG(2) << "cor " << cor_id << " post " << qp->high_watermark_;
     add_pending(cor_id,qp);
   }
 
@@ -57,12 +59,18 @@ class RScheduler {
 
     qp->rc_post_batch(send_sr,bad_sr_addr);
     add_pending(cor_id,qp);
+    //LOG(2) << "cor " << cor_id << " post " << qp->high_watermark_;
   }
 
-  void post_batch_pending(rdmaio::Qp *qp,int cor_id,struct ibv_send_wr *send_sr,ibv_send_wr **bad_sr_addr,int doorbell_num = 0) {
+  /**
+   * return whether polling is needed
+   */
+  bool post_batch_pending(rdmaio::Qp *qp,int cor_id,struct ibv_send_wr *send_sr,ibv_send_wr **bad_sr_addr,int doorbell_num = 0) {
     if(qp->rc_need_poll()) {
+      auto temp =  send_sr[doorbell_num].send_flags;
       send_sr[doorbell_num].send_flags |= IBV_SEND_SIGNALED;
       post_batch(qp,cor_id,send_sr,bad_sr_addr,doorbell_num);
+      send_sr[doorbell_num].send_flags = temp; // re-set the flag
     } else {
       qp->high_watermark_ += (1 + doorbell_num);
       send_sr[doorbell_num].wr_id = encode_wrid(cor_id,qp->high_watermark_);

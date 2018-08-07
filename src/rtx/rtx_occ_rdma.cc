@@ -5,7 +5,7 @@ namespace nocc {
 
 namespace rtx {
 
-bool RtxOCCR::lock_writes_w_rdma(yield_func_t &yield) {
+bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
 
   uint64_t lock_content =  ENCODE_LOCK_CONTENT(response_node_,worker_id_,cor_id_ + 1);
   RDMALockReq req(cor_id_);
@@ -74,7 +74,7 @@ bool RtxOCCR::lock_writes_w_rdma(yield_func_t &yield) {
 }
 
 
-void RtxOCCR::release_writes_w_rdma(yield_func_t &yield) {
+void OCCR::release_writes_w_rdma(yield_func_t &yield) {
   // can only work with lock_w_rdma
   uint64_t lock_content =  ENCODE_LOCK_CONTENT(response_node_,worker_id_,cor_id_ + 1);
 
@@ -96,14 +96,14 @@ void RtxOCCR::release_writes_w_rdma(yield_func_t &yield) {
   return;
 }
 
-void RtxOCCR::write_back_w_rdma(yield_func_t &yield) {
+void OCCR::write_back_w_rdma(yield_func_t &yield) {
 
   /**
    * XD: it is harder to apply PA for one-sided operations.
    * This is because signaled requests are mixed with unsignaled requests.
    * It got little improvements, though. So I skip it now.
    */
-  RDMAWriteReq req(cor_id_,false /* whether to use passive ack*/);
+  RDMAWriteReq req(cor_id_,PA /* whether to use passive ack*/);
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
 
     if((*it).pid != node_id_) {
@@ -121,6 +121,7 @@ void RtxOCCR::write_back_w_rdma(yield_func_t &yield) {
       req.set_write_meta((*it).off + sizeof(RdmaValHeader),(*it).data_ptr,(*it).len);
       req.set_unlock_meta((*it).off);
       req.post_reqs(scheduler_,qp);
+
       // avoid send queue from overflow
       if(unlikely(qp->rc_need_poll())) {
         worker_->indirect_yield(yield);
@@ -134,7 +135,7 @@ void RtxOCCR::write_back_w_rdma(yield_func_t &yield) {
   worker_->indirect_yield(yield);
 }
 
-bool RtxOCCR::validate_reads_w_rdma(yield_func_t &yield) {
+bool OCCR::validate_reads_w_rdma(yield_func_t &yield) {
 
   for(auto it = read_set_.begin();it != read_set_.end();++it) {
     if((*it).pid != node_id_) {
@@ -181,7 +182,7 @@ bool RtxOCCR::validate_reads_w_rdma(yield_func_t &yield) {
 /**
  * RPC handlers
  */
-void RtxOCCR::lock_rpc_handler2(int id,int cid,char *msg,void *arg) {
+void OCCR::lock_rpc_handler2(int id,int cid,char *msg,void *arg) {
 
   char* reply_msg = rpc_->get_reply_buf();
   uint8_t res = LOCK_SUCCESS_MAGIC; // success
@@ -212,7 +213,7 @@ void RtxOCCR::lock_rpc_handler2(int id,int cid,char *msg,void *arg) {
   rpc_->send_reply(reply_msg,sizeof(uint8_t),id,cid);
 }
 
-void RtxOCCR::release_rpc_handler2(int id,int cid,char *msg,void *arg) {
+void OCCR::release_rpc_handler2(int id,int cid,char *msg,void *arg) {
   RTX_ITER_ITEM(msg,sizeof(RtxLockItem)) {
     auto item = (RtxLockItem *)ttptr;
 
@@ -230,7 +231,7 @@ void RtxOCCR::release_rpc_handler2(int id,int cid,char *msg,void *arg) {
   rpc_->send_reply(reply_msg,0,id,cid); // a dummy reply
 }
 
-void RtxOCCR::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
+void OCCR::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
 
   RTX_ITER_ITEM(msg,sizeof(RtxWriteItem)) {
 
@@ -253,7 +254,7 @@ void RtxOCCR::commit_rpc_handler2(int id,int cid,char *msg,void *arg) {
 #endif
 }
 
-void RtxOCCR::validate_rpc_handler2(int id,int cid,char *msg,void *arg) {
+void OCCR::validate_rpc_handler2(int id,int cid,char *msg,void *arg) {
 
   char* reply_msg = rpc_->get_reply_buf();
   uint8_t res = LOCK_SUCCESS_MAGIC; // success

@@ -20,7 +20,7 @@ namespace nocc {
 
 __thread oltp::BenchWorker *worker = NULL;
 __thread TXHandler   **txs_ = NULL;
-__thread rtx::RtxOCC      **new_txs_ = NULL;
+__thread rtx::OCC      **new_txs_ = NULL;
 
 extern uint64_t total_ring_sz;
 extern uint64_t ring_padding;
@@ -85,7 +85,7 @@ void BenchWorker::init_tx_ctx() {
 
   worker = this;
   txs_              = new TXHandler*[1 + server_routine + 2];
-  new_txs_          = new rtx::RtxOCC*[1 + server_routine + 2];
+  new_txs_          = new rtx::OCC*[1 + server_routine + 2];
   //msg_buf_alloctors = new RPCMemAllocator[1 + server_routine];
 
   txn_counts = new std::vector<size_t> ();

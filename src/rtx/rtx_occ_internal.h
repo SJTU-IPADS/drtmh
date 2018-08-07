@@ -56,12 +56,11 @@ struct CommitItem {
 } __attribute__ ((aligned (8)));
 
 
-
-struct RtxReplyHeader {
+struct ReplyHeader {
   uint16_t num;
 };
 
-struct RtxOCCResponse {
+struct OCCResponse {
   uint16_t payload;
   uint16_t idx;
   uint64_t seq;

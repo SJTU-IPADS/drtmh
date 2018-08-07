@@ -38,14 +38,14 @@ txn_result_t BankWorker::txn_sp_new(yield_func_t &yield) {
   // first account
   int pid = AcctToPid(id0);
 #if EM_FASST == 0
-  rtx_->add_to_read<CHECK,checking::value>(pid,id0,yield);
+  rtx_->read<CHECK,checking::value>(pid,id0,yield);
 #else
   rtx_->add_to_write<CHECK,checking::value>(pid,id0,yield);
 #endif
   // second account
   pid = AcctToPid(id1);
 #if EM_FASST == 0
-  rtx_->add_to_read<CHECK,checking::value>(pid,id1,yield);
+  rtx_->read<CHECK,checking::value>(pid,id1,yield);
 #else
   rtx_->add_to_write<CHECK,checking::value>(pid,id1,yield);
 #endif
@@ -78,10 +78,10 @@ txn_result_t BankWorker::txn_wc_new(yield_func_t &yield) {
   GetAccount(random_generator[cor_id_],&id);
   int pid = AcctToPid(id);
 #if EM_FASST == 0
-  rtx_->add_to_read<SAV,savings::value>(pid,id,yield);
-  rtx_->add_to_read<CHECK,checking::value>(pid,id,yield);
+  rtx_->read<SAV,savings::value>(pid,id,yield);
+  rtx_->read<CHECK,checking::value>(pid,id,yield);
 #else
-  rtx_->add_to_read<SAV,savings::value>(pid,id,yield);
+  rtx_->read<SAV,savings::value>(pid,id,yield);
   rtx_->add_to_write<CHECK,checking::value>(pid,id,yield);
 #endif
 
@@ -111,7 +111,7 @@ retry:
   int pid = AcctToPid(id);
 
 #if EM_FASST == 0
-  rtx_->add_to_read<CHECK,checking::value>(pid,id,yield);
+  rtx_->read<CHECK,checking::value>(pid,id,yield);
 #else
   rtx_->add_to_write<CHECK,checking::value>(pid,id,yield);
 #endif
@@ -151,7 +151,7 @@ txn_result_t BankWorker::txn_ts_new(yield_func_t &yield) {
   GetAccount(random_generator[cor_id_],&id);
   int pid = AcctToPid(id);
 #if EM_FASST == 0
-  rtx_->add_to_read<SAV,savings::value>(pid,id,yield);
+  rtx_->read<SAV,savings::value>(pid,id,yield);
 #else
   rtx_->add_to_write<SAV,savings::value>(pid,id,yield);
 #endif
@@ -173,8 +173,8 @@ txn_result_t BankWorker::txn_balance_new(yield_func_t &yield) {
   int pid = AcctToPid(id);
 
   double res = 0.0;
-  rtx_->add_to_read<CHECK,checking::value>(pid,id,yield);
-  rtx_->add_to_read<SAV,savings::value>(pid,id,yield);
+  rtx_->read<CHECK,checking::value>(pid,id,yield);
+  rtx_->read<SAV,savings::value>(pid,id,yield);
 
   auto cv = rtx_->get_readset<checking::value>(0,yield);
   auto sv = rtx_->get_readset<savings::value>(1,yield);
@@ -196,9 +196,9 @@ txn_result_t BankWorker::txn_amal_new(yield_func_t &yield) {
   int pid1 = AcctToPid(id1),idx1;
 
 #if EM_FASST == 0
-  rtx_->add_to_read<SAV,savings::value>(pid0,id0,yield);
-  rtx_->add_to_read<CHECK,checking::value>(pid0,id0,yield);
-  rtx_->add_to_read<CHECK,checking::value>(pid1,id1,yield);
+  rtx_->read<SAV,savings::value>(pid0,id0,yield);
+  rtx_->read<CHECK,checking::value>(pid0,id0,yield);
+  rtx_->read<CHECK,checking::value>(pid1,id1,yield);
 #else
   rtx_->add_to_write<SAV,savings::value>(pid0,id0,yield);
   rtx_->add_to_write<CHECK,checking::value>(pid0,id0,yield);

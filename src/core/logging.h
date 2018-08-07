@@ -61,6 +61,8 @@ namespace nocc {
     if(unlikely(!(condition))) \
         ::nocc::MessageLogger((char*)__FILE__, __LINE__, LOG_FATAL + 1).stream()
 
+#define VERIFY(n,condition) LOG_IF(n,(!(condition)))
+
 // a nice progrss printer
 // credits: razzak@stackoverflow
 inline ALWAYS_INLINE

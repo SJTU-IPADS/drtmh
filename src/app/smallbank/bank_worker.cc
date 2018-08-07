@@ -436,13 +436,13 @@ void BankWorker::thread_local_init() {
     // -1 transformed every local operations to remote ones
 #if EM_FASST == 0
 #if ONE_SIDED_READ
-    new_txs_[i] = new rtx::RtxOCCR(this,store_,rpc_,current_partition,worker_id_,i,-1,
+    new_txs_[i] = new rtx::OCCR(this,store_,rpc_,current_partition,worker_id_,i,-1,
                                    cm,rdma_sched_,total_partition);
 #else
-    new_txs_[i] = new rtx::RtxOCC(this,store_,rpc_,current_partition,i,-1);
+    new_txs_[i] = new rtx::OCC(this,store_,rpc_,current_partition,i,-1);
 #endif
 #else
-    new_txs_[i] = new rtx::RtxOCCFast(this,store_,rpc_,current_partition,i,-1);
+    new_txs_[i] = new rtx::OCCFast(this,store_,rpc_,current_partition,i,-1);
 #endif
     new_txs_[i]->set_logger(new_logger_);
 

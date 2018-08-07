@@ -83,13 +83,13 @@ void TpccWorker::thread_local_init() {
     if(txs_[i]  == NULL) {
 #if EM_FASST == 0
 #if ONE_SIDED_READ
-      new_txs_[i] = new rtx::RtxOCCR(this,store_,rpc_,current_partition,worker_id_,i,current_partition,
+      new_txs_[i] = new rtx::OCCR(this,store_,rpc_,current_partition,worker_id_,i,current_partition,
                                    cm,rdma_sched_,total_partition);
 #else
-      new_txs_[i] = new rtx::RtxOCC(this,store_,rpc_,current_partition,i,current_partition);
+      new_txs_[i] = new rtx::OCC(this,store_,rpc_,current_partition,i,current_partition);
 #endif
 #else
-      new_txs_[i] = new rtx::RtxOCCFast(this,store_,rpc_,current_partition,i,current_partition);
+      new_txs_[i] = new rtx::OCCFast(this,store_,rpc_,current_partition,i,current_partition);
 #endif
       new_txs_[i]->set_logger(new_logger_);
     }

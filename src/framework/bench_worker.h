@@ -30,7 +30,7 @@ namespace nocc {
 
 extern __thread coroutine_func_t *routines_;
 extern __thread TXHandler   **txs_;
-extern __thread rtx::RtxOCC    **new_txs_;
+extern __thread rtx::OCC    **new_txs_;
 extern     RdmaCtrl *cm;
 
 extern __thread int *pending_counts_;
@@ -167,7 +167,7 @@ class BenchWorker : public RWorker {
   rtx::Logger *new_logger_;
   TXHandler *tx_;       /* current coroutine's tx handler */
 
-  rtx::RtxOCC *rtx_;
+  rtx::OCC *rtx_;
   LAT_VARS(yield);
 
   /* For statistics counts */

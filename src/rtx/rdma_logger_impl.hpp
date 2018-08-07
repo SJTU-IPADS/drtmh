@@ -36,9 +36,9 @@ class RDMALogger : public Logger {
       auto qp = qp_vec_[mac_id];
       auto off = mem_.get_remote_log_offset(node_id_,worker_id_,mac_id,size);
       assert(off != 0);
-      qp->rc_post_send(IBV_WR_RDMA_WRITE,clk.req_buf_,size,off,
-                       IBV_SEND_SIGNALED | ((size < 64)?IBV_SEND_INLINE:1),cor_id);
-      scheduler_->add_pending(cor_id,qp);
+      scheduler_->post_send(qp,cor_id,
+                            IBV_WR_RDMA_WRITE,clk.req_buf_,size,off,
+                            IBV_SEND_SIGNALED | ((size < 64)?IBV_SEND_INLINE:1));
     }
     // Requires yield call after this!
   }

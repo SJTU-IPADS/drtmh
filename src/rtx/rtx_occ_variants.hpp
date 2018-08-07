@@ -7,10 +7,10 @@ namespace nocc {
 namespace rtx {
 
 // Add FaSST's optimizations, such as logging, merging execution
-class RtxOCCFast : public RtxOCC {
+class OCCFast : public OCC {
  public:
-  RtxOCCFast(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int cid,int response_node)
-      :RtxOCC(worker,db,rpc_handler,nid,cid,response_node) {
+  OCCFast(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int cid,int response_node)
+      :OCC(worker,db,rpc_handler,nid,cid,response_node) {
 
   }
 
@@ -19,18 +19,18 @@ class RtxOCCFast : public RtxOCC {
     char *ptr  = reply_buf_;
     for(uint i = 0;i < num;++i) {
       // parse a reply header
-      RtxReplyHeader *header = (RtxReplyHeader *)(ptr);
-      ptr += sizeof(RtxReplyHeader);
+      ReplyHeader *header = (ReplyHeader *)(ptr);
+      ptr += sizeof(ReplyHeader);
       for(uint j = 0;j < header->num;++j) {
-        RtxOCCResponse *item = (RtxOCCResponse *)ptr;
+        OCCResponse *item = (OCCResponse *)ptr;
         if(unlikely(item->seq == 0)) {
           // abort case
           abort_ = true;
         }
-        read_set_[item->idx].data_ptr = ptr + sizeof(RtxOCCResponse);
+        read_set_[item->idx].data_ptr = ptr + sizeof(OCCResponse);
         read_set_[item->idx].seq      = item->seq;
         write_batch_helper_.add_mac(read_set_[item->idx].pid);
-        ptr += (sizeof(RtxOCCResponse) + item->payload);
+        ptr += (sizeof(OCCResponse) + item->payload);
       }
     }
     return true;

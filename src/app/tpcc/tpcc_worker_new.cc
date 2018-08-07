@@ -79,14 +79,6 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
       }
       /* if possible, add remote stock to remote stocks */
       if(WarehouseToPartition(supplier_warehouse_id) != current_partition) {
-#if 0   // calculate warehouse access pattern
-        if(worker_id_ == 0) {
-          if(warehouse_hotmap->find(supplier_warehouse_id) == warehouse_hotmap->end())
-            warehouse_hotmap->insert(std::make_pair(supplier_warehouse_id,1));
-          else
-            (*warehouse_hotmap)[supplier_warehouse_id] += 1;
-        }
-#endif
         remote_stocks[num_remote_stocks] = s_key;
         remote_supplies[num_remote_stocks] = supplier_warehouse_id;
         remote_item_ids[num_remote_stocks++] = item_id;
@@ -101,12 +93,12 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
   rtx_->begin(yield);
 
   // Execution phase ////////////////////////////////////////////////////
-  rtx_->add_to_read<CUST,customer::value>(current_partition,c_key,yield);
-  rtx_->add_to_read<WARE,warehouse::value>(current_partition,warehouse_id,yield);
+  rtx_->read<CUST,customer::value>(current_partition,c_key,yield);
+  rtx_->read<WARE,warehouse::value>(current_partition,warehouse_id,yield);
 
   uint64_t d_key = makeDistrictKey(warehouse_id,districtID);
 
-  auto idx = rtx_->add_to_read<DIST,district::value>(current_partition,d_key,yield);
+  auto idx = rtx_->read<DIST,district::value>(current_partition,d_key,yield);
   district::value *d_value = rtx_->get_readset<district::value>(idx,yield);
 
   const auto my_next_o_id = d_value->d_next_o_id;
@@ -145,12 +137,12 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
     const uint ol_i_id = local_item_ids[ol_number - 1];
     const uint ol_quantity = RandomNumber(random_generator[cor_id_], 1, 10);
 
-    auto idx = rtx_->add_to_read<ITEM,item::value>(current_partition,ol_i_id,yield);
+    auto idx = rtx_->read<ITEM,item::value>(current_partition,ol_i_id,yield);
     item::value *i_value = rtx_->get_readset<item::value>(idx,yield);
 
     uint64_t s_key = local_stocks[ol_number  - 1];
 
-    idx = rtx_->add_to_read<STOC,stock::value>(current_partition,s_key,yield);
+    idx = rtx_->read<STOC,stock::value>(current_partition,s_key,yield);
     stock::value *s_value = rtx_->get_readset<stock::value>(idx,yield);
 
     if (s_value->s_quantity - ol_quantity >= 10)
@@ -179,14 +171,14 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
     const uint ol_i_id = remote_item_ids[i];
     const uint ol_quantity = RandomNumber(random_generator[cor_id_], 1, 10);
 
-    auto idx = rtx_->add_to_read<ITEM,item::value>(current_partition,ol_i_id,yield);
+    auto idx = rtx_->read<ITEM,item::value>(current_partition,ol_i_id,yield);
     item::value *i_value = rtx_->get_readset<item::value>(idx,yield);
 
     uint64_t s_key = remote_stocks[i];
 
     // fetch remote objects
     // parse the result
-    idx = rtx_->add_to_read<STOC,stock::value>(WarehouseToPartition(stockKeyToWare(s_key)),s_key,yield);
+    idx = rtx_->read<STOC,stock::value>(WarehouseToPartition(stockKeyToWare(s_key)),s_key,yield);
     stock::value *s_value = rtx_->get_readset<stock::value>(idx,yield);
     assert(s_value != NULL);
 #if 1
