@@ -13,7 +13,15 @@ int OCC::read(int pid,uint64_t key,yield_func_t &yield) {
     // remote case
     return remote_read(pid,tableid,key,sizeof(V),yield);
   }
-  return -1;
+}
+
+template <int tableid,typename V>
+inline __attribute__((always_inline))
+int OCC::pending_read(int pid,uint64_t key,yield_func_t &yield) {
+  if(pid == node_id_)
+    return local_read(tableid,key,sizeof(V),yield);
+  else
+    return pending_remote_read(pid,tableid,key,sizeof(V),yield);
 }
 
 template <int tableid,typename V>
@@ -61,7 +69,8 @@ template <typename V>
 inline __attribute__((always_inline))
 V *OCC::get_readset(int idx,yield_func_t &yield) {
   assert(idx < read_set_.size());
-  assert(sizeof(V) == read_set_[idx].len);
+  ASSERT(sizeof(V) == read_set_[idx].len) <<
+      "excepted size " << (int)(read_set_[idx].len)  << " for table " << (int)(read_set_[idx].tableid) << "; idx " << idx;
 
   if(read_set_[idx].data_ptr == NULL
      && read_set_[idx].pid != node_id_) {
@@ -81,9 +90,8 @@ V *OCC::get_readset(int idx,yield_func_t &yield) {
 template <typename V>
 inline __attribute__((always_inline))
 V *OCC::get_writeset(int idx,yield_func_t &yield) {
-  V *v = get_readset<V>(idx,yield);
-  add_to_write(idx);
-  return v;
+  assert(idx < write_set_.size());
+  return (V *)write_set_[idx].data_ptr;
 }
 
 

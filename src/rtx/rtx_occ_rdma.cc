@@ -22,7 +22,10 @@ bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
 #if INLINE_OVERWRITE
       char *local_buf = (char *)((*it).data_ptr) - sizeof(MemNode);
 #else
+      // copy the seq out, since it will be overwritten by the remote op
       char *local_buf = (char *)((*it).data_ptr) - sizeof(RdmaValHeader);
+      RdmaValHeader *h = (RdmaValHeader *)local_buf;
+      it->seq = h->seq;
 #endif
 
       req.set_lock_meta(off,0,lock_content,local_buf);
@@ -144,6 +147,7 @@ bool OCCR::validate_reads_w_rdma(yield_func_t &yield) {
       MemNode *node = (MemNode *)((*it).data_ptr - sizeof(MemNode));
 #else
       RdmaValHeader *node = (RdmaValHeader *)((*it).data_ptr - sizeof(RdmaValHeader));
+      it->seq = node->seq;
 #endif
       Qp *qp = qp_vec_[(*it).pid];
       assert(qp != NULL);

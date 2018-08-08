@@ -95,6 +95,8 @@ class TXOpBase {
    */
   uint64_t     rdma_read_val(int pid,int tableid,uint64_t key,int len,char *val,yield_func_t &yield,int meta_len = 0);
 
+  uint64_t pending_rdma_read_val(int pid,int tableid,uint64_t key,int len,char *val,yield_func_t &yield,int meta_len = 0);
+
 
   /*
    * Batch operations

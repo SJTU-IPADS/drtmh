@@ -17,8 +17,7 @@ extern int g_new_order_remote_item_pct;
 
 txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
 
-  if(warehouse_hotmap == NULL && worker_id_ == 0)
-    warehouse_hotmap = new std::map<int,int>();
+  rtx_->begin(yield);
 
   // generate the req parameters ////////////////////////////////////////
   const uint warehouse_id = PickWarehouseId(random_generator[cor_id_], warehouse_id_start_, warehouse_id_end_);
@@ -83,6 +82,11 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
         remote_supplies[num_remote_stocks] = supplier_warehouse_id;
         remote_item_ids[num_remote_stocks++] = item_id;
         // naive version will not do remote reads here
+
+#if OR  // issue the reads here
+        auto idx = rtx_->pending_read<STOC,stock::value>(WarehouseToPartition(supplier_warehouse_id),s_key,yield);
+        rtx_->add_to_write();
+#endif
       } else {
         local_item_ids[num_local_stocks] = item_id;
         local_supplies[num_local_stocks] = supplier_warehouse_id;
@@ -90,7 +94,6 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
       }
     }
   }
-  rtx_->begin(yield);
 
   // Execution phase ////////////////////////////////////////////////////
   rtx_->read<CUST,customer::value>(current_partition,c_key,yield);
@@ -165,6 +168,9 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
     rtx_->insert<ORLI,order_line::value>(current_partition,ol_key,(&v_ol),yield);
   }
 
+#if OR // fetch remote records
+  indirect_yield(yield);
+#endif
   /* operation remote objects */
   for(uint i = 0;i < num_remote_stocks;++i) {
 
@@ -178,8 +184,14 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
 
     // fetch remote objects
     // parse the result
+#if OR
+    idx = i;
+    stock::value *s_value = rtx_->get_writeset<stock::value>(idx,yield);
+#else
     idx = rtx_->read<STOC,stock::value>(WarehouseToPartition(stockKeyToWare(s_key)),s_key,yield);
     stock::value *s_value = rtx_->get_readset<stock::value>(idx,yield);
+    rtx_->add_to_write();
+#endif
     assert(s_value != NULL);
 #if 1
     if (s_value->s_quantity - ol_quantity >= 10)
@@ -190,8 +202,6 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
     s_value->s_ytd += ol_quantity;
     s_value->s_remote_cnt += 1;
 #endif
-    // prepare lock and write records
-    rtx_->add_to_write();
 
     uint64_t ol_key = makeOrderLineKey(warehouse_id, districtID, my_next_o_id, num_local_stocks + i + 1);
     order_line::value v_ol;

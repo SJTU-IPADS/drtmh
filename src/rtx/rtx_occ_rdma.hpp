@@ -27,8 +27,8 @@ class OCCR : public OCC {
      * These RPC handlers does not operate on value/meta data in the index.
      * This can be slightly slower than default RPC handler for *LOCK* and *validate*.
      */
-    ROCC_BIND_STUB(rpc_,&OCCR::lock_rpc_handler2,this,RTX_LOCK_RPC_ID);
-    ROCC_BIND_STUB(rpc_,&OCCR::validate_rpc_handler2,this,RTX_VAL_RPC_ID);
+    //ROCC_BIND_STUB(rpc_,&OCCR::lock_rpc_handler2,this,RTX_LOCK_RPC_ID);
+    //ROCC_BIND_STUB(rpc_,&OCCR::validate_rpc_handler2,this,RTX_VAL_RPC_ID);
     //ROCC_BIND_STUB(rpc_,&OCCR::commit_rpc_handler2,this,RTX_COMMIT_RPC_ID);
   }
 
@@ -40,9 +40,25 @@ class OCCR : public OCC {
   bool validate_reads_w_rdma(yield_func_t &yield);
   void release_writes_w_rdma(yield_func_t &yield);
 
+  int pending_remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
+
+    ASSERT(RDMA_CACHE) << "Current RTX only supports pending remote read for value in cache.";
+
+    char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len);
+    assert(data_ptr != NULL);
+
+    auto off = pending_rdma_read_val(pid,tableid,key,len,data_ptr,yield,sizeof(RdmaValHeader));
+    data_ptr += sizeof(RdmaValHeader);
+
+    read_set_.emplace_back(tableid,key,(MemNode *)off,data_ptr,
+                           0,
+                           len,pid);
+    return read_set_.size() - 1;
+  }
+
   int remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
 
-    char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len + sizeof(RdmaValHeader));
+    char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len);
     ASSERT(data_ptr != NULL);
 
     uint64_t off = 0;
@@ -71,7 +87,7 @@ class OCCR : public OCC {
     return dummy_commit();
 #endif
 
-#if 0 //USE_RDMA_COMMIT
+#if 1 //USE_RDMA_COMMIT
     if(!lock_writes_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -85,7 +101,7 @@ class OCCR : public OCC {
     }
 #endif
     asm volatile("" ::: "memory");
-#if 0 //USE_RDMA_COMMIT
+#if 1 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -102,9 +118,9 @@ class OCCR : public OCC {
     asm volatile("" ::: "memory");
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
-    return dummy_commit();
+
     asm volatile("" ::: "memory");
-#if 1
+#if 0
     write_back_w_rdma(yield);
 #else
     /**

@@ -58,11 +58,11 @@ bool OCC::commit(yield_func_t &yield) {
   if(unlikely(!validate_reads(yield))) {
     goto ABORT;
   }
-  return true;
+
   prepare_write_contents();
   log_remote(yield); // log remote using *logger_*
   // write the modifications of records back
-  write_back(yield);
+  write_back_oneshot(yield);
   return true;
 ABORT:
   release_writes(yield);

@@ -241,7 +241,7 @@ void TpccMainRunner::init_store(MemDB* &store){
   store->AddSchema(DIST,TAB_HASH,sizeof(uint64_t),sizeof(district::value),meta_size,
                    scale_factor * NumDistrictsPerWarehouse() * 2);
   store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size,
-                   NumItems() * scale_factor * 1.2);
+                   NumItems() * scale_factor);
 #if ONE_SIDED_READ == 1
   store->EnableRemoteAccess(WARE,cm);
   store->EnableRemoteAccess(DIST,cm);
@@ -386,7 +386,6 @@ void TpccMainRunner::warmup_buffer(char *buffer) {
 
 void TpccMainRunner::populate_cache() {
 #if RDMA_CACHE == 1
-  fprintf(stdout,"create cache QP\n");
   // create a temporal QP for usage
   int dev_id = cm->get_active_dev(0);
   int port_idx = cm->get_active_port(0);
@@ -396,7 +395,6 @@ void TpccMainRunner::populate_cache() {
   cm->register_connect_mr(dev_id); // register memory on the specific device
 
   cm->link_connect_qps(nthreads + nthreads + 1,dev_id,port_idx,0,IBV_QPT_RC);
-  fprintf(stdout,"create cache QP done\n");
 
   // calculate the time of populating the cache
   struct  timeval start;

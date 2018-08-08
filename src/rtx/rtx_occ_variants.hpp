@@ -59,7 +59,7 @@ class OCCFast : public OCC {
     prepare_write_contents_f();
 
     log_remote(yield); // log remote using *logger_*
-    write_back(yield);
+    write_back_oneshot(yield);
     gc_readset(); gc_writeset();
     return true;
  ABORT:

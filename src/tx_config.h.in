@@ -36,6 +36,9 @@
 
 // whether to use cache for one-sided operations
 #cmakedefine RDMA_CACHE @RDMA_CACHE@
+#ifndef RDMA_CACHE
+#define RDMA_CACHE 0
+#endif
 
 #cmakedefine USE_RDMA_COMMIT @USE_RDMA_COMMIT@
 
@@ -48,6 +51,12 @@
 #ifndef PA
 #define PA 0
 #endif
+
+#cmakedefine OR @OR@ // outstanding requests
+#ifndef OR
+#define OR 0 // by defaut, this optimization is not used
+#endif
+
 
 // other TX specific configurations
 #define RECORD_STALE @RECORD_STALE@

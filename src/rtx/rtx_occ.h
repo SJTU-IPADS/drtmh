@@ -47,6 +47,13 @@ class OCC : public TXOpBase {
   template <int tableid,typename V> // the value stored corresponding to tableid
   int  read(int pid,uint64_t key,yield_func_t &yield);
 
+  /**
+   * A read is called, but the value stored in the readset is not valid.
+   * The value will become valid after user called indirect_yield.
+   */
+  template <int tableid,typename V> // the value stored corresponding to tableid
+  int  pending_read(int pid,uint64_t key,yield_func_t &yield);
+
   // directly add the record to the write-set
   template <int tableid,typename V> // the value stored corresponding to tableid
   int  add_to_write(int pid,uint64_t key,yield_func_t &yield);
@@ -73,6 +80,9 @@ class OCC : public TXOpBase {
   virtual int      local_read(int tableid,uint64_t key,int len,yield_func_t &yield);
   virtual int      local_insert(int tableid,uint64_t key,char *val,int len,yield_func_t &yield);
   virtual int      remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield);
+  virtual int      pending_remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
+    return remote_read(pid,tableid,key,len,yield);
+  }
   virtual int      remote_insert(int pid,int tableid,uint64_t key,int len,yield_func_t &yield);
 
   // if local, the batch_get will return the results
