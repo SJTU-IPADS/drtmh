@@ -312,6 +312,13 @@ void BenchRunner::parse_config(std::string &config_file) {
                      << "error. It may be an error, or not." << e.what();
     }
 
+    try {
+      tcp_port = pt.get<size_t>("bench.port");
+    } catch (const ptree_error &e) {
+
+    }
+    LOG(2) << "Use TCP port " << tcp_port;
+
     try{
       nclients = pt.get<size_t>("bench.clients");
     } catch(const ptree_error &e) {

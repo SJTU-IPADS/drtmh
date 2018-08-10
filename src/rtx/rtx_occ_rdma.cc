@@ -31,14 +31,13 @@ bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
       req.set_lock_meta(off,0,lock_content,local_buf);
       req.set_read_meta(off + sizeof(uint64_t),local_buf + sizeof(uint64_t));
 
-      assert(qp->rc_need_poll() == false);
-
       req.post_reqs(scheduler_,qp);
 
       // two request need to be polled
       if(unlikely(qp->rc_need_poll())) {
         worker_->indirect_yield(yield);
       }
+      write_batch_helper_.mac_set_.insert(it->pid);
     }
     else {
       if(unlikely(!local_try_lock_op(it->node,

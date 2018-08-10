@@ -16,6 +16,7 @@ using namespace oltp;
 
 namespace rtx {
 
+class RdmaChecker;
 class OCC : public TXOpBase {
 #include "rtx_occ_internal.h" // common data structures definition
  public:
@@ -132,8 +133,12 @@ class OCC : public TXOpBase {
   void validate_rpc_handler(int id,int cid,char *msg,void *arg);
 
   void commit_oneshot_handler(int id,int cid,char *msg,void *arg);
+
+  void backup_get_handler(int id,int cid, char *msg,void *arg);
  protected:
   void prepare_write_contents();
+
+  friend RdmaChecker;
 
   DISABLE_COPY_AND_ASSIGN(OCC);
 };
@@ -149,6 +154,7 @@ class OCC : public TXOpBase {
 #define RTX_VAL_RPC_ID     4
 #define RTX_LOG_RPC_ID     5
 #define RTX_LOG_CLEAN_ID   6
+#define RTX_BACKUP_GET_ID  7
 
 #include "rtx_occ_impl.hpp"
 

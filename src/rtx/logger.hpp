@@ -13,6 +13,9 @@ namespace nocc {
 
 namespace rtx {
 
+class RdmaChecker;
+class OCC;
+
 // Abstract logger class
 class Logger {
  public:
@@ -44,6 +47,9 @@ class Logger {
   // log remote remote server defined in mac_set
   virtual void log_remote(BatchOpCtrlBlock &ctrl,int cor_id) = 0;
 
+  virtual void check_remote(BatchOpCtrlBlock &ctrl,int cor_id,yield_func_t &yield) {
+  }
+
   // ack log at remote servers
   // a helper function to broadcast this message to others
   virtual void log_ack(BatchOpCtrlBlock &ctrl,int cor_id) {
@@ -62,6 +68,11 @@ class Logger {
   char *reply_buf_   = NULL;
  private:
   const int ack_rpc_id_;
+
+  friend RdmaChecker;
+  friend OCC;
+
+  DISABLE_COPY_AND_ASSIGN(Logger);
 }; // logger
 
 }; // namespace rtx

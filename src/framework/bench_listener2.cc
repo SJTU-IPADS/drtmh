@@ -127,14 +127,14 @@ void BenchLocalListener::worker_routine(yield_func_t &yield) {
 }
 
 void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
-
+#if 0
   // a global barrier to wait for worker's connection
   while(nresult_returned_ != (total_partition - 1)) {
     yield_next(yield);
   }
 
   nresult_returned_ = 0;
-
+#endif
   // start all servers
   char *dummy = rpc_->get_static_buf(64);
   assert(total_partition > 0);
@@ -142,7 +142,7 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
     rpc_->append_req(dummy,START_RPC_ID,sizeof(char),1,RRpc::REQ,i);
   }
   // then start at local
-  usleep(3000);start_workers(); // start the first server
+  start_workers(); // start the first server
 
   // routine's main loop
   while(true) {
@@ -176,7 +176,7 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
 }
 
 void BenchLocalListener::worker_routine_slave(yield_func_t &yield) {
-
+#if 0
   char *dummy = rpc_->get_static_buf(64);
   *((int *)dummy) = current_partition;
   rpc_->append_req(dummy,INIT_RPC_ID,sizeof(char),1 /* cor_id */,RRpc::REQ,0 /* master id */);
@@ -184,7 +184,7 @@ void BenchLocalListener::worker_routine_slave(yield_func_t &yield) {
   // wait for master's start RPC
   while(!global_inited)
     yield_next(yield);
-
+#endif
   // slave's main loop
   while(running) {
 
@@ -238,15 +238,15 @@ void BenchLocalListener::start_rpc_handler(int id,int cid,char *msg,void *arg) {
 void BenchLocalListener::get_result_rpc_handler(int id, int cid,char *msg, void *arg) {
 
   if(id != current_partition) {
-    fprintf(stdout,"get results from %s , total %d\n",cm->network_[id].c_str(),nresult_returned_);
-    reporter_->merge_data(msg);
+    reporter_->merge_data(msg,id);
     nresult_returned_ += 1;
   }
+
   if(nresult_returned_ == total_partition - 1) {
     epoch_ += 1;
     char *buffer = new char[reporter_->data_len() + CACHE_LINE_SZ];
     reporter_->collect_data(buffer,start_t);
-    reporter_->merge_data(buffer);
+    reporter_->merge_data(buffer,0);
     free(buffer);
 
 #ifdef LOG_RESULTS

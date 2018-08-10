@@ -2,6 +2,8 @@
 
 #include <map>
 
+#include "core/logging.h"
+
 namespace nocc {
 
 namespace rtx {
@@ -46,6 +48,16 @@ class LogMemManager {
                            (remote_tailers_[to_mid] % (thread_buf_size_ - log_entry_size_))
                            + base_offset_; // the start pointer of log area
     remote_tailers_[to_mid] += log_size;   // increment the ring buffer pointer
+    return base_offset;
+  }
+
+  inline uint64_t get_previous_remote_offset(int from_mac,int from_tid,int to_mid,int log_size) {
+    ASSERT(remote_tailers_[to_mid] >= log_size) << "tail " << (uint64_t)(remote_tailers_[to_mid])
+                                                << ";log size " << log_size;
+    auto tail = remote_tailers_[to_mid] - log_size;
+    uint64_t base_offset = from_tid * thread_buf_size_ + from_mac * total_mac_log_size_ +
+                           (tail % (thread_buf_size_ - log_entry_size_))
+                           + base_offset_; // the start pointer of log area
     return base_offset;
   }
 

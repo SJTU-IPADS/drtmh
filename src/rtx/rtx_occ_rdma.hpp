@@ -5,6 +5,8 @@
 
 #include "core/logging.h"
 
+#include "checker.hpp"
+
 namespace nocc {
 
 namespace rtx {
@@ -19,6 +21,10 @@ class OCCR : public OCC {
       OCC(worker,db,rpc_handler,nid,tid,cid,response_node,
              cm,rdma_sched,ms)
   {
+    if(worker_id_ == 0 && cor_id_ == 0) {
+      LOG(3) << "Use one-sided for read.";
+    }
+
     // register normal RPC handlers
     register_default_rpc_handlers();
 
@@ -100,6 +106,8 @@ class OCCR : public OCC {
 #endif
     }
 #endif
+    //RdmaChecker::check_lock_content(this,yield);
+
     asm volatile("" ::: "memory");
 #if 1 //USE_RDMA_COMMIT
     if(!validate_reads_w_rdma(yield)) {
@@ -118,9 +126,10 @@ class OCCR : public OCC {
     asm volatile("" ::: "memory");
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
-
+    //    RdmaChecker::check_log_content(this,yield);
     asm volatile("" ::: "memory");
-#if 0
+    //return dummy_commit();
+#if 1
     write_back_w_rdma(yield);
 #else
     /**
@@ -129,7 +138,7 @@ class OCCR : public OCC {
      */
     write_back_oneshot(yield);
 #endif
-
+    //RdmaChecker::check_backup_content(this,yield);
     gc_readset();
     gc_writeset();
     return true;
@@ -139,6 +148,7 @@ class OCCR : public OCC {
 #else
     release_writes(yield);
 #endif
+
     gc_readset();
     gc_writeset();
     return false;

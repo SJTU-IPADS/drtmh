@@ -90,6 +90,8 @@ class TpccWorker : public TpccMixin, public BenchWorker {
   txn_result_t txn_order_status(yield_func_t &yield);
   txn_result_t txn_super_stock_level(yield_func_t &yield);
 
+  txn_result_t txn_super_stocklevel_new(yield_func_t &yield);
+
   txn_result_t txn_micro(yield_func_t &yield);
 
   // naive version of 2 TXs

@@ -194,11 +194,12 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
 #endif
     assert(s_value != NULL);
 #if 1
+    //LOG(2) << "skey " << s_key << ",get remote stock, quantity " << s_value->s_quantity;
     if (s_value->s_quantity - ol_quantity >= 10)
       s_value->s_quantity -= ol_quantity;
     else
       s_value->s_quantity += -int32_t(ol_quantity) + 91;
-
+    //LOG(2) << "modify quantity to " << s_value->s_quantity;
     s_value->s_ytd += ol_quantity;
     s_value->s_remote_cnt += 1;
 #endif
@@ -214,7 +215,20 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
     rtx_->insert<ORLI,order_line::value>(current_partition,ol_key,(&v_ol),yield);
   }
   bool res = rtx_->commit(yield);
+#if 0
+  // some checks
+  rtx_->begin(yield);
+  for(uint i = 0;i < num_remote_stocks;++i) {
+    uint64_t s_key = remote_stocks[i];
+    stock::value *s = rtx_->get<STOC,stock::value>(WarehouseToPartition(stockKeyToWare(s_key)),s_key,yield);
+    LOG(2) << "recheck skey " << s_key << ",get remote stock, quantity " << s->s_quantity;
+  }
+#endif
   return txn_result_t(res,1);
+}
+
+txn_result_t TpccWorker::txn_super_stocklevel_new(yield_func_t &yield) {
+  return txn_result_t(true,1);
 }
 
 TpccWorker::~TpccWorker() {

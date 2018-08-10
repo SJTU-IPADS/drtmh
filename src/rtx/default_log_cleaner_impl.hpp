@@ -68,7 +68,8 @@ class DefaultLogCleaner : public LogCleaner {
       if(unlikely(node->value == NULL)) {
         node->value = (uint64_t *)malloc(item->len);
       }
-      memcpy(node->value,(char *)item + sizeof(RtxWriteItem),item->len);
+      memcpy((char *)(node->value),
+             (char *)item + sizeof(RtxWriteItem),item->len);
 #endif
       asm volatile("" ::: "memory");
       node->seq = old_seq + 2;

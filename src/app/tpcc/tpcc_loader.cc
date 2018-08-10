@@ -150,6 +150,12 @@ void TpccDistrictLoader::load() {
         n_districts++;
 
         store_->Put(DIST, key, (uint64_t *)wrapper);
+
+#if INLINE_OVERWRITE
+        //assert(sizeof(district::value) < INLINE_OVERWRITE_MAX_PAYLOAD);
+        //memcpy(node->padding,v,sizeof(district::value));
+#else
+#endif
         assert(store_->Get(DIST,key) != NULL);
       }
     }
@@ -423,7 +429,7 @@ void TpccStockLoader::load() {
           uint64_t key = makeStockKey(w, i);
 
           int s_size = store_->_schemas[STOC].total_len;
-          s_size = Round<int>(s_size,CACHE_LINE_SIZE);
+          //s_size = Round<int>(s_size,CACHE_LINE_SIZE);
 
           char *wrapper = NULL;
 
@@ -436,6 +442,7 @@ void TpccStockLoader::load() {
 
           memset(wrapper, 0, META_LENGTH + sizeof(stock::value));
           stock::value *v = (stock::value *)(wrapper + META_LENGTH);
+
           v->s_quantity = RandomNumber(random_generator_, 10, 100);
           v->s_ytd = 0;
           v->s_order_cnt = 0;
@@ -454,9 +461,15 @@ void TpccStockLoader::load() {
           const size_t sz = Size(*v);
           stock_total_sz += sz;
           n_stocks++;
+
           auto node = store_->Put(STOC, key, (uint64_t *)wrapper,sizeof(stock::value));
+#if INLINE_OVERWRITE
+          assert(sizeof(stock::value) < INLINE_OVERWRITE_MAX_PAYLOAD);
+          memcpy(node->padding,v,sizeof(stock::value));
+#else
           node->off = (uint64_t)wrapper - (uint64_t)(cm->conn_buf_);
           assert(node->off != 0);
+#endif
         }
         b++;
       } catch (...) {

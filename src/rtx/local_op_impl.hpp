@@ -6,7 +6,7 @@ namespace nocc {
 
 namespace rtx  {
 
-#define RTX_IN_WRITE_MAGIC 73
+#define CONFLICT_WRITE_FLAG 73
 
 // implementations of TX's get operators
 inline __attribute__((always_inline))
@@ -20,14 +20,14 @@ MemNode *TXOpBase::local_get_op(MemNode *node,char *val,uint64_t &seq,int len,in
 retry: // retry if there is a concurrent writer
   char *cur_val = (char *)(node->value);
   seq = node->seq;
-
+  asm volatile("" ::: "memory");
 #if INLINE_OVERWRITE
   memcpy(val,node->padding + meta,len);
 #else
   memcpy(val,cur_val + meta,len);
 #endif
   asm volatile("" ::: "memory");
-  if( unlikely(node->seq != seq || seq == 73) ) {
+  if( unlikely(node->seq != seq || seq == CONFLICT_WRITE_FLAG) ) {
     goto retry;
   }
   return node;
@@ -95,7 +95,7 @@ inline __attribute__((always_inline))
 MemNode *TXOpBase::inplace_write_op(MemNode *node,char *val,int len,int meta) {
 
   auto old_seq = node->seq;assert(node->seq != 1);
-  node->seq = 73;
+  node->seq = CONFLICT_WRITE_FLAG;
   asm volatile("" ::: "memory");
 #if INLINE_OVERWRITE
   memcpy(node->padding,val,len);

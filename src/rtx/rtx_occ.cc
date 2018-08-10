@@ -19,6 +19,8 @@ OCC::OCC(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int cid,int r
     write_set_(),
     cor_id_(cid),response_node_(nid)
 {
+  if(worker_id_ == 0 && cor_id_ == 0)
+    LOG(3) << "Baseline OCC.";
   register_default_rpc_handlers();
   memset(reply_buf_,0,MAX_MSG_SIZE);
 
@@ -203,6 +205,7 @@ void OCC::write_back(yield_func_t &yield) {
 }
 
 void OCC::write_back_oneshot(yield_func_t &yield) {
+
   char *cur_ptr = write_batch_helper_.req_buf_;
 
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
@@ -271,7 +274,7 @@ void OCC::log_remote(yield_func_t &yield) {
     logger_->log_remote(cblock,cor_id_);
     worker_->indirect_yield(yield);
 
-#if 0
+#if 1
     cblock.req_buf_ = rpc_->get_fly_buf(cor_id_);
     memcpy(cblock.req_buf_,write_batch_helper_.req_buf_,write_batch_helper_.batch_msg_size());
     cblock.req_buf_end_ = cblock.req_buf_ + write_batch_helper_.batch_msg_size();
@@ -516,6 +519,23 @@ void OCC::commit_oneshot_handler(int id,int cid,char *msg,void *arg) {
 #endif
 }
 
+void OCC::backup_get_handler(int id,int cid,char *msg,void *arg) {
+
+  ReadItem *item = (ReadItem *)msg;
+  ASSERT(global_view->is_backup(response_node_,item->pid));
+
+  auto store = logger_->cleaner_.get_backed_store(item->pid);
+
+  MemNode *node = store->stores_[item->tableid]->GetWithInsert((uint64_t)(item->key));
+  ASSERT(node->value != NULL);
+
+  char *reply_buf = rpc_->get_reply_buf();
+  memcpy(reply_buf,(char *)(node->value),
+         store->_schemas[item->tableid].vlen);
+
+  rpc_->send_reply(reply_buf,store->_schemas[item->tableid].vlen,id,cid);
+}
+
 void OCC::register_default_rpc_handlers() {
   // register rpc handlers
   ROCC_BIND_STUB(rpc_,&OCC::read_rpc_handler,this,RTX_READ_RPC_ID);
@@ -524,6 +544,8 @@ void OCC::register_default_rpc_handlers() {
   //ROCC_BIND_STUB(rpc_,&OCC::commit_rpc_handler,this,RTX_COMMIT_RPC_ID);
   ROCC_BIND_STUB(rpc_,&OCC::commit_oneshot_handler,this,RTX_COMMIT_RPC_ID);
   ROCC_BIND_STUB(rpc_,&OCC::validate_rpc_handler,this,RTX_VAL_RPC_ID);
+
+  ROCC_BIND_STUB(rpc_,&OCC::backup_get_handler,this,RTX_BACKUP_GET_ID);
 }
 
 

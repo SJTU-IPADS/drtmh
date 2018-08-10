@@ -55,6 +55,12 @@ struct CommitItem {
   uint64_t key;
 } __attribute__ ((aligned (8)));
 
+struct ReadItem {
+  uint32_t pid;
+  uint32_t tableid;
+  uint64_t key;
+} __attribute__ ((aligned (8)));
+
 
 struct ReplyHeader {
   uint16_t num;
@@ -77,4 +83,3 @@ struct OCCResponse {
 
 #define LOCK_SUCCESS_MAGIC 73
 #define LOCK_FAIL_MAGIC 12
-

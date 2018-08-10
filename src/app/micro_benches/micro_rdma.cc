@@ -121,10 +121,9 @@ namespace nocc {
           char *local_buf = rdma_buffer + worker_id_ * 4096 + cor_id_ * CACHE_LINE_SZ;
           //char *local_buf = (char *)Rmalloc(size);
           START(post);
-          qps_[pid]->rc_post_send(IBV_WR_RDMA_READ,local_buf,size,offset,
-                                IBV_SEND_SIGNALED, // flag
-                                cor_id_);
-          rdma_sched_->add_pending(cor_id_,qps_[pid]);
+          rdma_sched_->post_send(qps_[pid],cor_id_,
+                                 IBV_WR_RDMA_READ,local_buf,size,offset,
+                                 IBV_SEND_SIGNALED); // flag
           END(post);
         }
         indirect_yield(yield);
