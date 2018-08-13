@@ -42,7 +42,7 @@ class ClusterHash {
   ClusterHash(int expected_data, char *val = NULL)
       :data_num_(expected_data),
        indirect_num_(expected_data <= DRTM_CLUSTER_NUM ? expected_data : expected_data / DRTM_CLUSTER_NUM),
-       logical_num_(expected_data * 2), // assume 1 hit
+       logical_num_(expected_data), // assume 1 hit
        free_indirect_num_(1),       // we omit the first indirect node
        data_ptr_(val),
        base_off_(0)

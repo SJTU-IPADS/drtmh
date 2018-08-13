@@ -123,12 +123,13 @@ class OCCR : public OCC {
     }
 #endif
 
+#if 1
     asm volatile("" ::: "memory");
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
     //    RdmaChecker::check_log_content(this,yield);
     asm volatile("" ::: "memory");
-    //return dummy_commit();
+#endif
 #if 1
     write_back_w_rdma(yield);
 #else

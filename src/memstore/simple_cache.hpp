@@ -8,8 +8,10 @@ class SimpleCache {
  public:
   SimpleCache(int size) : size_(size)
   {
-    if(size != 0)
+    if(size != 0) {
       content_ =  (uint64_t *)malloc_huge_pages(size,HUGE_PAGE_SZ,true);
+      assert(content_ != NULL);
+    }
   }
 
   void put(uint64_t key,uint64_t off) {

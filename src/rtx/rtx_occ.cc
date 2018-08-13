@@ -280,6 +280,9 @@ void OCC::log_remote(yield_func_t &yield) {
     cblock.req_buf_end_ = cblock.req_buf_ + write_batch_helper_.batch_msg_size();
     //log ack
     logger_->log_ack(cblock,cor_id_); // need to yield
+
+    // clear the mac_set, used for the next time
+    write_batch_helper_.clear();
 #endif
   } // end check whether it is necessary to log
 }

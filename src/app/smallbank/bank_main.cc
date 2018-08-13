@@ -207,10 +207,10 @@ class BankLoader : public BenchLoader {
 
       char *wrapper_acct(NULL), *wrapper_saving(NULL), *wrapper_check(NULL);
       int save_size = meta_size + sizeof(savings::value);
-      save_size = Round<int>(save_size,CACHE_LINE_SZ);
+      save_size = Round<int>(save_size,sizeof(uint64_t));
       int check_size = meta_size + sizeof(checking::value);
-      check_size = Round<int>(check_size, CACHE_LINE_SZ);
-      ASSERT(check_size % CACHE_LINE_SZ == 0) << "cache size " << CACHE_LINE_SZ;
+      check_size = Round<int>(check_size, sizeof(uint64_t));
+      ASSERT(check_size % sizeof(uint64_t) == 0) << "cache size " << check_size;
 
 #if ONE_SIDED_READ == 1
       if(is_primary_){

@@ -429,7 +429,7 @@ void TpccStockLoader::load() {
           uint64_t key = makeStockKey(w, i);
 
           int s_size = store_->_schemas[STOC].total_len;
-          //s_size = Round<int>(s_size,CACHE_LINE_SIZE);
+          s_size = Round<int>(s_size,sizeof(uint64_t));
 
           char *wrapper = NULL;
 

@@ -42,7 +42,7 @@ template <class Num> inline ALWAYS_INLINE  // Round "a" according to "b"
 Num Round (Num a, Num b) {
     if(a < b) return b;
     Num r = a % b;
-    return r?(a + (a - r)): a ;
+    return r?(a + (b - r)): a ;
 }
 int  DiffTimespec(const struct timespec &end, const struct timespec &start);
 

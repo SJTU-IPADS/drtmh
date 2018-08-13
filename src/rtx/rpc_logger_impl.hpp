@@ -33,10 +33,11 @@ class RpcLogger : public Logger {
 
   void log_remote_handler(int id,int cid,char *msg,void *arg) {
     int size = (uint64_t)arg;
-    char *local_ptr = mem_.get_next_log(id,rpc_handler_->worker_id_,size);
+    //char *local_ptr = mem_.get_next_log(id,rpc_handler_->worker_id_,size);
 
-    assert(size < RTX_LOG_ENTRY_SIZE);
-    memcpy(local_ptr,msg,size);
+    assert(size < RTX_LOG_ENTRY_SIZE && size > 0);
+    //memcpy(local_ptr,msg,size);
+    memcpy(local_buffer + cid * MAX_MSG_SIZE,msg,size);
 
     char* reply_msg = rpc_handler_->get_reply_buf();
     rpc_handler_->send_reply(reply_msg,0,id,cid); // a dummy reply
@@ -44,6 +45,7 @@ class RpcLogger : public Logger {
 
  private:
   const int log_rpc_id_;
+  char local_buffer[MAX_MSG_SIZE * 32];
 };
 
 
