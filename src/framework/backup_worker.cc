@@ -138,16 +138,16 @@ void BackupBenchWorker::create_qps() {
   int dev_id = cm->get_active_dev(use_port);
   int port_idx = cm->get_active_port(use_port);
 
-  //      fprintf(stdout,"[WORKER %d] start connects QPs, using dev %d, port %d\n",worker_id_
-  //,dev_id,port_idx);
-
   cm->thread_local_init();
   cm->open_device(dev_id);
   cm->register_connect_mr(dev_id); // register memory on the specific device
 
   // 2 * nthreads for BenchWorker , 1 for BenchListener,
   //TODO: 5 reserved to ensure no conflict with XingDa,
-  cm->link_connect_qps(worker_id_ + 2 * nthreads + 1 + 5, dev_id,port_idx, 0,IBV_QPT_RC);
+  for(uint i = 0;i < 1;++i) {
+    // i:  QP index
+    cm->link_connect_qps(worker_id_ + 2 * nthreads + 1 + 5, dev_id,port_idx, i, IBV_QPT_RC);
+  }
 }
 
 

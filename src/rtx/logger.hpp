@@ -66,6 +66,7 @@ class Logger {
   DefaultLogCleaner  cleaner_;
   RRpc *rpc_handler_ = NULL;
   char *reply_buf_   = NULL;
+
  private:
   const int ack_rpc_id_;
 

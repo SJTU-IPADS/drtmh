@@ -18,11 +18,13 @@ class LogMemManager {
       thread_num_(ts),
       local_buffer_(local_p),
       log_entry_size_(RTX_LOG_ENTRY_SIZE),
-      thread_buf_size_(size + log_entry_size_),
-      total_mac_log_size_(thread_num_ * thread_buf_size_),
+      thread_buf_size_(size + RTX_LOG_ENTRY_SIZE),
       base_offset_(base_off)
   {
+    //LOG(3) << "add " << ms << " " << ts << " " << size;
     assert(log_entry_size_ <= size);
+
+    total_mac_log_size_ = thread_num_ * thread_buf_size_;
 
     remote_tailers_ = new uint64_t[mac_num_];
     local_headers_  = new uint64_t[mac_num_];
@@ -48,6 +50,9 @@ class LogMemManager {
                            (remote_tailers_[to_mid] % (thread_buf_size_ - log_entry_size_))
                            + base_offset_; // the start pointer of log area
     remote_tailers_[to_mid] += log_size;   // increment the ring buffer pointer
+    ///LOG(2) << "tail num " << (thread_buf_size_ - log_entry_size_) <<
+    //"thread " << thread_buf_size_ << " log entry " << log_entry_size_;
+    //LOG(2) << base_offset;sleep(1);
     return base_offset;
   }
 
@@ -84,10 +89,12 @@ class LogMemManager {
   // the start pointer of the log area
   const char *local_buffer_;
 
-  // total log size used by one mac
-  const int total_mac_log_size_;
-
   const int log_entry_size_;
+
+  // total log size used by one mac
+  int total_mac_log_size_;
+
+
 
  private:
   // the remote tailer of the log

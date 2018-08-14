@@ -111,7 +111,7 @@ void RWorker::init_rdma() {
   cm_->register_connect_mr(dev_id); // register memory on the specific device
 }
 
-void RWorker::create_qps() {
+void RWorker::create_qps(int num) {
 
   if(!USE_RDMA) {
     return;

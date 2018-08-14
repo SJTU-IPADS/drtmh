@@ -66,13 +66,17 @@
 #define LARGE_CONNECTION 0
 #endif
 
+#define QP_NUMS 5
+#if !LARGE_CONNECTION
+#undef QP_NUMS
+#define QP_NUMS 1
+#endif
+
 // whether to check the functionality of RTX
 #cmakedefine CHECKS @CHECKS@
 #ifndef CHECKS
 #define CHECKS 0
 #endif
-
-#define QP_NUMS 1
 
 // execuation related configuration
 #define NO_ABORT 1           // does not retry if the TX is abort, and do the execution

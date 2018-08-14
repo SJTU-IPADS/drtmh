@@ -73,7 +73,7 @@ class RWorker : public ndb_thread {
 
   void init_rdma();
 
-  void create_qps(); // depends init_rdma
+  void create_qps(int num  = 0); // depends init_rdma
 
   void create_rdma_ud_connections(int total_connections = 1);
 

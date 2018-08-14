@@ -6,7 +6,8 @@ namespace rtx  {
 inline __attribute__((always_inline))
 uint64_t TXOpBase::rdma_lookup_op(int pid,int tableid,uint64_t key,char *val,
                                   yield_func_t &yield,int meta_len) {
-  Qp* qp = qp_vec_[pid];
+  //Qp* qp = qp_vec_[pid];
+  Qp *qp = get_qp(pid);
   assert(qp != NULL);
   // MemNode will be stored in val, if necessary
   auto off = db_->stores_[tableid]->RemoteTraverse(key,qp,scheduler_,yield,val);
@@ -32,7 +33,8 @@ uint64_t TXOpBase::pending_rdma_read_val(int pid,int tableid,uint64_t key,int le
 #endif
 
   // fetch the content
-  Qp* qp = qp_vec_[pid];
+  //Qp* qp = qp_vec_[pid];
+  Qp *qp = get_qp(pid);
   scheduler_->post_send(qp,worker_->cor_id(),
                         IBV_WR_RDMA_READ,val,len + meta_len,data_off, IBV_SEND_SIGNALED);
   return data_off;

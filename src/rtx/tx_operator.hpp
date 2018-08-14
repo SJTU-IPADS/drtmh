@@ -50,11 +50,7 @@ class TXOpBase {
        db_(db),
        cm_(cm),scheduler_(rdma_sched),node_id_(nid),worker_id_(tid),rpc_(rpc_handler),qp_vec_() {
     // fetch QPs
-    for(uint i = 0;i < ms;++i) {
-      auto qp = cm->get_rc_qp(tid,i,0);
-      assert(qp != NULL);
-      qp_vec_.push_back(qp);
-    }
+    fill_qp_vec(cm,worker_id_);
   }
 
   // get ops
@@ -121,9 +117,8 @@ class TXOpBase {
   RdmaCtrl *cm_    = NULL;
   RScheduler *scheduler_ = NULL;
 
-  std::vector<Qp *> qp_vec_;
   // Use a lot more QPs to emulate a larger cluster, if necessary
-  //#include "qp_selection_helper.h"
+#include "qp_selection_helper.h"
 
   int node_id_;
   int worker_id_;

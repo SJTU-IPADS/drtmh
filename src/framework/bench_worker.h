@@ -133,7 +133,7 @@ class BenchWorker : public RWorker {
     new_logger_ = new rtx::RDMALogger(cm_,rdma_sched_,current_partition,worker_id_,M2,
                                       rpc_,RTX_LOG_CLEAN_ID,
                                       MAX_BACKUP_NUM,(char *)(cm_->conn_buf_) + HUGE_PAGE_SZ,
-                                      total_partition,nthreads,(coroutine_num + 1) * RTX_LOG_ENTRY_SIZE);
+                                      total_partition,nthreads,(coroutine_num) * RTX_LOG_ENTRY_SIZE);
 #endif
 
     // add backup stores)

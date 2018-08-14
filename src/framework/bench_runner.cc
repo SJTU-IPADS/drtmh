@@ -144,9 +144,13 @@ BenchRunner::run() {
 
   // Calculating logger memory size
   using namespace rtx;
-  LogMemManager log_mem(NULL,total_partition,nthreads,(coroutine_num + 1) * RTX_LOG_ENTRY_SIZE);
+
+  volatile int ts = nthreads;
+  LogMemManager log_mem(NULL,total_partition,ts,32 * RTX_LOG_ENTRY_SIZE);
   uint64_t logger_sz = log_mem.total_log_size();
-  LOG(2) << "[Mem], Total logger area " << get_memory_size_g(logger_sz) << "G.";
+
+  logger_sz = Round(logger_sz, M2);
+  LOG(2) << "Total logger area " << get_memory_size_g(logger_sz) << "G.";
 
   uint64_t total_sz = logger_sz + ring_area_sz + M2;
   assert(r_buffer_size > total_sz);

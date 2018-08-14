@@ -16,7 +16,8 @@ bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
       auto off = (*it).off;
 
       // post RDMA requests
-      Qp *qp = qp_vec_[(*it).pid];
+      //Qp *qp = qp_vec_[(*it).pid];
+      Qp *qp = get_qp((*it).pid);
       assert(qp != NULL);
 
 #if INLINE_OVERWRITE
@@ -84,7 +85,8 @@ void OCCR::release_writes_w_rdma(yield_func_t &yield) {
     if((*it).pid != node_id_) {
       MemNode *node = (MemNode *)((*it).data_ptr - sizeof(MemNode));
       if(node->lock == 0) { // successfull locked
-        Qp *qp = qp_vec_[(*it).pid];
+        //Qp *qp = qp_vec_[(*it).pid];
+        Qp *qp = get_qp((*it).pid);
         assert(qp != NULL);
         node->lock = 0;
         scheduler_->post_send(qp,cor_id_,IBV_WR_RDMA_WRITE,(char *)(node),sizeof(uint64_t),
@@ -115,8 +117,10 @@ void OCCR::write_back_w_rdma(yield_func_t &yield) {
 #else
       RdmaValHeader *node = (RdmaValHeader *)((*it).data_ptr - sizeof(RdmaValHeader));
 #endif
-      Qp *qp = qp_vec_[(*it).pid];
+      //Qp *qp = qp_vec_[(*it).pid];
+      Qp *qp = get_qp((*it).pid);
       assert(qp != NULL);
+
       node->seq = (*it).seq + 2; // update the seq
       node->lock = 0;            // re-set lock
 
@@ -148,7 +152,8 @@ bool OCCR::validate_reads_w_rdma(yield_func_t &yield) {
       RdmaValHeader *node = (RdmaValHeader *)((*it).data_ptr - sizeof(RdmaValHeader));
       it->seq = node->seq;
 #endif
-      Qp *qp = qp_vec_[(*it).pid];
+      //Qp *qp = qp_vec_[(*it).pid];
+      Qp *qp = get_qp((*it).pid);
       assert(qp != NULL);
 
       scheduler_->post_send(qp,cor_id_,

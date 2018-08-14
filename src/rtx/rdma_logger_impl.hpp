@@ -19,11 +19,7 @@ class RDMALogger : public Logger {
        scheduler_(rdma_sched)
   {
     // init local QP vector
-    for(uint i = 0;i < ms;++i) {
-      auto qp = cm->get_rc_qp(tid,i,0);
-      assert(qp != NULL);
-      qp_vec_.push_back(qp);
-    }
+    fill_qp_vec(cm,worker_id_);
   }
 
   inline void log_remote(BatchOpCtrlBlock &clk, int cor_id) {
@@ -33,21 +29,23 @@ class RDMALogger : public Logger {
     // post the log to remote servers
     for(auto it = clk.mac_set_.begin();it != clk.mac_set_.end();++it) {
       int  mac_id = *it;
-      auto qp = qp_vec_[mac_id];
+      //auto qp = qp_vec_[mac_id];
+      auto qp = get_qp(mac_id);
       auto off = mem_.get_remote_log_offset(node_id_,worker_id_,mac_id,size);
       assert(off != 0);
       scheduler_->post_send(qp,cor_id,
                             IBV_WR_RDMA_WRITE,clk.req_buf_,size,off,
                             IBV_SEND_SIGNALED | ((size < 64)?IBV_SEND_INLINE:1));
     }
-    // Requires yield call after this!
+    // requires yield call after this!
   }
 
  private:
-  std::vector<Qp *> qp_vec_;
   RScheduler *scheduler_;
   int node_id_;
   int worker_id_;
+
+#include "qp_selection_helper.h"
 };
 
 }; // namespace rtx
