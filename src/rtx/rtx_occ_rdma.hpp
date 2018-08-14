@@ -106,7 +106,10 @@ class OCCR : public OCC {
 #endif
     }
 #endif
-    //RdmaChecker::check_lock_content(this,yield);
+
+#if CHECKS
+    RdmaChecker::check_lock_content(this,yield);
+#endif
 
     asm volatile("" ::: "memory");
 #if 1 //USE_RDMA_COMMIT
@@ -127,7 +130,13 @@ class OCCR : public OCC {
     asm volatile("" ::: "memory");
     prepare_write_contents();
     log_remote(yield); // log remote using *logger_*
-    //    RdmaChecker::check_log_content(this,yield);
+#if CHECKS
+    RdmaChecker::check_log_content(this,yield);
+#endif
+
+    // clear the mac_set, used for the next time
+    write_batch_helper_.clear();
+
     asm volatile("" ::: "memory");
 #endif
 #if 1
@@ -139,7 +148,10 @@ class OCCR : public OCC {
      */
     write_back_oneshot(yield);
 #endif
-    //RdmaChecker::check_backup_content(this,yield);
+
+#if CHECKS
+    RdmaChecker::check_backup_content(this,yield);
+#endif
     gc_readset();
     gc_writeset();
     return true;
@@ -152,6 +164,8 @@ class OCCR : public OCC {
 
     gc_readset();
     gc_writeset();
+    // clear the mac_set, used for the next time
+    write_batch_helper_.clear();
     return false;
   }
 

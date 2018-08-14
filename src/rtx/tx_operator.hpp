@@ -122,6 +122,8 @@ class TXOpBase {
   RScheduler *scheduler_ = NULL;
 
   std::vector<Qp *> qp_vec_;
+  // Use a lot more QPs to emulate a larger cluster, if necessary
+  //#include "qp_selection_helper.h"
 
   int node_id_;
   int worker_id_;

@@ -61,6 +61,17 @@
 // other TX specific configurations
 #define RECORD_STALE @RECORD_STALE@
 
+#cmakedefine LARGE_CONNECTION @LARGE_CONNECTION@
+#ifndef LARGE_CONNECTION
+#define LARGE_CONNECTION 0
+#endif
+
+// whether to check the functionality of RTX
+#cmakedefine CHECKS @CHECKS@
+#ifndef CHECKS
+#define CHECKS 0
+#endif
+
 #define QP_NUMS 1
 
 // execuation related configuration

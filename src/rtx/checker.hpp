@@ -70,6 +70,8 @@ class RdmaChecker {
                                  off,IBV_SEND_SIGNALED);
         INDIRECT_YIELD(yield);
 
+        // We use write_batch_helper's req_buf to post reqs.
+        // So the remote log's content shall equal to local's.
         int n = memcmp(lbuffer, b.req_buf_, b.batch_msg_size());
         ASSERT(n == 0);
       }
@@ -99,6 +101,7 @@ class RdmaChecker {
         item->key = it->key;
         item->tableid = it->tableid;
 
+        // send a RPC to request backup's key
         c->rpc_->prepare_multi_req(reply_buf,1,c->cor_id_);
         c->rpc_->append_req((char *)item,RTX_BACKUP_GET_ID,sizeof(OCC::ReadItem),c->cor_id_,
                             RRpc::REQ,*it1);
