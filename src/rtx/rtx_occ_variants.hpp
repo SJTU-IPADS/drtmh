@@ -27,7 +27,11 @@ class OCCFast : public OCC {
           // abort case
           abort_ = true;
         }
-        read_set_[item->idx].data_ptr = ptr + sizeof(OCCResponse);
+        //read_set_[item->idx].data_ptr = ptr + sizeof(OCCResponse);
+
+        read_set_[item->idx].data_ptr = (char *)malloc(read_set_[item->idx].len);
+        memcpy(read_set_[item->idx].data_ptr, ptr + sizeof(OCCResponse),read_set_[item->idx].len);
+
         read_set_[item->idx].seq      = item->seq;
         write_batch_helper_.add_mac(read_set_[item->idx].pid);
         ptr += (sizeof(OCCResponse) + item->payload);

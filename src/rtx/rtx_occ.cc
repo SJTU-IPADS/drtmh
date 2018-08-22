@@ -155,7 +155,8 @@ bool OCC::parse_batch_result(int num) {
     ptr += sizeof(ReplyHeader);
     for(uint j = 0;j < header->num;++j) {
       OCCResponse *item = (OCCResponse *)ptr;
-      read_set_[item->idx].data_ptr = ptr + sizeof(OCCResponse);
+      read_set_[item->idx].data_ptr = (char *)malloc(read_set_[item->idx].len);
+      memcpy(read_set_[item->idx].data_ptr, ptr + sizeof(OCCResponse),read_set_[item->idx].len);
       read_set_[item->idx].seq      = item->seq;
       ptr += (sizeof(OCCResponse) + item->payload);
     }

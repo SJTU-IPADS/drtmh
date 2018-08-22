@@ -98,16 +98,16 @@ V *OCC::get_writeset(int idx,yield_func_t &yield) {
 inline __attribute__((always_inline))
 void OCC::gc_readset() {
   for(auto it = read_set_.begin();it != read_set_.end();++it) {
-    if(it->pid == node_id_)
-      free((*it).data_ptr);
+    //if(it->pid == node_id_)
+    free((*it).data_ptr);
   }
 }
 
 inline __attribute__((always_inline))
 void OCC::gc_writeset() {
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
-    if(it->pid == node_id_)
-      free((*it).data_ptr);
+    //if(it->pid == node_id_)
+    free((*it).data_ptr);
   }
 }
 
