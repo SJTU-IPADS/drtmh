@@ -10,6 +10,7 @@ bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
   uint64_t lock_content =  ENCODE_LOCK_CONTENT(response_node_,worker_id_,cor_id_ + 1);
   RDMALockReq req(cor_id_);
 
+  START(lock);
   // send requests
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
     if((*it).pid != node_id_) { // remote case
@@ -57,6 +58,7 @@ bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
 
   worker_->indirect_yield(yield);
   // gather replies
+  END(lock);
 
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
     if((*it).pid != node_id_) {
@@ -108,6 +110,7 @@ void OCCR::write_back_w_rdma(yield_func_t &yield) {
    * It got little improvements, though. So I skip it now.
    */
   RDMAWriteReq req(cor_id_,PA /* whether to use passive ack*/);
+  START(commit);
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
 
     if((*it).pid != node_id_) {
@@ -139,6 +142,7 @@ void OCCR::write_back_w_rdma(yield_func_t &yield) {
   }   // for
   // gather results
   worker_->indirect_yield(yield);
+  END(commit);
 }
 
 bool OCCR::validate_reads_w_rdma(yield_func_t &yield) {

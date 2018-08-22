@@ -1250,7 +1250,7 @@ void DBTXIterator::Prev()
       tx_->readset->AddNext(iter_->GetLink(), iter_->GetLinkTarget());
       tx_->readset->Add(&cur_->seq);
 
-      if(DBTX::ValidateValue(val_)) {
+      if(val_ != NULL) {
         return;
       }
     }
@@ -1258,6 +1258,7 @@ void DBTXIterator::Prev()
   }
   cur_ = NULL;
 }
+
 
 void DBTXIterator::Seek(uint64_t key)
 {

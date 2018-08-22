@@ -17,8 +17,8 @@ namespace nocc {
     extern __thread util::fast_random   *random_generator;
     extern __thread RPCMemAllocator *msg_buf_alloctors;
 
-    extern Breakdown_Timer *send_req_timers;
-    extern Breakdown_Timer *compute_timers;
+    extern BreakdownTimer *send_req_timers;
+    extern BreakdownTimer *compute_timers;
 
     extern char *rdma_buffer;      // start point of the local RDMA registered buffer
     extern char *free_buffer;      // start point of the local RDMA heap. before are reserved memory

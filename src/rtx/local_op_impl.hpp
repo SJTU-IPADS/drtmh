@@ -36,7 +36,8 @@ retry: // retry if there is a concurrent writer
 inline __attribute__((always_inline))
 MemNode * TXOpBase::local_get_op(int tableid,uint64_t key,char *val,int len,uint64_t &seq,int meta) {
   MemNode *node = local_lookup_op(tableid,key);
-  assert(node != NULL && node->value != NULL);
+  assert(node != NULL);
+  assert(node->value != NULL);
   return local_get_op(node,val,seq,len,meta);
 }
 

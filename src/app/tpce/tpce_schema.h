@@ -34,6 +34,7 @@
 #define FINANCIAL    23
 #define NEWS_XREF    24
 #define SECTOR       25
+#define LT1          26
 
  /* secondary indexs */
 #define COMPANY_NAME 0

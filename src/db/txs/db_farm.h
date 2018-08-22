@@ -18,8 +18,6 @@
 
 #include "memstore/memdb.h"
 
-#include "db/db_statistics_helper.h"
-
 namespace nocc {
     namespace db {
 

@@ -76,7 +76,7 @@ int OCC::local_read(int tableid,uint64_t key,int len,yield_func_t &yield) {
   char *temp_val = (char *)malloc(len);
   uint64_t seq;
 
-  auto node = local_get_op(tableid,key,temp_val,len,seq);
+  auto node = local_get_op(tableid,key,temp_val,len,seq,db_->_schemas[tableid].meta_len);
 
   if(unlikely(node == NULL)) {
     free(temp_val);
@@ -207,7 +207,7 @@ void OCC::write_back(yield_func_t &yield) {
 void OCC::write_back_oneshot(yield_func_t &yield) {
 
   char *cur_ptr = write_batch_helper_.req_buf_;
-
+  START(commit);
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
     if((*it).pid != node_id_) {
 
@@ -232,6 +232,7 @@ void OCC::write_back_oneshot(yield_func_t &yield) {
   rpc_->flush_pending();
 
   worker_->indirect_yield(yield);
+  END(commit);
 }
 
 bool OCC::release_writes(yield_func_t &yield) {
@@ -271,16 +272,21 @@ void OCC::log_remote(yield_func_t &yield) {
     // add local server
     global_view->add_backup(current_partition,cblock.mac_set_);
 #endif
+
+#if CHECKS
+    LOG(3) << "log to " << cblock.mac_set_.size() << " macs";
+#endif
+
+    START(log);
     logger_->log_remote(cblock,cor_id_);
     worker_->indirect_yield(yield);
-
+    END(log);
 #if 1
     cblock.req_buf_ = rpc_->get_fly_buf(cor_id_);
     memcpy(cblock.req_buf_,write_batch_helper_.req_buf_,write_batch_helper_.batch_msg_size());
     cblock.req_buf_end_ = cblock.req_buf_ + write_batch_helper_.batch_msg_size();
     //log ack
     logger_->log_ack(cblock,cor_id_); // need to yield
-
 #endif
   } // end check whether it is necessary to log
 }
@@ -319,6 +325,7 @@ bool OCC::validate_reads(yield_func_t &yield) {
 
 bool OCC::lock_writes(yield_func_t &yield) {
 
+  START(lock);
   start_batch_rpc_op(write_batch_helper_);
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
     if((*it).pid != node_id_) { // remote case
@@ -342,6 +349,7 @@ bool OCC::lock_writes(yield_func_t &yield) {
   send_batch_rpc_op(write_batch_helper_,cor_id_,RTX_LOCK_RPC_ID);
 
   worker_->indirect_yield(yield);
+  END(lock);
 
   // parse the results
   for(uint i = 0;i < write_batch_helper_.mac_set_.size();++i) {
@@ -426,7 +434,7 @@ void OCC::lock_rpc_handler(int id,int cid,char *msg,void *arg) {
 
   RTX_ITER_ITEM(msg,sizeof(RtxLockItem)) {
 
-    ASSERT(num < 25) << "[Lock RPC handler] lock " << num << " items.";
+    //ASSERT(num < 25) << "[Lock RPC handler] lock " << num << " items.";
 
     auto item = (RtxLockItem *)ttptr;
 
@@ -496,7 +504,7 @@ void OCC::validate_rpc_handler(int id,int cid,char *msg,void *arg) {
 
   RTX_ITER_ITEM(msg,sizeof(RtxLockItem)) {
 
-    ASSERT(num < 25) << "[Release RPC handler] lock " << num << " items.";
+    //ASSERT(num < 25) << "[Release RPC handler] lock " << num << " items.";
 
     auto item = (RtxLockItem *)ttptr;
 

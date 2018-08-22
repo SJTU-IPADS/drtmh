@@ -84,6 +84,10 @@ public:
   }
   virtual void run() = 0;
 
+  virtual void set_local_worker() {
+
+  }
+
   typedef void (*callback_t)(ndb_thread *);
 
   /**

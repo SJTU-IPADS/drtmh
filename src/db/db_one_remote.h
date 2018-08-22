@@ -5,11 +5,11 @@
 
 #include "tx_config.h"
 #include "core/rdma_sched.h"
+#include "core/utils/latency_profier.h"
 
 #include "memstore/memdb.h" // for db handler
 
 #include "rdmaio.h"         // for rdma operators
-#include "db_statistics_helper.h"
 
 #include <vector>
 

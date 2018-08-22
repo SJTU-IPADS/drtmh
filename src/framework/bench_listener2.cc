@@ -127,7 +127,7 @@ void BenchLocalListener::worker_routine(yield_func_t &yield) {
 }
 
 void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
-#if 0
+#if 1
   // a global barrier to wait for worker's connection
   while(nresult_returned_ != (total_partition - 1)) {
     yield_next(yield);
@@ -176,7 +176,7 @@ void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
 }
 
 void BenchLocalListener::worker_routine_slave(yield_func_t &yield) {
-#if 0
+#if 1
   char *dummy = rpc_->get_static_buf(64);
   *((int *)dummy) = current_partition;
   rpc_->append_req(dummy,INIT_RPC_ID,sizeof(char),1 /* cor_id */,RRpc::REQ,0 /* master id */);
@@ -265,9 +265,10 @@ void BenchLocalListener::exit_rpc_handler(int id,int cid, char *msg, void *arg) 
 }
 
 
+// calcualte the latency in the exit handler
 void BenchLocalListener::exit_handler() {
 
-  auto second_cycle = util::Breakdown_Timer::get_one_second_cycle();
+  auto second_cycle = util::BreakdownTimer::get_one_second_cycle();
 #if 1
   auto &timer = workers_[0]->latency_timer_;
   timer.calculate_detailed();
@@ -275,8 +276,8 @@ void BenchLocalListener::exit_handler() {
   auto m_9 = timer.report_90() / second_cycle * 1000;
   auto m_99 = timer.report_99() / second_cycle * 1000;
   auto m_av = timer.report_avg() / second_cycle * 1000;
-  LOG(2) << "Medium latency " << m_l << "ms, 90th latency " << m_9 << "ms, 99th latency "
-         << m_99 << "ms; average latency: " << m_av;
+  LOG(4) << "Medium latency " << m_l << "ms, 90th latency " << m_9 << "ms, 99th latency "
+         << m_99 << "ms; average latency: " << m_av << "ms.";
 #endif
 #ifdef LOG_RESULTS
   if(log_file.is_open()) {
@@ -286,6 +287,7 @@ void BenchLocalListener::exit_handler() {
 #endif
 
   // really end the benchmark
+  sleep(2);
   LOG(2) << "benchmark ends";
   reporter_->end();
 }

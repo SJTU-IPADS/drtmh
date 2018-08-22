@@ -47,8 +47,8 @@ extern uint64_t r_buffer_size; // total registered buffer size
 
 extern __thread util::fast_random   *random_generator;
 
-Breakdown_Timer *send_req_timers;
-Breakdown_Timer *compute_timers;
+BreakdownTimer *send_req_timers;
+BreakdownTimer *compute_timers;
 
 namespace micro {
 
@@ -189,8 +189,8 @@ void MicroWorker::thread_local_init() {
 			break;
 		}
 		case MICRO_RPC_STRESS: {
-			send_req_timers = new Breakdown_Timer();
-			compute_timers  = new Breakdown_Timer();
+			send_req_timers = new BreakdownTimer();
+			compute_timers  = new BreakdownTimer();
 			reply_buf_ = (char *)malloc(1024 * 16);
 			break;
 		}

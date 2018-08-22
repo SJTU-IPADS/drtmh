@@ -13,11 +13,12 @@
 #include "framework/bench_worker.h"
 
 #include "db/txs/tx_handler.h"
-#include "db/db_statistics_helper.h"
 
 #include "db/txs/dbrad.h"
 #include "db/txs/dbtx.h"
 #include "db/txs/dbsi.h"
+
+#include "core/utils/latency_profier.h"
 
 #define MAX_DIST 10
 
@@ -120,9 +121,22 @@ class TpccWorker : public TpccMixin, public BenchWorker {
 
   virtual void workload_report() {
     BenchWorker::workload_report();
-    REPORT(read);
+    double res;
+    REPORT_V(read,res);
+    latencys_.push_back(res);
+
+    // record TX's data
+    rtx_hook_->record();
   }
 
+  void exit_report() {
+    LOG(4) << "worker exit.";
+    latencys_.erase(0.2);
+    auto one_second = util::BreakdownTimer::get_one_second_cycle();
+    LOG(4) << "read time: " << util::BreakdownTimer::rdtsc_to_ms(latencys_.average(),one_second) << "ms";
+
+    rtx_hook_->report_statics(one_second);
+  }
 
   /* Wrapper for implementation of transaction */
   static txn_result_t TxnNewOrder(BenchWorker *w,yield_func_t &yield) {

@@ -90,6 +90,7 @@ ndb_thread::pthread_bootstrap(void *p)
 {
   ndb_thread *self = static_cast<ndb_thread *>(p);
   try {
+    set_local_worker();
     self->run();
   } catch (...) {
     cerr << "[Thread " << self->p << " (" << self->name << ")] - "

@@ -86,6 +86,8 @@ void BenchWorker::init_tx_ctx() {
   worker = this;
   txs_              = new TXHandler*[1 + server_routine + 2];
   new_txs_          = new rtx::OCC*[1 + server_routine + 2];
+  std::fill_n(new_txs_,1 + server_routine + 2,static_cast<rtx::OCC*>(NULL));
+
   //msg_buf_alloctors = new RPCMemAllocator[1 + server_routine];
 
   txn_counts = new std::vector<size_t> ();
@@ -105,8 +107,6 @@ void BenchWorker::init_tx_ctx() {
 }
 
 void BenchWorker::run() {
-
-  set_local_worker();
 
   // create connections
   exit_lock.Lock();
@@ -266,14 +266,14 @@ BenchWorker::worker_routine(yield_func_t &yield) {
       }
 #endif
 
-#if CS == 0 // calculate results there
+#if CS == 0 // self_generated requests
       ntxn_commits_ += 1;
 
 #if PROFILE_RW_SET == 1 || PROFILE_SERVER_NUM == 1
       if(ret.second > 0)
         workload[tx_idx].p.process_rw(ret.second);
 #endif
-#else
+#else // send reply to clients
       ntxn_commits_ += 1;
       // reply to client
 #if LOCAL_CLIENT
@@ -313,7 +313,7 @@ void BenchWorker::exit_handler() {
     // only sample a few worker information
     auto &workload = workloads[1];
 
-    auto second_cycle = Breakdown_Timer::get_one_second_cycle();
+    auto second_cycle = BreakdownTimer::get_one_second_cycle();
 #if 1
     //exit_lock.Lock();
     fprintf(stdout,"aborts: ");
@@ -347,6 +347,8 @@ void BenchWorker::exit_handler() {
     }
     fprintf(stdout,"succs ratio %f\n",(double)(ntxn_executed_) /
             (double)(ntxn_commits_));
+
+    exit_report();
 #endif
 #if RECORD_STALE
     util::RecordsBuffer<double> total_buffer;
@@ -477,7 +479,7 @@ void BenchClient::worker_routine(yield_func_t &yield) {
 
 void BenchClient::exit_handler() {
 #if LOCAL_CLIENT == 0
-  auto second_cycle = util::Breakdown_Timer::get_one_second_cycle();
+  auto second_cycle = util::BreakdownTimer::get_one_second_cycle();
   auto m_av = timer_.report_avg() / second_cycle * 1000;
   //exit_lock.Lock();
   fprintf(stdout,"avg latency for client %d, %3f ms\n",worker_id_,m_av);

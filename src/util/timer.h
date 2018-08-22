@@ -8,14 +8,14 @@
 namespace nocc {
 namespace util {
 
-class Breakdown_Timer {
+class BreakdownTimer {
   const uint64_t max_elems = 1000000;
  public:
   uint64_t sum;
   uint64_t count;
   uint64_t temp;
   std::vector<uint64_t> buffer;
-  Breakdown_Timer(): sum(0), count(0) {}
+  BreakdownTimer(): sum(0), count(0) {}
   void start() { temp = rdtsc(); }
   void end() { auto res = (rdtsc() - temp);sum += res; count += 1;
     emplace(res);
@@ -40,7 +40,7 @@ class Breakdown_Timer {
       return;
     }
     // first erase some items
-    int temp_size = buffer.size();;
+    int temp_size = buffer.size();
     int idx = std::floor(buffer.size() * 0.1 / 100.0);
     buffer.erase(buffer.begin() + temp_size - idx, buffer.end());
     buffer.erase(buffer.begin(),buffer.begin() + idx );
@@ -80,6 +80,10 @@ class Breakdown_Timer {
     uint64_t begin = rdtsc();
     sleep(1);
     return rdtsc() - begin;
+  }
+
+  static double rdtsc_to_ms(uint64_t rdts, uint64_t one_second_cycle) {
+    return ((double)rdts / (double)one_second_cycle) * 1000;
   }
 };
 } // namespace util

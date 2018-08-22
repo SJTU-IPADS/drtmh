@@ -32,8 +32,8 @@ extern __thread util::fast_random   *random_generator;
 
 namespace bank {
 
-Breakdown_Timer compute_timer;
-Breakdown_Timer send_timer;
+BreakdownTimer compute_timer;
+BreakdownTimer send_timer;
 
 extern unsigned g_txn_workload_mix[6];
 

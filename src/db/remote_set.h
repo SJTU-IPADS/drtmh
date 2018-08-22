@@ -5,12 +5,13 @@
 #include "config.h"
 #include "db/config.h"
 #include "db/db_logger.hpp"
-#include "db_statistics_helper.h"
 #include "rtx/logger.hpp"
 #include "memstore/memstore.h"
 
 #include "core/rrpc.h"
 #include "rtx/msg_format.hpp"
+
+#include "core/utils/latency_profier.h"
 
 #include <stdint.h>
 

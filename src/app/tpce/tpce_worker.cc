@@ -38,16 +38,18 @@ using namespace TPCE;
 
 namespace nocc {
 
+using namespace rtx;
+
 // db utilities
 extern __thread TXHandler   **txs_;
 extern __thread oltp::RPCMemAllocator *msg_buf_alloctors;
 
 static SpinLock exit_lock;
+extern RdmaCtrl *cm;
 
 namespace oltp {
 
 extern __thread util::fast_random   *random_generator;
-extern RdmaCtrl *cm;
 
 // extern __thread uint *next_coro_id_arr_;
 namespace tpce {
@@ -132,8 +134,8 @@ TpceWorker::TpceWorker(unsigned int worker_id,unsigned long seed,MemDB *store,
                 (accountPerPartition / scaleFactor )) * iAbortTrade / INT64_CONST(100) );
   ;
   trade_id_ = lastTradeId + 1;
-  fprintf(stdout,"init trade_id %lu, required %lld\n",trade_id_,
-          input_generator_->m_iMaxActivePrePopulatedTradeID);
+  //fprintf(stdout,"init trade_id %lu, required %lld\n",trade_id_,
+  //input_generator_->m_iMaxActivePrePopulatedTradeID);
   assert(lastTradeId < std::numeric_limits<uint32_t>::max());
 }
 
@@ -169,6 +171,12 @@ workload_desc_vec_t TpceWorker::_get_workload() {
   for (size_t i = 0; i < ARRAY_NELEMS(g_txn_workload_mix); i++)
     m += g_txn_workload_mix[i];
   assert(m == 100);
+
+#if 1 // a special hook to test TPCE's read-only TX
+  w.push_back(workload_desc("Customer position",1,TxnCustomerPos));
+  return w;
+#endif
+
   if (g_txn_workload_mix[0]) {
     w.push_back(workload_desc("CustomerPosition", g_txn_workload_mix[0]/100.0, TxnCustomerPos));
   }
@@ -234,9 +242,20 @@ void TpceWorker::thread_local_init() {
   for(uint i = 0;i < server_routine + 1;++i) {
     market_feed_process_idx[i] = -1;
     tradeResultCache[i] = NULL;
+
+
 #ifdef RAD_TX
     txs_[i] = new DBRad(store_,worker_id_,rpc_,i);
 #elif defined(OCC_TX)
+    if(txs_[i] == NULL) {
+#if ONE_SIDED_READ
+      new_txs_[i] = new OCCR(this,store_,rpc_,current_partition,worker_id_,i,current_partition,
+                                  cm,rdma_sched_,total_partition);
+#else
+      new_txs_[i] = new OCC(this,store_,rpc_,current_partition,i,current_partition);
+#endif
+      continue;
+    }
     txs_[i] = new DBTX(store_,worker_id_,rpc_,i);
     remote_helper = new RemoteHelper(store_,total_partition,server_routine + 1);
 #elif defined(FARM)
@@ -250,6 +269,7 @@ void TpceWorker::thread_local_init() {
   }
   /* init local tx so that it is not a null value */
   tx_ = txs_[cor_id_];
+  rtx_hook_ = new_txs_[1];
 }
 
 /* TXs */

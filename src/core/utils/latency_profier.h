@@ -1,22 +1,24 @@
 #ifndef NOCC_LATENCY_PROFILER
 #define NOCC_LATENCY_PROFILER
 
+#include "core/logging.h"
+
 namespace nocc {
 
 #define NOCC_STATICS 1
 
-  // usage: TODO
+// usage: TODO
 
 #if NOCC_STATICS == 1
-  // Performance counting stats
-  // To be more self-contained
-  inline __attribute__ ((always_inline))
-    uint64_t rdtsc(void)
-  {
-    uint32_t hi, lo;
-    __asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
-    return ((uint64_t)lo)|(((uint64_t)hi)<<32);
-  }
+// Performance counting stats
+// To be more self-contained
+inline __attribute__ ((always_inline))
+uint64_t rdtsc(void)
+{
+  uint32_t hi, lo;
+  __asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((uint64_t)lo)|(((uint64_t)hi)<<32);
+}
 
 #define LAT_VARS(X)  uint64_t _## X ##_lat_; uint64_t _pre_## X ##_lat_; \
   uint64_t _## X ##count_; uint64_t _pre_## X ##count_;
@@ -29,24 +31,30 @@ namespace nocc {
     C-> _## X ## count_ += 1;                                       \
   }
 
-#define REPORT(X) { auto counts = _## X ##count_ - _pre_## X ##count_;  \
+#define REPORT_V(X,v) { auto counts = _## X ##count_ - _pre_## X ##count_; \
     _pre_## X ##count_ = _## X ##count_;                                \
-    counts = counts == 0?1:counts;                                      \
+    counts = ((counts == 0)?1:counts);                                  \
     auto temp = _## X ##_lat_;                                          \
-    fprintf(stdout,"%s lat %f\n",#X,(temp - _pre_## X ##_lat_) / (double)counts); \
+    v  = (temp - _pre_## X ##_lat_) / (double)counts;                   \
+    LOG(3) << #X << " lat: " << v << " ;counts " << counts;             \
     _pre_## X ##_lat_ = temp;                                           \
   }
 
 #else
-  // clear the counting stats to reduce performance impact
+// clear the counting stats to reduce performance impact
 #define LAT_VARS(X) ;
 #define INIT_LAT_VARS(X) ;
 #define START(X) ;
 #define END(X) ;
 #define END_C(C,X);
-#define REPORT(X) ;
+#define REPORT_V(X,v) ;
 
 #endif
+
+#define REPORT(X) { double res;                 \
+    REPORT_V(X,res);                            \
+  }
+
 
 } // namespace nocc
 

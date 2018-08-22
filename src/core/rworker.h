@@ -41,8 +41,12 @@ class RWorker : public ndb_thread {
        worker_id_(worker_id),
        rand_generator_(seed) // the random generator used at this thread
   {
-
   }
+
+  /**
+   * A void run() should be overloaded, as the main thread body.
+   * This is defined in ndb_thread.
+   */
 
   // main function for each routine, shall be overwritten
   virtual void worker_routine(yield_func_t &yield) = 0;
@@ -50,13 +54,6 @@ class RWorker : public ndb_thread {
   // a handler be called after exit
   virtual void exit_handler() {
 
-  }
-
-  /**
-   * TODO
-   */
-  void set_local_worker() {
-    RWorker::thread_worker = this;
   }
 
   // called after change context to cor_id
@@ -164,6 +161,10 @@ class RWorker : public ndb_thread {
   int    total_worker_coroutine = 0;
 
   void new_master_routine(yield_func_t &yield,int cor_id);
+
+  void set_local_worker() {
+    RWorker::thread_worker = this;
+  }
 
  public:
   static __thread RWorker *thread_worker;

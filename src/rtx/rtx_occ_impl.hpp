@@ -55,7 +55,7 @@ int OCC::add_to_write(int idx) {
   write_set_.emplace_back(read_set_[idx]);
 
   // eliminate read-set
-  // XD: is it necessary to use std::swap to avoid memcpy?
+  // FIXME: is it necessary to use std::swap to avoid memcpy?
   read_set_.erase(read_set_.begin() + idx);
   return write_set_.size() - 1;
 }

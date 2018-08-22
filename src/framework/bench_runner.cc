@@ -249,7 +249,7 @@ BenchRunner::run() {
       const pair<uint64_t, uint64_t> mem_info_after = get_system_memory_info();
       const int64_t delta = int64_t(mem_info_before.first) - int64_t(mem_info_after.first); // free mem
       const double delta_mb = double(delta)/1048576.0;
-      LOG(2) << "[Runner] Backup DB[" << i << "] for " << backed_id << " size: " << delta_mb << " MB" << endl;
+      LOG(2) << "[Runner] Backup DB[" << i << "] for " << backed_id << " size: " << delta_mb << " MB";
     }
     logger->add_backup_store(backed_id,backup_stores_[i++]);
   }

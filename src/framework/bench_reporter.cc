@@ -60,7 +60,7 @@ void BenchReporter::init(const std::vector<BenchWorker *> *workers) {
   }
 
   throughput = 0;aborts = 0;abort_ratio = 0;
-  second_cycle = util::Breakdown_Timer::get_one_second_cycle();
+  second_cycle = util::BreakdownTimer::get_one_second_cycle();
 
   for(uint i = 0;i < total_partition;++i) {
     throughputs.push_back(0.0);
@@ -71,16 +71,12 @@ void BenchReporter::init(const std::vector<BenchWorker *> *workers) {
 void BenchReporter::merge_data(char *data,int id) {
   WorkerData *p = (WorkerData *)data;
   assert(p->throughput < 1000000000L);
-  //throughput += p->throughput;
-  //aborts = p->aborts;
-  //abort_ratio += p->abort_ratio;
   fprintf(stdout,"merge data %s from %s\n", normalize_throughput(p->throughput).c_str(),
           cm->network_[id].c_str());
   throughputs[id] = p->throughput;
 }
 
 void BenchReporter::collect_data(char *data,struct  timespec &start_t) {
-  (*workers_)[0]->workload_report();
   // calculate results
   uint64_t res = calculate_commits(prev_commits_);
   uint64_t abort_num = calculate_aborts(prev_aborts_);
@@ -125,7 +121,7 @@ void BenchReporter::report_data(uint64_t epoch,std::ofstream &log_file) {
 
 #ifdef LOG_RESULTS
   if(epoch > 10 && log_file.is_open()) {
-    /* warm up for 5 seconds, also the calcuation script will skip some seconds*/
+    /* warm up for 10 seconds, also the calcuation script will skip some seconds*/
     /* record the result */
     log_file << (sum) << " "<< abort_ratio <<" "
              << latency << std::endl;

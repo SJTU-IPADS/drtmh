@@ -7,6 +7,10 @@
 #include "logger.hpp"
 
 #include "core/rworker.h"
+#include "core/utils/latency_profier.h"
+#include "core/utils/count_vector.hpp"
+
+#include "util/timer.h"
 
 #include <vector>
 
@@ -141,6 +145,10 @@ class OCC : public TXOpBase {
   friend RdmaChecker;
 
   DISABLE_COPY_AND_ASSIGN(OCC);
+
+ public:
+  // some counting
+#include "occ_statistics.h"
 };
 
 };
@@ -157,5 +165,7 @@ class OCC : public TXOpBase {
 #define RTX_BACKUP_GET_ID  7
 
 #include "rtx_occ_impl.hpp"
+
+#include "occ_iterator.hpp"
 
 #endif

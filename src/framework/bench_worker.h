@@ -4,6 +4,7 @@
 #include "core/rworker.h"
 #include "core/commun_queue.hpp"
 #include "core/utils/spinbarrier.h"
+#include "core/utils/count_vector.hpp"
 
 #include "util/util.h"
 
@@ -59,7 +60,7 @@ struct workload_desc {
   std::string name;
   double frequency;
   txn_fn_t fn;
-  util::Breakdown_Timer latency_timer; // calculate the latency for each TX
+  util::BreakdownTimer latency_timer; // calculate the latency for each TX
   Profile p; // per tx profile
 };
 
@@ -159,6 +160,7 @@ class BenchWorker : public RWorker {
   virtual void check_consistency() {};
   virtual void thread_local_init() {};
   virtual void workload_report() { };
+  virtual void exit_report() { };
 
   /* we shall init msg_handler first, then init rpc_handler with msg_handler at the
      start of run time.
@@ -168,6 +170,8 @@ class BenchWorker : public RWorker {
   TXHandler *tx_;       /* current coroutine's tx handler */
 
   rtx::OCC *rtx_;
+  rtx::OCC *rtx_hook_ = NULL;
+
   LAT_VARS(yield);
 
   /* For statistics counts */
@@ -178,7 +182,8 @@ class BenchWorker : public RWorker {
   size_t ntxn_abort_ratio_;
   size_t ntxn_strict_counts_;
   size_t ntxn_remote_counts_;
-  util::Breakdown_Timer latency_timer_;
+  util::BreakdownTimer latency_timer_;
+  CountVector<double> latencys_;
 
  private:
   bool initilized_;
@@ -215,7 +220,7 @@ class BenchClient : public RWorker {
   virtual int get_workload(char *input,fast_random &rand) = 0;
   virtual void exit_handler();
 
-  Breakdown_Timer timer_;
+  BreakdownTimer timer_;
 };
 
 }; // oltp

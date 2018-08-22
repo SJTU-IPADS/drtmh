@@ -44,7 +44,9 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
   int num_remote_stocks(0),num_local_stocks(0);
 
   const uint numItems = RandomNumber(random_generator[cor_id_], 5, MAX_ITEM);
-
+#if OR
+  START(read);
+#endif
   for (uint i = 0; i < numItems; i++) {
     bool conflict = false;
     int item_id = GetItemId(random_generator[cor_id_]);
@@ -175,6 +177,11 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
 
 #if OR // fetch remote records
   indirect_yield(yield);
+  END(read);
+#endif
+
+#if !OR
+  START(read);
 #endif
   /* operation remote objects */
   for(uint i = 0;i < num_remote_stocks;++i) {
@@ -223,6 +230,9 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
     v_ol.ol_quantity = int8_t(ol_quantity);
     rtx_->insert<ORLI,order_line::value>(current_partition,ol_key,(&v_ol),yield);
   }
+#if !OR
+  END(read);
+#endif
   bool res = rtx_->commit(yield);
 #if CHECKS
   // some checks

@@ -110,9 +110,11 @@ class TXOpBase {
   template <typename REPLY> // reply type
   REPLY    *get_batch_res(BatchOpCtrlBlock &ctrl,int idx);  // return the results to the pointer of result buffer
 
+ public:
+  MemDB *db_       = NULL;
+
  protected:
   RWorker *worker_ = NULL;
-  MemDB *db_       = NULL;
   RRpc  *rpc_      = NULL;
   RdmaCtrl *cm_    = NULL;
   RScheduler *scheduler_ = NULL;
@@ -124,6 +126,7 @@ class TXOpBase {
   int worker_id_;
 
   DISABLE_COPY_AND_ASSIGN(TXOpBase);
+
 }; // TX ops
 
 // helper macros for iterating message in rpc handler
