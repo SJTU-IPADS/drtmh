@@ -16,6 +16,7 @@ namespace nocc {
 #define CACHE_LINE_SZ 64                // cacheline size of x86 platform
 //#define MAX_MSG_SIZE  25600              // max msg size used
 #define MAX_MSG_SIZE 4096
+//#define MAX_MSG_SIZE 512
 
 #define HUGE_PAGE_SZ (2 * 1024 * 1024)  // huge page size supported
 

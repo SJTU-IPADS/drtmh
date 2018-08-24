@@ -209,7 +209,7 @@ void MicroWorker::thread_local_init() {
 					//Qp *qp = cm_->get_rc_qp(worker_id_ + 8,i,1);
 					qps_.push_back(qp);
 				}
-				rdma_buf_ = (char*)Rmalloc(4096);
+				//rdma_buf_ = (char*)Rmalloc(4096);
 				break;
 			}
 		case MICRO_LOGGER_WRITE: {

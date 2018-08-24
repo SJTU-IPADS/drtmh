@@ -282,14 +282,14 @@ BenchRunner::run() {
 
   // close TCP connections, if possible
   try {
-    recv_context.close();
+    //recv_context.close();
   } catch(...) {
 
   }
 
   Adapter::close_shared_sockets();
   try {
-    send_context.close();
+    //send_context.close();
   } catch(...) {
 
   }
