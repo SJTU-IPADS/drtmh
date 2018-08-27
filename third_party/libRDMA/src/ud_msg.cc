@@ -96,7 +96,7 @@ void UDMsg::init() {
   while(recv_buf_size_ < MAX_PACKET_SIZE + GRH_SIZE){
     recv_buf_size_ += MIN_STEP_SIZE;
   }
-
+  //recv_buf_size_ = 512; // TODO!!
   // init recv relate data structures
   for(int i = 0; i < max_recv_num_; i++) {
     sge_[i].length = recv_buf_size_;
@@ -104,7 +104,10 @@ void UDMsg::init() {
     sge_[i].addr = (uintptr_t)(Rmalloc(recv_buf_size_));
     sge_[i].lkey = recv_qp_->dev_->dgram_buf_mr->lkey;
 
-    assert(sge_[i].addr != 0);
+    if(sge_[i].addr == 0) {
+      fprintf(stderr,"alloc rpc buffer error, at %d, size %d\n",i,recv_buf_size_);
+      assert(false);
+    }
 
     rr_[i].wr_id   = sge_[i].addr;
     rr_[i].sg_list = &sge_[i];

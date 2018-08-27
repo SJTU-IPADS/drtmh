@@ -15,7 +15,7 @@ extern int num_uc_qps;
 
 
 bool Qp::connect_uc() {
-
+#if 0
     if(inited_) {
         return true;
     } else {
@@ -87,6 +87,7 @@ bool Qp::connect_uc() {
     inited_ = true;
 
     delete reply_buf;
+#endif
     return true;
 }
 
@@ -108,8 +109,8 @@ Qp::IOStatus Qp::uc_post_send(ibv_wr_opcode op,char *local_buf,int len,uint64_t 
     sge.length = len;
     sge.lkey = dev_->conn_buf_mr->lkey;
 
-    sr.wr.rdma.remote_addr = remote_attr_.buf + off;
-    sr.wr.rdma.rkey = remote_attr_.rkey;
+    sr.wr.rdma.remote_addr = remote_attr_.memory_attr_.buf + off;
+    sr.wr.rdma.rkey = remote_attr_.memory_attr_.rkey;
 
     rc = (IOStatus)ibv_post_send(qp, &sr, &bad_sr);
     CE(rc, "ibv_post_send error\n");
@@ -146,8 +147,8 @@ Qp::IOStatus Qp::uc_post_doorbell(RdmaReq *reqs, int batch_size) {
         sge[i].lkey = dev_->conn_buf_mr->lkey;
 
         sr[i].wr.rdma.remote_addr =
-				remote_attr_.buf + reqs[i].wr.rdma.remote_offset;
-        sr[i].wr.rdma.rkey = remote_attr_.rkey;
+				remote_attr_.memory_attr_.buf + reqs[i].wr.rdma.remote_offset;
+        sr[i].wr.rdma.rkey = remote_attr_.memory_attr_.rkey;
     }
     if(poll) rc = poll_completion();
     rc = (IOStatus)ibv_post_send(qp, &sr[0], &bad_sr);

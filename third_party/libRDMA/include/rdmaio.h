@@ -23,12 +23,48 @@ extern int num_rc_qps;
 extern int num_uc_qps;
 extern int num_ud_qps;
 
+struct QPAttr {
+    typedef struct {
+        uint64_t subnet_prefix;
+        uint64_t interface_id;
+        uint32_t local_id;
+    } address_t;
+    address_t addr;
+    uint16_t lid;
+    uint32_t qpn;
+    uint32_t psn;
+};
+
+struct MRAttr {
+    uintptr_t buf;
+    uint64_t  rkey;
+};
+
+struct RCQPAttr {
+    QPAttr connection_attr_;
+    MRAttr memory_attr_;
+};
+
+struct RdmaQpAttr {
+    uint64_t checksum;
+    uintptr_t buf;
+    uint32_t rkey;
+    uint16_t lid;
+    uint64_t qpn;
+    //uint64_t qid;
+    RdmaQpAttr() { }
+    void print() {
+        fprintf(stdout,"lid %u, qpn %lu\n",lid,qpn);
+    }
+} __attribute__ ((aligned (CACHE_LINE_SZ)));
+
 // rdma device info
 // an RDMA device endpoint is a port at a device(RNIC)
 struct RdmaDevice {
 
     int dev_id;
     std::vector<int> port_ids;
+    std::vector<QPAttr::address_t> local_addresses;
 
     struct ibv_context *ctx; // context related to a device
 
@@ -44,31 +80,6 @@ struct RdmaDevice {
     RdmaDevice():ahs(NULL){
     }
 };
-
-struct QPAttr {
-    typedef struct {
-        uint64_t subnet_prefix;
-        uint64_t interface_id;
-        uint32_t local_id;
-    } address_t;
-    address_t addr;
-    uint32_t qpn;
-    uint32_t psn;
-};
-
-struct RdmaQpAttr {
-    uint64_t checksum;
-    uintptr_t buf;
-    uint32_t buf_size;
-    uint32_t rkey;
-    uint16_t lid;
-    uint64_t qpn;
-    uint64_t qid;
-    RdmaQpAttr() { }
-    void print() {
-        fprintf(stdout,"lid %u, qpn %lu\n",lid,qpn);
-    }
-} __attribute__ ((aligned (CACHE_LINE_SZ)));
 
 struct RdmaReq {
     enum ibv_wr_opcode opcode;
@@ -129,8 +140,15 @@ class Qp {
     int idx_ = 0;
     int port_idx;
 
-    int pendings = 0;
-    int pending_doorbell = 0;
+    uint8_t pendings = 0;
+
+    uint64_t high_watermark_ = 0;
+    uint64_t low_watermark_ = 0;
+
+    bool rc_need_poll() {
+        // FIXME: what if high_watermark_ overflow 56 bit (8 bit are used to store user data)
+        return (high_watermark_ - low_watermark_) >= POLL_THRSHOLD;
+    }
 
     int current_idx; // pending req idx
     int poll_count;
@@ -139,7 +157,7 @@ class Qp {
     struct ibv_sge sge[MAX_DOORBELL_SIZE];
 
     bool inited_ = false;
-    RdmaQpAttr remote_attr_;
+    RCQPAttr remote_attr_;
 
     // XD: do we need to record the QP states? e.g, whether is RC,UC,UD
     // DZY : no, ibv_qp has specific state!
@@ -159,24 +177,28 @@ class Qp {
     bool get_ud_connect_info_specific(int remote_id,int thread_id,int idx);
 
     // change rc,uc QP's states to ready
-    void change_qp_states(RdmaQpAttr *remote_qp_attr, int dev_port_id);
+    void change_qp_states(RCQPAttr *remote_qp_attr, int dev_port_id);
 
     // post and poll wrapper
     IOStatus rc_post_batch(struct ibv_send_wr *send_sr,ibv_send_wr **bad_sr_addr,int doorbell_num = 0) {
         auto rc = (IOStatus)ibv_post_send(qp,send_sr,bad_sr_addr);
-        pendings += 1;
-        pending_doorbell += doorbell_num;
         assert(rc == 0);
     }
 
-    IOStatus rc_post_send(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags,int wr_id = 0, uint32_t imm = 0);
+    IOStatus rc_post_pending_batch(struct ibv_send_wr *send_sr,ibv_send_wr **bad_sr_addr,int doorbell_num) {
+        auto rc = (IOStatus)ibv_post_send(qp,send_sr,bad_sr_addr);
+        assert(rc == 0);
+    }
+
+
+    IOStatus rc_post_send(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags,uint64_t wr_id = 0, uint32_t imm = 0);
     IOStatus rc_post_doorbell(RdmaReq *reqs, int batch_size);
     IOStatus rc_post_compare_and_swap(char *local_buf,uint64_t off,
-                                      uint64_t compare_value, uint64_t swap_value, int flags,int wr_id = 0);
+                                      uint64_t compare_value, uint64_t swap_value, int flags,uint64_t wr_id = 0);
     IOStatus rc_post_fetch_and_add(char *local_buf,uint64_t off,
-                                   uint64_t add_value, int flags,int wr_id= 0);
+                                   uint64_t add_value, int flags,uint64_t wr_id= 0);
 
-    IOStatus rc_post_pending(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags,int wr_id = 0);
+    IOStatus rc_post_pending(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags,uint64_t wr_id = 0);
     bool     rc_flush_pending();
 
     IOStatus uc_post_send(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags);
@@ -192,7 +214,7 @@ class Qp {
     }
 
     inline bool need_to_poll() {
-        if(pendings + pending_doorbell >= POLL_THRSHOLD) {
+        if(pendings >= POLL_THRSHOLD) {
             return true;
         }
         return false;
@@ -214,7 +236,7 @@ class Qp {
     //typedef boost::unordered_map<uint64_t, ibv_ah *>  address_map;
     // ud routing info
     struct ibv_ah *ahs_[16]; //FIXME!, currently we only have 16 servers ..
-    RdmaQpAttr     ud_attrs_[16];
+    QPAttr     ud_attrs_[16];
 
     bool check_dev_status(RdmaDevice &dev) {
         bool res = true;
@@ -364,10 +386,14 @@ class RdmaCtrl {
     //-----------------------------------------------
 
     static ibv_ah* create_ah(int dlid,int port_index, RdmaDevice* rdma_device);
+    static ibv_ah* create_ah(RdmaDevice* rdma_device,int port_idx,QPAttr &attr);
+
     void init_conn_recv_qp(int qid);
     void init_dgram_recv_qp(int qid);
 
     RdmaQpAttr get_local_qp_attr(int qid);
+    QPAttr     get_qp_attr(int qid);
+    MRAttr     get_mr_attr(int qid);
 
     int post_ud(int qid, RdmaReq* req);
     int post_ud_doorbell(int qid, int batch_size, RdmaReq* reqs);

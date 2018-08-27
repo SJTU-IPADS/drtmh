@@ -22,6 +22,7 @@ int num_uc_qps;
 int num_ud_qps;
 int node_id;
 
+int listenfd = 0;
 std::vector<std::string> network;
 
 // per-thread allocator
@@ -69,6 +70,7 @@ void RdmaCtrl::end_server() {
 
     running = false; // close listening threads
     // join
+    close(listenfd);
     pthread_join(recv_t_id,NULL);
 }
 
@@ -195,9 +197,16 @@ void RdmaCtrl::open_device(int dev_id) {
     int port_count = device_attr.phys_port_cnt;
     rdma_device->port_attrs =(struct ibv_port_attr*)
                              malloc(sizeof(struct ibv_port_attr) * (port_count + 1));
+
     for(int port_id = 1; port_id <= port_count; port_id++){
+
         rc = ibv_query_port (rdma_device->ctx, port_id, rdma_device->port_attrs + port_id);
         rdma_device->port_ids.push_back(port_id);
+
+        QPAttr::address_t local_addr;
+        query_local_addr(dev_id,port_id,local_addr);
+
+        rdma_device->local_addresses.push_back(local_addr);
     }
 
     rdma_device->pd = ibv_alloc_pd(rdma_device->ctx);
@@ -405,6 +414,38 @@ void RdmaCtrl::link_connect_qps(int tid, int dev_id, int port_idx, int idx, ibv_
     }
 }
 
+/**
+ * This function call is not thread safe
+ */
+QPAttr RdmaCtrl::get_qp_attr(int qid) {
+
+    Qp *local_qp = qps_[qid];
+    assert(local_qp != NULL);
+
+    QPAttr qp_attr;
+
+    qp_attr.lid = local_qp->dev_->port_attrs[local_qp->port_id_].lid;
+    qp_attr.qpn = local_qp->qp->qp_num;
+    qp_attr.addr = local_qp->dev_->local_addresses[0];
+    return qp_attr;
+}
+
+MRAttr RdmaCtrl::get_mr_attr(int qid) {
+
+    Qp *local_qp = qps_[qid];
+    assert(local_qp != NULL);
+
+    MRAttr mr_attr;
+    mr_attr.buf = (uint64_t) (uintptr_t) conn_buf_;
+
+#ifdef PER_QP_PD
+    mr_attr.rkey = local_qp->mr->rkey;
+#else
+    mr_attr.rkey = local_qp->dev_->conn_buf_mr->rkey;
+#endif
+    return mr_attr;
+}
+
 RdmaQpAttr RdmaCtrl::get_local_qp_attr(int qid){
 
     RdmaQpAttr qp_attr;
@@ -414,7 +455,6 @@ RdmaQpAttr RdmaCtrl::get_local_qp_attr(int qid){
     if(IS_CONN(qid)){
 
         qp_attr.buf = (uint64_t) (uintptr_t) conn_buf_;
-        qp_attr.buf_size = conn_buf_size_;
 
 #ifdef PER_QP_PD
         qp_attr.rkey = local_qp->mr->rkey;
@@ -458,7 +498,7 @@ void* RdmaCtrl::recv_thread(void *arg){
 
     int port = rdma->tcp_base_port_;
 
-    auto listenfd = PreConnector::get_listen_socket(rdma->network_[rdma->node_id_],port);
+    listenfd = PreConnector::get_listen_socket(rdma->network_[rdma->node_id_],port);
 
     int opt = 1;
     CE(setsockopt(listenfd,SOL_SOCKET,SO_REUSEADDR | SO_REUSEPORT,&opt,sizeof(int)) != 0,
@@ -495,8 +535,8 @@ void* RdmaCtrl::recv_thread(void *arg){
             uint64_t nid = _QP_DECODE_MAC(qid);
             uint64_t idx = _QP_DECODE_INDEX(qid);
 
-            char *reply_buf = new char[sizeof(QPReplyHeader) + sizeof(RdmaQpAttr)];
-            memset(reply_buf,0,sizeof(QPReplyHeader) + sizeof(RdmaQpAttr));
+            char *reply_buf = new char[sizeof(QPReplyHeader) + sizeof(RCQPAttr)];
+            memset(reply_buf,0,sizeof(QPReplyHeader) + sizeof(RCQPAttr));
 
             rdma->mtx_->lock();
             if(rdma->qps_.find(qid) == rdma->qps_.end()) {
@@ -505,33 +545,33 @@ void* RdmaCtrl::recv_thread(void *arg){
                 if(IS_UD(qid)) {
                     (*(QPReplyHeader *)(reply_buf)).qid = qid;
                     // further check whether receives are posted
-
                     Qp *ud_qp = rdma->qps_[qid];
                     if(ud_qp->inited_ == false) {
-                        //fprintf(stdout,"receive ud request from %d, qid %d, failed\n",nid,qid);
                         (*(QPReplyHeader *)(reply_buf)).status = TCPFAIL;
                     } else {
-                        //fprintf(stdout,"receive ud request from %d, qid %d\n",nid,qid);
-
                         (*(QPReplyHeader *)(reply_buf)).status = TCPSUCC;
-
                         num++;
-
-                        RdmaQpAttr qp_attr = rdma->get_local_qp_attr(qid);
+                        //RdmaQpAttr qp_attr = rdma->get_local_qp_attr(qid);
+                        QPAttr qp_attr = rdma->get_qp_attr(qid);
                         memcpy((char *)(reply_buf) + sizeof(QPReplyHeader),
-                               (char *)(&qp_attr),sizeof(RdmaQpAttr));
+                               (char *)(&qp_attr),sizeof(QPAttr));
                     }
-                } else {
-                    RdmaQpAttr qp_attr = rdma->get_local_qp_attr(qid);
+                } else { // the case for RC qp
+
                     (*(QPReplyHeader *)(reply_buf)).status = TCPSUCC;
-                    memcpy((char *)(reply_buf) + sizeof(QPReplyHeader),(char *)(&qp_attr),sizeof(RdmaQpAttr));
+                    //RdmaQpAttr qp_attr = rdma->get_local_qp_attr(qid);
+                    //memcpy((char *)(reply_buf) + sizeof(QPReplyHeader),(char *)(&qp_attr),sizeof(RdmaQpAttr));
+                    RCQPAttr rc_attr;
+                    rc_attr.connection_attr_ = rdma->get_qp_attr(qid);
+                    rc_attr.memory_attr_     = rdma->get_mr_attr(qid);
+                    memcpy((char *)(reply_buf) + sizeof(QPReplyHeader),
+                           (char *)(&rc_attr),sizeof(RCQPAttr));
                 }
             }
 
             rdma->mtx_->unlock();
-
             // reply with the QP attribute
-            PreConnector::send_to(csfd,reply_buf,sizeof(RdmaQpAttr) + sizeof(QPReplyHeader));
+            PreConnector::send_to(csfd,reply_buf,sizeof(QPReplyHeader) + sizeof(RCQPAttr));
             PreConnector::wait_close(csfd); // wait for the client to close the connection
             delete reply_buf;
         }   // while receiving reqests
@@ -549,6 +589,28 @@ ibv_ah* RdmaCtrl::create_ah(int dlid, int port_index, RdmaDevice* rdma_device){
     ah_attr.sl = 0;
     ah_attr.src_path_bits = 0;
     ah_attr.port_num = port_index;
+
+    struct ibv_ah *ah;
+    ah = ibv_create_ah(rdma_device->pd, &ah_attr);
+    assert(ah != NULL);
+    return ah;
+}
+
+// used for ROCE
+ibv_ah *RdmaCtrl::create_ah(RdmaDevice *rdma_device,int port_idx,QPAttr &attr) {
+
+    struct ibv_ah_attr ah_attr;
+    ah_attr.is_global = 1;
+    ah_attr.dlid = attr.lid;
+    ah_attr.sl = 0;
+    ah_attr.src_path_bits = 0;
+    ah_attr.port_num = port_idx;
+
+    ah_attr.grh.dgid.global.subnet_prefix = attr.addr.subnet_prefix;
+    ah_attr.grh.dgid.global.interface_id = attr.addr.interface_id;
+    ah_attr.grh.flow_label = 0;
+    ah_attr.grh.hop_limit = 255;
+    ah_attr.grh.sgid_index = 0;
 
     struct ibv_ah *ah;
     ah = ibv_create_ah(rdma_device->pd, &ah_attr);

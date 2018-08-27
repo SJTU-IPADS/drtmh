@@ -49,7 +49,7 @@ bool Qp::get_ud_connect_info_specific(int remote_id,int thread_id,int idx) {
     char *reply_buf = new char[buf_size];
 
     n = recv(socket,reply_buf,buf_size, MSG_WAITALL);
-	if(n != sizeof(RdmaQpAttr) + sizeof(QPReplyHeader)) {
+	if(n < sizeof(QPAttr) + sizeof(QPReplyHeader)) {
         fprintf(stdout,"Receive ud connection content %d by %s\n",n,network[remote_id].c_str());
         close(socket);
         delete reply_buf;
@@ -76,16 +76,18 @@ bool Qp::get_ud_connect_info_specific(int remote_id,int thread_id,int idx) {
         fprintf(stdout,"QP connect fail!, val %d\n",reply_buf[0]);
         assert(false);
     }
-    RdmaQpAttr qp_attr;
-    memcpy(&qp_attr,reply_buf + sizeof(QPReplyHeader),sizeof(RdmaQpAttr));
+
+    //RdmaQpAttr qp_attr;
+    QPAttr qp_attr;
+    memcpy(&qp_attr,reply_buf + sizeof(QPReplyHeader),sizeof(QPAttr));
 
     // verify the checksum
-    uint64_t checksum = ip_checksum((void *)(&(qp_attr.buf)),sizeof(RdmaQpAttr) - sizeof(uint64_t));
-    assert(checksum == qp_attr.checksum);
     int dlid = qp_attr.lid;
 
-    ahs_[key] = RdmaCtrl::create_ah(dlid,port_idx,dev_);
-    memcpy(&(ud_attrs_[key]),reply_buf + sizeof(QPReplyHeader),sizeof(RdmaQpAttr));
+    //ahs_[key] = RdmaCtrl::create_ah(dlid,port_idx,dev_);
+    ahs_[key] = RdmaCtrl::create_ah(dev_,port_idx,qp_attr);
+    //memcpy(&(ud_attrs_[key]),reply_buf + sizeof(QPReplyHeader),sizeof(RdmaQpAttr));
+    memcpy(&(ud_attrs_[key]),reply_buf + sizeof(QPReplyHeader),sizeof(QPAttr));
 
     //fprintf(stdout,"%d connect to %s tid %d, ip done\n",tid,network[remote_id].c_str(),thread_id,
     //PreConnector::host_to_ip(network[remote_id].c_str()));

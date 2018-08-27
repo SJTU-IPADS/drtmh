@@ -53,11 +53,12 @@ bool Qp::connect_rc() {
 		return false;
 	}
 
-    int buf_size = sizeof(QPReplyHeader) + sizeof(RdmaQpAttr);
+    int buf_size = sizeof(QPReplyHeader) + sizeof(RCQPAttr);
     char *reply_buf = new char[buf_size];
 
     n = recv(socket,reply_buf,buf_size, MSG_WAITALL);
-	if(n != sizeof(RdmaQpAttr) + sizeof(QPReplyHeader)) {
+	if(n != sizeof(RCQPAttr) + sizeof(QPReplyHeader)) {
+
 		shutdown(socket,SHUT_RDWR);
         close(socket);
         delete reply_buf;
@@ -80,12 +81,10 @@ bool Qp::connect_rc() {
 		assert(false);
 	}
 
-	RdmaQpAttr qp_attr;
-	memcpy(&qp_attr,(char *)reply_buf + sizeof(QPReplyHeader),sizeof(RdmaQpAttr));
-
-	// verify the checksum
-	uint64_t checksum = ip_checksum((void *)(&(qp_attr.buf)),sizeof(RdmaQpAttr) - sizeof(uint64_t));
-	assert(checksum == qp_attr.checksum);
+	//RdmaQpAttr qp_attr;
+	//memcpy(&qp_attr,(char *)reply_buf + sizeof(QPReplyHeader),sizeof(RdmaQpAttr));
+	RCQPAttr qp_attr;
+	memcpy(&qp_attr,(char *)reply_buf + sizeof(QPReplyHeader),sizeof(RCQPAttr));
 
 	change_qp_states(&qp_attr,port_idx);
 
@@ -96,7 +95,7 @@ bool Qp::connect_rc() {
 }
 
 Qp::IOStatus
-Qp::rc_post_send(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags,int wr_id,uint32_t imm) {
+Qp::rc_post_send(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags,uint64_t wr_id,uint32_t imm) {
 
 	IOStatus rc = IO_SUCC;
 	struct ibv_send_wr sr, *bad_sr;
@@ -126,18 +125,16 @@ Qp::rc_post_send(ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags
 	sr.send_flags = flags;
 
 	sr.wr.rdma.remote_addr =
-			remote_attr_.buf + off;
-	sr.wr.rdma.rkey = remote_attr_.rkey;
+			remote_attr_.memory_attr_.buf + off;
+	sr.wr.rdma.rkey = remote_attr_.memory_attr_.rkey;
 	// printf("rkey:%lu\n", remote_attr_.rkey);
 
 	rc = (IOStatus)ibv_post_send(qp, &sr, &bad_sr);
-	//	CE(rc, "ibv_post_send error\n");
-	this->pendings += 1;
 	return rc;
 }
 
 Qp::IOStatus Qp::rc_post_pending(ibv_wr_opcode op,
-								 char *local_buf,int len,uint64_t off,int flags,int wr_id)
+								 char *local_buf,int len,uint64_t off,int flags,uint64_t wr_id)
 {
 	int i = current_idx++;
 	sr[i].opcode  = op;
@@ -158,8 +155,8 @@ Qp::IOStatus Qp::rc_post_pending(ibv_wr_opcode op,
 	//if(need_poll()) poll_completion();
 
 	sr[i].wr.rdma.remote_addr =
-			remote_attr_.buf + off;
-	sr[i].wr.rdma.rkey = remote_attr_.rkey;
+			remote_attr_.memory_attr_.buf + off;
+	sr[i].wr.rdma.rkey = remote_attr_.memory_attr_.rkey;
 	return IO_SUCC;
 }
 
@@ -207,8 +204,8 @@ Qp::IOStatus Qp::rc_post_doorbell(RdmaReq *reqs, int batch_size) {
 #endif
 
 		sr[i].wr.rdma.remote_addr =
-				remote_attr_.buf + reqs[i].wr.rdma.remote_offset;
-		sr[i].wr.rdma.rkey = remote_attr_.rkey;
+				remote_attr_.memory_attr_.buf + reqs[i].wr.rdma.remote_offset;
+		sr[i].wr.rdma.rkey = remote_attr_.memory_attr_.rkey;
 	}
 	rc = (IOStatus)ibv_post_send(qp, &sr[0], &bad_sr);
 	CE(rc, "ibv_post_send doorbell error");
@@ -216,7 +213,7 @@ Qp::IOStatus Qp::rc_post_doorbell(RdmaReq *reqs, int batch_size) {
 }
 
 Qp::IOStatus Qp::rc_post_compare_and_swap(char *local_buf,uint64_t off,
-										  uint64_t compare_value, uint64_t swap_value, int flags,int wr_id){
+										  uint64_t compare_value, uint64_t swap_value, int flags,uint64_t wr_id){
 
 	IOStatus rc = IO_SUCC;
 	struct ibv_send_wr sr, *bad_sr;
@@ -238,8 +235,8 @@ Qp::IOStatus Qp::rc_post_compare_and_swap(char *local_buf,uint64_t off,
 	sge.lkey = dev_->conn_buf_mr->lkey;
 #endif
 
-	sr.wr.atomic.remote_addr = remote_attr_.buf + off;
-	sr.wr.atomic.rkey = remote_attr_.rkey;
+	sr.wr.atomic.remote_addr = remote_attr_.memory_attr_.buf + off;
+	sr.wr.atomic.rkey = remote_attr_.memory_attr_.rkey;
 	sr.wr.atomic.compare_add = compare_value;
 	sr.wr.atomic.swap = swap_value;
 	rc = (IOStatus)ibv_post_send(this->qp, &sr, &bad_sr);
@@ -248,7 +245,7 @@ Qp::IOStatus Qp::rc_post_compare_and_swap(char *local_buf,uint64_t off,
 }
 
 Qp::IOStatus Qp::rc_post_fetch_and_add(char *local_buf,uint64_t off,
-									   uint64_t add_value, int flags,int wr_id){
+									   uint64_t add_value, int flags,uint64_t wr_id){
 
 	IOStatus rc = IO_SUCC;
 	struct ibv_send_wr sr, *bad_sr;
@@ -270,8 +267,8 @@ Qp::IOStatus Qp::rc_post_fetch_and_add(char *local_buf,uint64_t off,
 	sge.lkey = dev_->conn_buf_mr->lkey;
 #endif
 
-	sr.wr.atomic.remote_addr = remote_attr_.buf + off;
-	sr.wr.atomic.rkey = remote_attr_.rkey;
+	sr.wr.atomic.remote_addr = remote_attr_.memory_attr_.buf + off;
+	sr.wr.atomic.rkey = remote_attr_.memory_attr_.rkey;
 	sr.wr.atomic.compare_add = add_value;
 	rc = (IOStatus)ibv_post_send(this->qp, &sr, &bad_sr);
 	CE(rc, "ibv_post_send error");

@@ -7,7 +7,8 @@
 
 // helper functions to change the state of qps  ///////////////////////////////
 static void rc_ready2init(ibv_qp * qp, int port_id);
-static void rc_init2rtr(ibv_qp * qp, int port_id, int qpn, int dlid);
+//static void rc_init2rtr(ibv_qp * qp, int port_id, int qpn, int dlid);
+static void rc_init2rtr(ibv_qp *qp,int port_id,rdmaio::QPAttr &attr);
 static void rc_rtr2rts(ibv_qp * qp);
 
 static void uc_ready2init(ibv_qp * qp, int port_id);
@@ -61,7 +62,7 @@ void Qp::init_rc(RdmaDevice *rdma_device, int port_id){
 	}
 	assert(r_cq != NULL);
 	recv_cq = r_cq;
-		
+
 	assert(recv_cq != NULL);
 
 	struct ibv_qp_init_attr qp_init_attr;
@@ -148,22 +149,22 @@ void Qp::init_ud(RdmaDevice *rdma_device, int port_id){
 	//ud_attrs_.clear();
 }
 
-void Qp::change_qp_states(RdmaQpAttr *remote_qp_attr, int dev_port_id) {
+//void Qp::change_qp_states(RdmaQpAttr *remote_qp_attr, int dev_port_id) {
+void Qp::change_qp_states(RCQPAttr *remote_qp_attr, int dev_port_id) {
 
 	assert(remote_qp_attr != NULL);
 	assert(dev_port_id >= 1);
 
 	if(qp->qp_type == IBV_QPT_RC){
-		rc_init2rtr(qp, dev_port_id, remote_qp_attr->qpn, remote_qp_attr->lid);
+		rc_init2rtr(qp, dev_port_id, remote_qp_attr->connection_attr_);
 		rc_rtr2rts(qp);
 	} else if(qp->qp_type == IBV_QPT_UC){
-		uc_init2rtr(qp, dev_port_id, remote_qp_attr->qpn, remote_qp_attr->lid);
+		uc_init2rtr(qp, dev_port_id,remote_qp_attr->connection_attr_.qpn, remote_qp_attr->connection_attr_.lid);
 		uc_rtr2rts(qp);
 	} else {
 		assert(false);
 	}
 	remote_attr_ = *remote_qp_attr;
-
 }
 
 int Qp::try_poll() {
@@ -296,23 +297,31 @@ static void rc_ready2init(ibv_qp * qp, int port_id) {
 	CE_1(rc, "[librdma] qp: Failed to modify RC to INIT state, %s\n", strerror(errno));
 }
 
-static void rc_init2rtr(ibv_qp * qp, int port_id, int qpn, int dlid) {
+static void rc_init2rtr(ibv_qp * qp, int port_id, rdmaio::QPAttr &attr) {
+
 	int rc, flags;
 	struct ibv_qp_attr qp_attr;
 	memset(&qp_attr, 0, sizeof(struct ibv_qp_attr));
 	qp_attr.qp_state = IBV_QPS_RTR;
 	qp_attr.path_mtu = IBV_MTU_4096;
-	qp_attr.dest_qp_num = qpn;
+	qp_attr.dest_qp_num = attr.qpn;
 	qp_attr.rq_psn = DEFAULT_PSN;
 	qp_attr.max_dest_rd_atomic = 16;
 	qp_attr.min_rnr_timer = 20;
 
-	qp_attr.ah_attr.is_global = 0;
-	qp_attr.ah_attr.dlid = dlid;
+	qp_attr.ah_attr.dlid = attr.lid;
 	qp_attr.ah_attr.sl = 0;
 	qp_attr.ah_attr.src_path_bits = 0;
 	qp_attr.ah_attr.port_num = port_id; /* Local port! */
 
+	qp_attr.ah_attr.is_global = 1;
+#if 1
+    qp_attr.ah_attr.grh.dgid.global.subnet_prefix = attr.addr.subnet_prefix;
+    qp_attr.ah_attr.grh.dgid.global.interface_id = attr.addr.interface_id;
+    qp_attr.ah_attr.grh.flow_label = 0;
+    qp_attr.ah_attr.grh.hop_limit = 255;
+	qp_attr.ah_attr.grh.sgid_index = 0;
+#endif
 	flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN
 			| IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
 	rc = ibv_modify_qp(qp, &qp_attr,flags);
