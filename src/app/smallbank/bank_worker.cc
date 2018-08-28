@@ -9,8 +9,8 @@
 
 #include "util/util.h"
 
-#include "rtx/rtx_occ_rdma.hpp"
-#include "rtx/rtx_occ_variants.hpp"
+#include "rtx/occ_rdma.h"
+#include "rtx/occ_variants.hpp"
 
 #include <boost/bind.hpp>
 
@@ -458,6 +458,7 @@ void BankWorker::thread_local_init() {
   /* init local tx so that it is not a null value */
   tx_ = txs_[cor_id_];
   rtx_ = new_txs_[cor_id_];
+  rtx_hook_ = new_txs_[1];
   //routine_1_tx_ = txs_[1]; // used for report
 } // end func: thread_local_init
 

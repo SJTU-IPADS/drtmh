@@ -1,8 +1,8 @@
 #include "tx_config.h"
 
 #include "core/logging.h"
-#include "rtx/rtx_occ.h"
-#include "rtx/rtx_occ_rdma.hpp"
+#include "rtx/occ.h"
+#include "rtx/occ_rdma.h"
 
 #include "bank_schema.h"
 #include "bank_worker.h"

@@ -22,7 +22,7 @@ namespace rtx {
 
 class RdmaChecker;
 class OCC : public TXOpBase {
-#include "rtx_occ_internal.h" // common data structures definition
+#include "occ_internal_structure.h"
  public:
   // nid: local node id. If == -1, all operations go through the network
   // resposne_node == nid: enable local accesses.
@@ -164,7 +164,7 @@ class OCC : public TXOpBase {
 #define RTX_LOG_CLEAN_ID   6
 #define RTX_BACKUP_GET_ID  7
 
-#include "rtx_occ_impl.hpp"
+#include "occ_inline.hpp"
 
 #include "occ_iterator.hpp"
 

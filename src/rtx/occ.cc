@@ -1,5 +1,5 @@
 #include "tx_config.h" // some configurations
-#include "rtx_occ.h"
+#include "occ.h"
 
 #include "global_vars.h"
 
@@ -365,7 +365,6 @@ bool OCC::lock_writes(yield_func_t &yield) {
 
 /* RPC handlers */
 void OCC::read_rpc_handler(int id,int cid,char *msg,void *arg) {
-
   char* reply_msg = rpc_->get_reply_buf();
   char *reply = reply_msg + sizeof(ReplyHeader);
   int num_returned(0);
@@ -458,7 +457,6 @@ void OCC::lock_rpc_handler(int id,int cid,char *msg,void *arg) {
   //char *log_buf = next_log_entry(&local_log,32);
   //assert(log_buf != NULL);
   //sprintf(log_buf,"reply to  %d c:%d, \n",id,cid);
-
   *((uint8_t *)reply_msg) = res;
   rpc_->send_reply(reply_msg,sizeof(uint8_t),id,cid);
 }
@@ -521,6 +519,7 @@ void OCC::validate_rpc_handler(int id,int cid,char *msg,void *arg) {
 }
 
 void OCC::commit_oneshot_handler(int id,int cid,char *msg,void *arg) {
+
   CommitItem *item = (CommitItem *)msg;
   inplace_write_op(item->tableid,item->key,msg + sizeof(CommitItem),item->len);
 #if !PA

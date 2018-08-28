@@ -1,4 +1,4 @@
-#include "rtx_occ_rdma.hpp"
+#include "occ_rdma.h"
 #include "rdma_req_helper.hpp"
 
 namespace nocc {

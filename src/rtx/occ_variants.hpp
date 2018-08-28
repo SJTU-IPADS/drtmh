@@ -1,6 +1,6 @@
 // This file implements various of OCC protocol on top two-sided~(messaging) primitives
 
-#include "rtx_occ.h"
+#include "occ.h"
 
 namespace nocc {
 

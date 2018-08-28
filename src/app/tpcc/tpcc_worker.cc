@@ -12,8 +12,8 @@
 #include <limits>
 #include <boost/bind.hpp>
 
-#include "rtx/rtx_occ_rdma.hpp"
-#include "rtx/rtx_occ_variants.hpp"
+#include "rtx/occ_rdma.h"
+#include "rtx/occ_variants.hpp"
 
 extern __thread RemoteHelper *remote_helper;
 

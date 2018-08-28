@@ -5,8 +5,8 @@
 #include "core/utils/spinbarrier.h"
 #include "framework/bench_worker.h"
 
-#include "rtx/rtx_occ.h"
-#include "rtx/rtx_occ_rdma.hpp"
+#include "rtx/occ.h"
+#include "rtx/occ_rdma.h"
 
 #include "tpce_schema.h"
 #include "tpce_mixin.h"

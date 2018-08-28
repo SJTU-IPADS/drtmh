@@ -96,6 +96,20 @@ class BankWorker : public BenchWorker {
 
   void balance_piece(int id,int cid,char *input,yield_func_t &yield);
 
+  void exit_report() {
+    LOG(4) << "worker exit.";
+    latencys_.erase(0.2);
+    auto one_second = util::BreakdownTimer::get_one_second_cycle();
+    LOG(4) << "read time: " << util::BreakdownTimer::rdtsc_to_ms(latencys_.average(),one_second) << "ms";
+
+    rtx_hook_->report_statics(one_second);
+  }
+
+  virtual void workload_report() {
+    // record TX's data
+    rtx_hook_->record();
+  }
+
   virtual workload_desc_vec_t get_workload() const ;
   static  workload_desc_vec_t _get_workload();
   virtual void check_consistency();
