@@ -1,0 +1,27 @@
+<bench>
+  <threads> 1 </threads>
+  <backup_threads>12</backup_threads>
+  <scale>   1 </scale>
+  <micro>14</micro>
+  <rep_factor>0</rep_factor>
+  <bank>
+    <sp> 25 </sp>
+    <dc> 15 </dc>
+    <payment> 15 </payment>
+    <ts> 15 </ts>
+    <wc> 15 </wc> 
+    <aml> 15 </aml>
+  </bank>
+
+  <tpcc>
+    <new>100</new>
+    <pay>0</pay>
+    <del>0</del>
+    <stock>0</stock>
+    <order>0</order>
+  </tpcc>
+  
+  <paxos>
+    <pv>100</pv>
+  </paxos>
+</bench>

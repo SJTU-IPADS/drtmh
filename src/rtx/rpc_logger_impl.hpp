@@ -34,7 +34,6 @@ class RpcLogger : public Logger {
   void log_remote_handler(int id,int cid,char *msg,void *arg) {
     int size = (uint64_t)arg;
     //char *local_ptr = mem_.get_next_log(id,rpc_handler_->worker_id_,size);
-
     assert(size < RTX_LOG_ENTRY_SIZE && size > 0);
     //memcpy(local_ptr,msg,size);
     memcpy(local_buffer + cid * MAX_MSG_SIZE,msg,size);

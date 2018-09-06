@@ -6,6 +6,7 @@ import subprocess # execute commands
 import sys    # parse user input
 import signal # bind interrupt handler
 import pickle
+from runner import RoccRunner
 
 import time #sleep
 
@@ -37,6 +38,7 @@ BASE_CMD = "./%s --bench %s --txn-flags 1  --verbose --config %s"
 output_cmd = "1>/dev/null 2>&1 &" ## this will ignore all the output
 OUTPUT_CMD_LOG = " 1>log 2>&1 &" ## this will flush the log to a file
 
+FNULL = open(os.devnull, 'w')
 
 ## bench config parameters
 
@@ -69,29 +71,38 @@ def copy_file(f):
     assert(mac_num <= len(mac_set))
     for i in xrange(mac_num):
         host = mac_set[i]
-        print_with_tag("copy","To %s" % host)
-        subprocess.call(["scp", "./%s" % f, "%s:%s" % (host,"~")])
+        #print_with_tag("copy","To %s" % host)
+        subprocess.call(["scp", "./%s" % f, "%s:%s" % (host,"~")],stdout=FNULL,stderr=subprocess.STDOUT)
 
 
 def kill_servers(e):
     #  print "ending ... kill servers..."
     sigint = 2
     kill_cmd1 = "pkill %s --signal %d" % (e,sigint)
+
     # real kill
     kill_cmd2 = "pkill %s" % e
     for i in xrange(mac_num):
         subprocess.call(["ssh", "-n","-f", mac_set[i], kill_cmd1])
-        time.sleep(1)
+
+    r = RoccRunner()
+
+    for i in xrange(mac_num):
+        c = 0
+        while r.check_liveness([],mac_set[i]):
+            time.sleep(2)
+            c += 1
+            if c > 5:
+                break
         try:
             subprocess.call(["ssh", "-n","-f", mac_set[i], kill_cmd2])
             bcmd = "ps aux | grep nocc"
-            stdout, stderr = Popen(['ssh',"-o","ConnectTimeout=1",m, bcmd],
+            stdout, stderr = Popen(['ssh',"-o","ConnectTimeout=2",m, bcmd],
                                    stdout=PIPE).communicate()
             assert(len(stdout.split("\n")) == 3)
 
         except:
             pass
-    #subprocess.call(["ssh","-n","-f","val@r715",'cd dongzy-deply;ansible-playbook kill.yml -e "exe=%s" %s' % (e,output_cmd) ])
     return
 
 ## singal handler
@@ -172,8 +183,8 @@ def start_servers(macset, config, bcmd,num):
     assert(len(macset) >= num)
     for i in xrange(1,num):
         cmd = (bcmd % (i)) + OUTPUT_CMD_LOG ## disable remote output
-        subprocess.call(["ssh","-n","-f",macset[i],"rm *.log"]) ## clean remaining log
-        subprocess.call(["ssh", "-n","-f", macset[i], cmd])
+        subprocess.call(["ssh","-n","-f",macset[i],"rm *.log"],stdout=FNULL,stderr=subprocess.STDOUT) ## clean remaining log
+        subprocess.call(["ssh", "-n","-f", macset[i], cmd],stdout=FNULL,stderr=subprocess.STDOUT)
     ## local process is executed right here
     ## cmd = "perf stat " + (bcmd % 0)
     cmd = bcmd % 0
