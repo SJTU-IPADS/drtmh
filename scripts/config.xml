@@ -1,6 +1,5 @@
 <bench>
-  <threads> 1 </threads>
-  <backup_threads>12</backup_threads>
+  <port>8888</port>
   <scale>   1 </scale>
   <micro>14</micro>
   <rep_factor>0</rep_factor>
