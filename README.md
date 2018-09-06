@@ -28,7 +28,7 @@ Rfree(buffer);      // can free the buffer after that
 ```
 
 - For messaging operations. Notice that the message primitive has been optimized using RDMA.  ROCC provides 3 messaging primitive's implementations: 
-  - Messaging with RDMA UD send/recv
+  - Messaging with RDMA UD send/recv 
   - Messaging with RDMA RC write-with-imm
   - Messaging with TCP/IP
 
@@ -92,9 +92,9 @@ The samples of these two files are listed in `${HOME_TO_RTX}/scripts` .
 
 ### **Run:**
 
-`cd scripts; ./run2.py config.xml noccocc "-t 24 -c 10 -r 256" micro 16 ` , 
+`cd scripts; ./run2.py config.xml noccocc "-t 24 -c 10 -r 100" tpcc 16 ` , 
 
-where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `micro` states for the application used, here states for running the micro bencharm. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
+where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `tpcc` states for the application used, here states for running the TPC-C workload. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
 
 
 

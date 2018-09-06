@@ -1,3 +1,2 @@
 This file mainly contains our benchmark code.
-More specifically, snapsharechoptpcc.cc contains our TPCC implementation.
-bank.cc contains our smallbank implementation.
+TPCC's main TX's implementations are in tpcc/tpcc_worker_new.cc, while Smallbank's implementations are in smallbank/bank_worker_new.cc . 
