@@ -96,7 +96,8 @@ The samples of these two files are listed in `${HOME_TO_RTX}/scripts` .
 
 where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `tpcc` states for the application used, here states for running the TPC-C workload. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
 
-
+**Note that !** The first mac defined in `host.xml` must be **the same as the machine which runs the script.**. 
+This machine is seemed as the master and will collect results from other servers. 
 
 ------
 
