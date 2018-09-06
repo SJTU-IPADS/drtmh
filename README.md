@@ -20,12 +20,8 @@ int payload = 64;                // the size of data to read
 uint64_t remote_addr = 0;        // remote memory address(offset)
 char *buffer = Rmalloc(payload); // allocate a local buffer to store the result
 auto qp = cm->get_rc_qp(mac_id);  // the the connection of target machine
-qp->rc_post_send(IBV_WR_RDMA_READ, // READ request
-                buffer,payload,
-                remote_addr,
-                IBV_SEND_SIGNALED,  // let NIC generate completion event
-                cor_id_); // the current execute app id
-sched->add_pending(qp,cor_id_); // add the pending request to the scheduler
+rdma_sched_->post_send(qp,cor_id_,IBV_WR_RDMA_READ,local_buf,size,remote_addr,
+                           IBV_SEND_SIGNALED); // send the read request and add completion event to the scheduler
 indirect_yield();   // yield, not waiting the completion of READ
 // when executed, the buffer got the results of remote memory
 Rfree(buffer);      // can free the buffer after that
@@ -67,19 +63,12 @@ We use RTX to test a transactional system's performance using ROCC.
 **Dependencies:**
 
 - CMake `>= version 3.0` (For compiling)
-- libtool
+- libtool 
 - g++`>= 4.8`
 - Zmq and its C++ binding
-- Boost `1.61.0` (Only tested) (will be automatically installed by the build tool chain)
+- Boost `1.61.0` (will be automatically installed by the build tool chain, since we use a specific version of Boost)
 - libibverbs 
 
-
-------
-
-###  A sample setup (using Ubuntu)
-
-sudo apt-get install -y libzmq3-dev
-sudo apt-get install -y libtool-bin
 
 ------
 
@@ -88,21 +77,22 @@ sudo apt-get install -y libtool-bin
 - `git clone --recursive https://github.com/roccframework/rocc.git`
 - `sudo apt-get install libzmq3-dev`
 - `sudo apt-get install libtool-bin`
-- `cmake .`
+- `sudo apt-get install cmake` 
+- `cmake -DUSE_RDMA=1 -DONE_SIDED_READ=1 -D ROCC_RBUF_SIZE_M=13240 -D RDMA_STORE_SIZE=5000 -DRDMA_CACHE=0 -DTX_LOG_STYLE=2 -DPA=0 .`
 - `make noccocc`
 ------
 
 **Prepare:**
 
-Two files, `config_template.xml`, `hosts.xml` must be used to configure the running of RTX.  `config_template.xml` provides benchmark specific configuration, while `hosts.xml` provides the topology of the cluster.
+Two files, `config.xml`, `hosts.xml` must be used to configure the running of RTX.  `config.xml` provides benchmark specific configuration, while `hosts.xml` provides the topology of the cluster.
 
-The samples of these two files are listed in ./scripts .
+The samples of these two files are listed in `${HOME_TO_RTX}/scripts` .
 
 ***
 
 ### **Run:**
 
-`cd scripts; ./run2.py config_template.xml noccocc "-t 24 -c 10 -r 256" micro 16 ` , 
+`cd scripts; ./run2.py config.xml noccocc "-t 24 -c 10 -r 256" micro 16 ` , 
 
 where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `micro` states for the application used, here states for running the micro bencharm. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
 
