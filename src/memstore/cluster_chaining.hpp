@@ -75,7 +75,7 @@ class ClusterHash {
     return (expected_indirct + num) * sizeof(HeaderNode);
   }
 
-  int size() const {
+  uint64_t size() const {
     return size_;
   }
 

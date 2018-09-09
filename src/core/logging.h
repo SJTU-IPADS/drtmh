@@ -59,7 +59,7 @@ namespace nocc {
 
 #define ASSERT(condition) \
     if(unlikely(!(condition))) \
-        ::nocc::MessageLogger((char*)__FILE__, __LINE__, LOG_FATAL + 1).stream()
+        ::nocc::MessageLogger((char*)__FILE__, __LINE__, LOG_FATAL + 1).stream() << "Assertion! "
 
 #define VERIFY(n,condition) LOG_IF(n,(!(condition)))
 
