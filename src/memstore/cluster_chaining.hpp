@@ -282,7 +282,7 @@ class ClusterHash {
   int   free_indirect_num_;
 
   // the size of the table
-  int size_;
+  uint64_t size_;
 
   // offset in the RDMA region
  public:
