@@ -17,32 +17,17 @@ class RScheduler {
   RScheduler();
   ~RScheduler();
 
-  static const int  COR_ID_BIT = 8;
-  static const uint  COR_ID_MASK = ::nocc::util::BitMask<uint>(COR_ID_BIT);
-
-  // add pending qp to corresponding coroutine
-  inline static uint64_t encode_wrid(int cor_id,uint64_t watermark = 0) {
-    return (watermark << COR_ID_BIT) | cor_id;
+  void one_read(rdmaio::Qp *qp,int cor_id,char *local_buf,int len,uint64_t off,int flags = IBV_SEND_SIGNALED) {
+    post_send(qp,cor_id,IBV_WR_RDMA_READ,local_buf,len,off,flags);
   }
 
-  inline static int decode_corid(uint64_t wrid) {
-    return wrid & COR_ID_MASK;
-  }
-
-  inline static uint64_t decode_watermark(uint64_t wrid) {
-    return wrid >> COR_ID_BIT;
-  }
-
-  void add_pending(int cor_id,rdmaio::Qp *qp) {
-    pending_qps_.push_back(qp);
-    pending_counts_[cor_id] += 1;
-    qp->pendings += 1;
+  void one_write(rdmaio::Qp *qp,int cor_id,char *local_buf,int len,uint64_t off,int flags = IBV_SEND_SIGNALED) {
+    post_send(qp,cor_id,IBV_WR_RDMA_WRITE,local_buf,len,off,flags);
   }
 
   void post_send(rdmaio::Qp *qp,int cor_id,ibv_wr_opcode op,char *local_buf,int len,uint64_t off,int flags) {
     qp->high_watermark_ += 1;
     qp->rc_post_send(op,local_buf,len,off,flags,encode_wrid(cor_id,qp->high_watermark_));
-    //    LOG(2) << "cor " << cor_id << " post " << qp->high_watermark_;
     add_pending(cor_id,qp);
   }
 
@@ -59,7 +44,6 @@ class RScheduler {
 
     qp->rc_post_batch(send_sr,bad_sr_addr);
     add_pending(cor_id,qp);
-    //LOG(2) << "cor " << cor_id << " post " << qp->high_watermark_;
   }
 
   /**
@@ -87,6 +71,28 @@ class RScheduler {
   void report();
 
   static __thread int  *pending_counts_; // number of pending qps per thread
+
+  static const int  COR_ID_BIT = 8;
+  static const uint  COR_ID_MASK = ::nocc::util::BitMask<uint>(COR_ID_BIT);
+
+  // add pending qp to corresponding coroutine
+  inline static uint64_t encode_wrid(int cor_id,uint64_t watermark = 0) {
+    return (watermark << COR_ID_BIT) | cor_id;
+  }
+
+  inline static int decode_corid(uint64_t wrid) {
+    return wrid & COR_ID_MASK;
+  }
+
+  inline static uint64_t decode_watermark(uint64_t wrid) {
+    return wrid >> COR_ID_BIT;
+  }
+
+  void add_pending(int cor_id,rdmaio::Qp *qp) {
+    pending_qps_.push_back(qp);
+    pending_counts_[cor_id] += 1;
+    qp->pendings += 1;
+  }
 
  private:
   std::deque<rdmaio::Qp *> pending_qps_;

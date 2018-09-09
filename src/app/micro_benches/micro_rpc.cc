@@ -102,7 +102,8 @@ txn_result_t MicroWorker::micro_rpc_write(yield_func_t &yield) {
   auto size = distributed_ratio;
   assert(size > 0 && size <= MAX_MSG_SIZE);
 
-  char *req_buf = msg_buf_alloctors[cor_id_].get_req_buf();
+  //char *req_buf = msg_buf_alloctors[cor_id_].get_req_buf();
+  char *req_buf = rpc_->get_fly_buf(cor_id_);
 
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free  = r_buffer_size - free_offset;
@@ -111,21 +112,35 @@ txn_result_t MicroWorker::micro_rpc_write(yield_func_t &yield) {
   static const int num_nodes = cm->get_num_nodes();
 
   int      pid    = random_generator[cor_id_].next() % num_nodes;
-#if 1
-  uint64_t offset = random_generator[cor_id_].next() % write_space;
-  // align
-  offset = Round<uint64_t>(offset,CACHE_LINE_SZ);
 
-  // prepare an RPC header
-  ReadReq *req = (ReadReq *)req_buf;
-  req->off = offset;
-  req->size = size;
+  int window_size = 10;
+#if !PA
+  rpc_->prepare_multi_req(reply_bufs_[cor_id_],window_size,cor_id_);
 #endif
-  // send the RPC
-  rpc_->prepare_multi_req(reply_bufs_[cor_id_],1,cor_id_);
-  rpc_->append_req(req_buf,RPC_WRITE,sizeof(ReadReq) + size,cor_id_,RRpc::REQ,pid);
+  for(uint i = 0;i < window_size;++i) {
+
+#if 1
+    uint64_t offset = random_generator[cor_id_].next() % write_space;
+    // align
+    offset = Round<uint64_t>(offset,CACHE_LINE_SZ);
+
+    // prepare an RPC header
+    ReadReq *req = (ReadReq *)req_buf;
+    req->off = offset;
+    req->size = size;
+#endif
+    // send the RPC
+#if 1 // use doorbell
+    rpc_->append_pending_req(req_buf,RPC_WRITE,size,cor_id_,RRpc::REQ,pid);
+#else
+    rpc_->append_req(req_buf,RPC_WRITE,size,cor_id_,RRpc::REQ,pid);
+#endif
+  }
+  rpc_->flush_pending();
+
   indirect_yield(yield);
 
+  ntxn_commits_ += window_size - 1;
   return txn_result_t(true,1);
 }
 
@@ -165,7 +180,7 @@ txn_result_t MicroWorker::micro_rpc_read(yield_func_t &yield) {
     rpc_->append_pending_req((char *)req,
                              RPC_READ,sizeof(ReadReq),cor_id_,RRpc::REQ,pid);
 #else
-    rpc_->append_req((char *)req,
+    rpc_->append_req((char *)req_buf,
                      RPC_READ,sizeof(ReadReq),cor_id_,RRpc::REQ,pid);
 #endif
   }
@@ -251,15 +266,12 @@ void MicroWorker::nop_rpc_handler(int id, int cid, char *msg, void *arg) {
 }
 
 void MicroWorker::write_rpc_handler(int id,int cid,char *msg, void *arg) {
-
-  // char *reply_msg = rpc_->get_reply_buf();
+  char *reply_msg = rpc_->get_reply_buf();
   ReadReq *req = (ReadReq *)msg;
-
-  assert(req->off >= 0 && req->off < r_buffer_size && req->off + req->size < r_buffer_size);
-
-  assert(test_buf != NULL);
   //memcpy(test_buf + req->off, msg + sizeof(ReadReq), req->size);
-  // rpc_->send_reply(reply_msg,1,id,worker_id_,cid); // a dummy notification
+#if !PA
+  rpc_->send_reply(reply_msg,1,id,worker_id_,cid); // a dummy notification
+#endif
 }
 
 void MicroWorker::null_rpc_handler(int id, int cid, char *msg, void *arg) {

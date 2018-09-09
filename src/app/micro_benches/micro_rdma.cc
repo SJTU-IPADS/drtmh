@@ -55,9 +55,9 @@ txn_result_t MicroWorker::micro_rdma_write(yield_func_t &yield) {
   static uint64_t total_free  = r_buffer_size - free_offset;
   static const int num_nodes = cm->get_num_nodes();
 
-  static __thread char *local_buf = (char *)Rmalloc(4096);
+  char *local_buf = rdma_buffer + worker_id_ * 4096 + cor_id_ * CACHE_LINE_SZ;
 
-  const int window_size = 1;
+  const int window_size = 10;
   for(uint i = 0;i < window_size;++i) {
     int      pid    = random_generator[cor_id_].next() % num_nodes;
 #if READ_RANDOM == 1
@@ -72,8 +72,6 @@ txn_result_t MicroWorker::micro_rdma_write(yield_func_t &yield) {
 #endif
 
 #endif
-    //char *local_buf = msg_buf_alloctors[cor_id_].get_req_buf();
-    //char *local_buf = rdma_buf_ + sizeof(uint64_t) * cor_id_;
     assert(local_buf != NULL);
     auto qp  = qps_[pid];
     int flag = 0;

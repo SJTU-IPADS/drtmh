@@ -108,7 +108,7 @@ class MicroMainRunner : public BenchRunner {
 	virtual void init_put() {
 
 		if(micro_type != MICRO_TX_RAD && micro_type != MICRO_TX_RW && micro_type != MICRO_TX_READ)
-			return; // only test TX workloads
+			return; // only TX workloads requires populate the database
 		assert(store_ != NULL);
 		int meta_size = META_SIZE;
 		store_->AddSchema(TAB,TAB_HASH,sizeof(uint64_t),CACHE_LINE_SZ,META_SIZE);
