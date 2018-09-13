@@ -78,12 +78,18 @@ We use RTX to test a transactional system's performance using ROCC.
 - `sudo apt-get install libzmq3-dev`
 - `sudo apt-get install libtool-bin`
 - `sudo apt-get install cmake` 
-- `cmake -DUSE_RDMA=1              ## run using RDMA; set it to be 0 if only use TCP for execution`
-         `-DONE_SIDED_READ=1       ## enable RDMA friendly data store`
-         `-DROCC_RBUF_SIZE_M=13240 ## total RDMA buffer registered~(Unit of M)`
-         `-DRDMA_STORE_SIZE=5000    ## total RDMA left for data store~(Unit of M)`
-         `-DRDMA_CACHE=0            ## whether use location cache for data store`
-         `-DTX_LOG_STYLE=2          ## RTX's log style. 1 uses RPC, 2 uses RDMA`
+- `cmake -DUSE_RDMA=1              //run using RDMA; set it to be 0 if only use TCP for execution`
+
+         `-DONE_SIDED_READ=1       // enable RDMA friendly data store`
+         
+         `-DROCC_RBUF_SIZE_M=13240 // total RDMA buffer registered~(Unit of M)`
+         
+         `-DRDMA_STORE_SIZE=5000   // total RDMA left for data store~(Unit of M)`
+         
+         `-DRDMA_CACHE=0           // whether use location cache for data store`
+         
+         `-DTX_LOG_STYLE=2         // RTX's log style. 1 uses RPC, 2 uses RDMA`
+         
 - `make noccocc`
 ------
 
