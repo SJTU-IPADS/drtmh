@@ -56,15 +56,6 @@ include(cmake/tpce.cmake)
 add_executable(noccocc ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
 target_compile_options(noccocc PRIVATE "-DOCC_TX")
 
-add_executable(noccsi ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(noccsi PRIVATE "-DSI_TX")
-
-add_executable(noccfarm ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(noccfarm PRIVATE "-DFARM")
-
-add_executable(noccrad ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(noccrad PRIVATE "-DRAD_TX")
-
 ## Micro with one-sided RDMA
 add_executable(nn ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
 target_compile_options(nn PRIVATE "-DRPC=0" "-DOCC_TX")
@@ -102,9 +93,6 @@ endforeach( prog )
 # for the ease of running
 set(CMAKE_INSTALL_PREFIX ./)
 install(TARGETS noccocc  DESTINATION scripts) 
-install(TARGETS noccfarm DESTINATION scripts)
-install(TARGETS noccsi   DESTINATION scripts)
-
 
 ## for tests
 if(GTEST)
