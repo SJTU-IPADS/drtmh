@@ -78,7 +78,12 @@ We use RTX to test a transactional system's performance using ROCC.
 - `sudo apt-get install libzmq3-dev`
 - `sudo apt-get install libtool-bin`
 - `sudo apt-get install cmake` 
-- `cmake -DUSE_RDMA=1 -DONE_SIDED_READ=1 -D ROCC_RBUF_SIZE_M=13240 -D RDMA_STORE_SIZE=5000 -DRDMA_CACHE=0 -DTX_LOG_STYLE=2 -DPA=0 .`
+- `cmake -DUSE_RDMA=1              ## run using RDMA; set it to be 0 if only use TCP for execution
+         -DONE_SIDED_READ=1        ## enable RDMA friendly data store
+         -DROCC_RBUF_SIZE_M=13240  ## total RDMA buffer registered~(Unit of M)
+         -DRDMA_STORE_SIZE=5000    ## total RDMA left for data store~(Unit of M)
+         -DRDMA_CACHE=0            ## whether use location cache for data store
+         -DTX_LOG_STYLE=2          ## RTX's log style. 1 uses RPC, 2 uses RDMA`         
 - `make noccocc`
 ------
 
@@ -86,18 +91,17 @@ We use RTX to test a transactional system's performance using ROCC.
 
 Two files, `config.xml`, `hosts.xml` must be used to configure the running of RTX.  `config.xml` provides benchmark specific configuration, while `hosts.xml` provides the topology of the cluster.
 
-The samples of these two files are listed in `${HOME_TO_RTX}/scripts` .
+The samples of these two files are listed in `${PATH_TO_RTX}/scripts` .
 
 ***
 
-### **Run:**
+### **Run in a cluster:**
 
-`cd scripts; ./run2.py config.xml noccocc "-t 24 -c 10 -r 100" tpcc 16 ` , 
+We provide a script to help deploy and run in a	cluster	setting. Using the following command on	the first machine defined in the `hosts.xml`.
+
+`cd ${PATH_TO_RTX}/scripts; ./run2.py config.xml noccocc "-t 24 -c 10 -r 100" tpcc 16 ` , 
 
 where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `tpcc` states for the application used, here states for running the TPC-C workload. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
-
-**Note that !** The first mac defined in `host.xml` must be **the same as the machine which runs the script.**. 
-This machine is seemed as the master and will collect results from other servers. 
 
 ------
 
