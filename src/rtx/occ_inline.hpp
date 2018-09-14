@@ -44,7 +44,7 @@ int OCC::add_to_write(int pid,uint64_t key,yield_func_t &yield) {
   }
   else {
     // remote case
-    return add_batch_write(tableid,key,pid,sizeof(V));
+    return add_batch_write(tableid,key,pid,sizeof(V),yield);
   }
   return -1;
 }

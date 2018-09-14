@@ -441,8 +441,13 @@ void BankWorker::thread_local_init() {
 #else
     new_txs_[i] = new rtx::OCC(this,store_,rpc_,current_partition,i,-1);
 #endif
+#else // use FaSST's protocol
+#if ONE_SIDED_READ
+    new_txs_[i] = new rtx::OCCFastR(this,store_,rpc_,current_partition,worker_id_,i,-1,
+                                    cm,rdma_sched_,total_partition);
 #else
     new_txs_[i] = new rtx::OCCFast(this,store_,rpc_,current_partition,i,-1);
+#endif
 #endif
     new_txs_[i]->set_logger(new_logger_);
 

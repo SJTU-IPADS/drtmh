@@ -94,7 +94,7 @@ class OCC : public TXOpBase {
   virtual void     start_batch_read();
   virtual int      add_batch_read(int tableid,uint64_t key,int pid,int len);
   virtual int      add_batch_insert(int tableid,uint64_t key,int pid,int len);
-  virtual int      add_batch_write(int tableid,uint64_t key,int pid,int len);
+  virtual int      add_batch_write(int tableid,uint64_t key,int pid,int len,yield_func_t &yield);
   virtual int      send_batch_read(int idx = 0);
   virtual bool     parse_batch_result(int num);
 

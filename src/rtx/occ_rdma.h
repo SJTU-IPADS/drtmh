@@ -48,7 +48,7 @@ class OCCR : public OCC {
 
   int pending_remote_read(int pid,int tableid,uint64_t key,int len,yield_func_t &yield) {
 
-    ASSERT(RDMA_CACHE) << "Current RTX only supports pending remote read for value in cache.";
+    ASSERT(RDMA_CACHE) << "Currently RTX only supports pending remote read for value in cache.";
 
     char *data_ptr = (char *)Rmalloc(sizeof(MemNode) + len);
     assert(data_ptr != NULL);

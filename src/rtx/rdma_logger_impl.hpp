@@ -35,7 +35,7 @@ class RDMALogger : public Logger {
       assert(off != 0);
       scheduler_->post_send(qp,cor_id,
                             IBV_WR_RDMA_WRITE,clk.req_buf_,size,off,
-                            IBV_SEND_SIGNALED | ((size < 64)?IBV_SEND_INLINE:1));
+                            IBV_SEND_SIGNALED | ((size < 64)?IBV_SEND_INLINE:0));
     }
     // requires yield call after this!
   }

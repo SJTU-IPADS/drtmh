@@ -59,10 +59,10 @@ class RDMALockReq  : public RDMAReqBase {
     sge[0].addr = (uint64_t)local_addr;
   }
 
-  inline void set_read_meta(uint64_t remote_off,char *local_addr) {
+  inline void set_read_meta(uint64_t remote_off,char *local_addr,int len = sizeof(uint64_t)) {
     sr[1].wr.rdma.remote_addr =  remote_off;
     sge[1].addr = (uint64_t)local_addr;
-    sge[1].length = sizeof(uint64_t);
+    sge[1].length = len;
   }
 
   inline void post_reqs(oltp::RScheduler *s,Qp *qp) {
