@@ -1,4 +1,4 @@
-## ROCC and RTX
+## ROCC and DrTM+H
 
 
 
@@ -6,11 +6,11 @@
 
 **ROCC** provides fast and simple programming of distributed applications, especially atop of *RDMA*. ROCC has been integrated with most RDMA features, including a variety of optimizations.  ROCC's code is in `src/core`. 
 
-**RTX** is a fast distributed transactional system atop of ROCC.
+**DrTM+H** is a fast distributed transactional system atop of ROCC.
 
 
 
-A snippet of how to use rocc framework. Notice that ROCC is independent of RTX.
+A snippet of how to use rocc framework. Notice that ROCC is independent of DrTM+H.
 
 - Issue RDMA read/write operations 
 
@@ -58,21 +58,20 @@ Rfree(reply_buffer);
 
 ### Build
 
-We use RTX to test a transactional system's performance using ROCC. 
+We use DrTM+H to test a transactional system's performance using ROCC. 
 
 **Dependencies:**
 
 - CMake `>= version 3.0` (For compiling)
-- libtool 
+- libtool (for complie only)
 - g++`>= 4.8`
 - Zmq and its C++ binding
 - Boost `1.61.0` (will be automatically installed by the build tool chain, since we use a specific version of Boost)
 - libibverbs 
 
-
 ------
 
-**Build RTX:**
+**Build DrTM+H:**
 
 - `git clone --recursive https://github.com/roccframework/rocc.git`
 - `sudo apt-get install libzmq3-dev`
@@ -89,15 +88,15 @@ We use RTX to test a transactional system's performance using ROCC.
          `-DRDMA_CACHE=0           // whether use location cache for data store`
          
          `-DTX_LOG_STYLE=2         // RTX's log style. 1 uses RPC, 2 uses RDMA`
-         
+
 - `make noccocc`
 ------
 
 **Prepare:**
 
-Two files, `config.xml`, `hosts.xml` must be used to configure the running of RTX.  `config.xml` provides benchmark specific configuration, while `hosts.xml` provides the topology of the cluster.
+Two files, `config.xml`, `hosts.xml` must be used to configure the running of DrTM+H.  `config.xml` provides benchmark specific configuration, while `hosts.xml` provides the topology of the cluster.
 
-The samples of these two files are listed in `${PATH_TO_RTX}/scripts` .
+The samples of these two files are listed in `${PATH_TO_DrTMH}/scripts` .
 
 ***
 
@@ -105,7 +104,7 @@ The samples of these two files are listed in `${PATH_TO_RTX}/scripts` .
 
 We provide a script to help deploy and run in a	cluster	setting. Using the following command on	the first machine defined in the `hosts.xml`.
 
-`cd ${PATH_TO_RTX}/scripts; ./run2.py config.xml noccocc "-t 24 -c 10 -r 100" tpcc 16 ` , 
+`cd ${PATH_TO_DrTMH}/scripts; ./run2.py config.xml noccocc "-t 24 -c 10 -r 100" tpcc 16 ` , 
 
 where `t` states for number of threads used, `c` states for number of coroutines used and `r` is left for workload. `tpcc` states for the application used, here states for running the TPC-C workload. The final augrment(16) is the number of machine used, according to the hosts.xml mentioned above. 
 
