@@ -63,6 +63,7 @@ bool OCC::commit(yield_func_t &yield) {
 
   prepare_write_contents();
   log_remote(yield); // log remote using *logger_*
+
   // write the modifications of records back
   write_back_oneshot(yield);
   return true;
@@ -288,11 +289,10 @@ void OCC::log_remote(yield_func_t &yield) {
     cblock.req_buf_end_ = cblock.req_buf_ + write_batch_helper_.batch_msg_size();
     //log ack
     logger_->log_ack(cblock,cor_id_); // need to yield
+    worker_->indirect_yield(yield);
 #endif
   } // end check whether it is necessary to log
 }
-
-
 
 bool OCC::validate_reads(yield_func_t &yield) {
 

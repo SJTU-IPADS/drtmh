@@ -136,6 +136,7 @@ txn_result_t MicroWorker::micro_rdma_read(yield_func_t &yield) {
     END(post);
   }
   indirect_yield(yield);
+
   ntxn_commits_ += window_size - 1;
   return txn_result_t(true,1);
 }

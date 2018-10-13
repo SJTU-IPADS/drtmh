@@ -118,7 +118,7 @@ void BenchWorker::run() {
   exit_lock.Unlock();
 
   //BindToCore(worker_id_); // really specified to platforms
-  //binding(worker_id_);
+  binding(worker_id_);
   init_tx_ctx();
   init_routines(server_routine);
 

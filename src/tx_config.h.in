@@ -13,18 +13,24 @@
 // whether to only execute execution phase
 #cmakedefine INLINE_OVERWRITE @INLINE_OVERWRITE@
 #ifndef INLINE_OVERWRITE
-#define INLINE_OVERWRITE 0
+#define INLINE_OVERWRITE 0 // in default, not store value in the index
 #endif
 #define INLINE_OVERWRITE_MAX_PAYLOAD 16 // only can inline 16 byte data in index
 
 // whether to only execute execution phase
 #cmakedefine TX_ONLY_EXE @TX_ONLY_EXE@
+#ifndef TX_ONLY_EXE
+#define TX_ONLY_EXE 0
+#endif
 
 /**
  * 1: use RPC as logging
  * 2: use one-sided WRITE as logging
  */
 #cmakedefine TX_LOG_STYLE @TX_LOG_STYLE@
+#ifndef TX_LOG_STYLE
+#define TX_LOG_STYLE 1
+#endif
 
 // whether to use a backup store
 #cmakedefine TX_BACKUP_STORE @TX_BACKUP_STORE@
@@ -49,12 +55,12 @@
 
 #cmakedefine PA @PA@
 #ifndef PA
-#define PA 0
+#define PA 0 // in default, not using passive ack optimization, since its more tricky in buffer management
 #endif
 
 #cmakedefine OR @OR@ // outstanding requests
 #ifndef OR
-#define OR 0 // by defaut, this optimization is not used
+#define OR 0 // by defaut, outstanding requests are not used
 #endif
 
 
@@ -63,7 +69,7 @@
 
 #cmakedefine LARGE_CONNECTION @LARGE_CONNECTION@
 #ifndef LARGE_CONNECTION
-#define LARGE_CONNECTION 0
+#define LARGE_CONNECTION 0 // in default, we donot use more QPs to connect to other servers
 #endif
 
 #define QP_NUMS 5
@@ -88,10 +94,6 @@
 
 
 /*****some sanity setting *********/
-#if EM_FASST
-static_assert(!PA,"FaSST emulation does not run with passive ack optimization.");
-#endif
-
 #if RDMA_CACHE
 static_assert(ONE_SIDED_READ,"RTX's RDMA location cache must work with an RDMA friendly store.");
 #endif

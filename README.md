@@ -1,14 +1,14 @@
 ## ROCC and DrTM+H
 
-
-
 ### Intro
 
 **ROCC** provides fast and simple programming of distributed applications, especially atop of *RDMA*. ROCC has been integrated with most RDMA features, including a variety of optimizations.  ROCC's code is in `src/core`. 
 
 **DrTM+H** is a fast distributed transactional system atop of ROCC.
 
+Below are some documentations of **ROCC**, which describes the hardware setting and computation model of this project, while also includes some tutorials to demonstrate that it is very easy to write high performance RDMA applications upon on **ROCC**.
 
+* [Recommended Hardware settings](docs/rnic.md)
 
 A snippet of how to use rocc framework. Notice that ROCC is independent of DrTM+H.
 
@@ -52,28 +52,29 @@ Rfree(msg_buffer);      // can free the buffer after that
 Rfree(reply_buffer);     
 ```
 
-
-
 ------
 
 ### Build
 
-We use DrTM+H to test a transactional system's performance using ROCC. 
+We use DrTM+H to evaluate a transactional system's performance using ROCC. 
 
 **Dependencies:**
 
+For build:
 - CMake `>= version 3.0` (For compiling)
 - libtool (for complie only)
 - g++`>= 4.8`
-- Zmq and its C++ binding
 - Boost `1.61.0` (will be automatically installed by the build tool chain, since we use a specific version of Boost)
+
+For build & for run time
+- Zmq and its C++ binding
 - libibverbs 
 
 ------
 
-**Build DrTM+H:**
+**A sample of how to build DrTM+H:**
 
-- `git clone --recursive https://github.com/roccframework/rocc.git`
+- `git clone --recursive https://github.com/SJTU-IPADS/drtmh`.
 - `sudo apt-get install libzmq3-dev`
 - `sudo apt-get install libtool-bin`
 - `sudo apt-get install cmake` 
@@ -92,7 +93,7 @@ We use DrTM+H to test a transactional system's performance using ROCC.
 - `make noccocc`
 ------
 
-**Prepare:**
+**Prepare for running:**
 
 Two files, `config.xml`, `hosts.xml` must be used to configure the running of DrTM+H.  `config.xml` provides benchmark specific configuration, while `hosts.xml` provides the topology of the cluster.
 

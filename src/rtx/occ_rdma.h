@@ -93,7 +93,7 @@ class OCCR : public OCC {
     return dummy_commit();
 #endif
 
-#if 0 //USE_RDMA_COMMIT
+#if 1 //USE_RDMA_COMMIT
     if(!lock_writes_w_rdma(yield)) {
 #if !NO_ABORT
       goto ABORT;
@@ -139,7 +139,7 @@ class OCCR : public OCC {
 
     asm volatile("" ::: "memory");
 #endif
-#if 0
+#if 1
     write_back_w_rdma(yield);
 #else
     /**

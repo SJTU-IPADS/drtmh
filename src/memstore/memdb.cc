@@ -5,6 +5,8 @@
 
 #include "util/util.h"
 
+#include "third_party/cpuinfo/include/cpuinfo.h"
+
 using namespace nocc;
 
 void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_len,int num,bool need_cache) {
@@ -17,6 +19,7 @@ void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_l
 
   switch(c) {
   case TAB_BTREE:
+    ASSERT(cpuinfo_has_x86_rtm()) << "This CPU has no RTM support ! which is necessary for our B+tree.";
     stores_[tableid] = new MemstoreBPlusTree();
     break;
   case TAB_BTREE1:

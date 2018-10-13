@@ -37,7 +37,7 @@ namespace nocc {
 #define LOG_DEBUG 1
 #define LOG_EVERYTHING 0
 
-#ifndef RPCC_LOG_LEVEL
+#ifndef ROCC_LOG_LEVEL
 #define ROCC_LOG_LEVEL LOG_INFO
 #endif
 
