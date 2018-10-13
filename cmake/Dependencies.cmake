@@ -78,7 +78,7 @@ endif()
 ## CPUINFO, used for check RTM supported, from pytorch
 if (NOT TARGET cpuinfo)
   if (NOT DEFINED CPUINFO_SOURCE_DIR)
-    set(CPUINFO_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../third_party/cpuinfo" CACHE STRING "cpuinfo source directory")
+    set(CPUINFO_SOURCE_DIR "${CMAKE_SOURCE_DIR}/third_party/cpuinfo" CACHE STRING "cpuinfo source directory")
   endif()
 
   set(CPUINFO_BUILD_TOOLS OFF CACHE BOOL "")
