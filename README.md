@@ -74,7 +74,7 @@ For build & for run time
 
 **A sample of how to build DrTM+H:**
 
-- `git clone --recursive https://github.com/SJTU-IPADS/drtmh`.
+- `git clone --recursive https://github.com/SJTU-IPADS/drtmh.git`.
 - `sudo apt-get install libzmq3-dev`
 - `sudo apt-get install libtool-bin`
 - `sudo apt-get install cmake` 
