@@ -7,10 +7,11 @@ option( LINK_STATIC_LIB "Link static version of libssmalloc and libboost" true)
 set(ROCC_ROOT "." )
 #set(CMAKE_BUILD_TYPE Debug)
 
-ADD_DEFINITIONS( -std=c++0x)
+ADD_DEFINITIONS( -std=c++0x )
 
 #set(CMAKE_CXX_COMPILER g++-4.8)
 include_directories(./src)
+include_directories(.)
 
 ## third party libraries
 include_directories(third_party/sparsehash-c11)
