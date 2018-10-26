@@ -86,7 +86,7 @@ void BenchLocalListener::run() {
 #endif
 
   // first ensures all worker has initilized
-  //wait_worker_barrier(workers_);
+  wait_worker_barrier(workers_);
   inited = true;
 
   // currently, listener use UD for communication
