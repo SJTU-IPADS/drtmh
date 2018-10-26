@@ -4,14 +4,18 @@
 
 ## install Rmalloc (built from ssmalloc)
 include( ExternalProject )
-set( SSMALLOC_INSTALL_DIR ${CMAKE_SOURCE_DIR}/third_party/libRDMA)
+set(SSMALLOC_INSTALL_DIR ${CMAKE_SOURCE_DIR}/third_party/rlib)
 ExternalProject_Add( ralloc
-  SOURCE_DIR ${CMAKE_SOURCE_DIR}/third_party/libRDMA/ralloc
-  CONFIGURE_COMMAND mkdir -p ${CMAKE_SOURCE_DIR}/third_party/libRDMA/lib
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/third_party/rlib/ralloc
+  CONFIGURE_COMMAND mkdir -p  ${SSMALLOC_INSTALL_DIR}/lib
   BUILD_COMMAND make
   BUILD_IN_SOURCE 1
   INSTALL_COMMAND make install
 )
+
+## add headers
+include_directories(third_party/rlib)
+
 set( LIBSSMALLOC_HEADERS ${SSMALLOC_INSTALL_DIR} ${SSMALLOC_INSTALL_DIR}/include )
 set( LIBSSMALLOC_LIBRARIES ${SSMALLOC_INSTALL_DIR}/lib )
 
