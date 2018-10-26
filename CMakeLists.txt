@@ -57,7 +57,6 @@ file(GLOB SOURCES
 
 include(cmake/tpce.cmake)
 add_executable(noccocc ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-add_executable(rdma third_party/rlib/test_msg.cc)
 
 target_compile_options(noccocc PRIVATE "-DOCC_TX")
 
@@ -67,7 +66,7 @@ include(cmake/Dependencies.cmake)
 #
 # Configure binary linking
 #
-set(apps noccocc rdma)
+set(apps noccocc)
 foreach( prog ${apps} )
   if( LINK_STATIC_LIB )
     target_link_libraries( ${prog}
