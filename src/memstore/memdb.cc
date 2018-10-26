@@ -1,6 +1,5 @@
 #include "tx_config.h"
 #include "memdb.h"
-#include "rdma_hashext.h"
 #include "rdma_hash.hpp"
 
 #include "util/util.h"
@@ -19,7 +18,7 @@ void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_l
 
   switch(c) {
   case TAB_BTREE:
-    ASSERT(cpuinfo_has_x86_rtm()) << "This CPU has no RTM support ! which is necessary for our B+tree.";
+    //ASSERT(cpuinfo_has_x86_rtm()) << "This CPU has no RTM support ! which is necessary for our B+tree.";
     stores_[tableid] = new MemstoreBPlusTree();
     break;
   case TAB_BTREE1:
@@ -59,12 +58,12 @@ void MemDB::AddSchema(int tableid,TABLE_CLASS c,  int klen, int vlen, int meta_l
   _schemas[tableid].total_len = total_len;
 }
 
-void MemDB::EnableRemoteAccess(int tableid,rdmaio::RdmaCtrl *cm) {
+void MemDB::EnableRemoteAccess(int tableid,char *s_ptr) {
   assert(_schemas[tableid].c == TAB_HASH); // now only HashTable support remote accesses
   assert(store_buffer_ != NULL);           // the table shall be allocated on an RDMA region
   //drtm::memstore::RdmaHashExt *tab = (drtm::memstore::RdmaHashExt *)(stores_[tableid]);
   RHash *tab = (RHash *)stores_[tableid];
-  tab->enable_remote_accesses(cm);
+  tab->enable_remote_accesses(s_ptr);
 }
 
 void MemDB::AddSecondIndex(int index_id, TABLE_CLASS c, int klen) {

@@ -7,7 +7,7 @@ option( LINK_STATIC_LIB "Link static version of libssmalloc and libboost" true)
 set(ROCC_ROOT "." )
 #set(CMAKE_BUILD_TYPE Debug)
 
-ADD_DEFINITIONS( -std=c++0x )
+ADD_DEFINITIONS( -std=c++0x)
 
 #set(CMAKE_CXX_COMPILER g++-4.8)
 include_directories(./src)
@@ -38,11 +38,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLEVELDB_PLATFORM_POSIX -pthread -DOS_L
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLEVELDB_PLATFORM_POSIX -pthread -DOS_LINUX -mrtm -pthread  -O0 -g2 ${MACRO_FLAGS}")
 
 ## TODO, we shall replace it with a pre-complied lib, but since now the lib is not stable, so we just add sources here
-file(GLOB RDMA_SOURCES "third_party/libRDMA/src/*.cc" "third_party/micautil/*.cc")
+#file(GLOB RDMA_SOURCES "third_party/libRDMA/src/*.cc" "third_party/micautil/*.cc")
+file(GLOB RDMA_SOURCES  "third_party/micautil/*.cc")
 
 ## add main files
 file(GLOB SOURCES
-          "src/app/micro_benches/*.cc" "src/app/tpcc/*.cc"  "src/app/smallbank/*.cc"             # apps
+          "src/app/micro/*.cc" "src/app/tpcc/*.cc"  "src/app/smallbank/*.cc"                     # apps
+          #"src/app/micro_benches/*.cc" "src/app/tpcc/*.cc"  "src/app/smallbank/*.cc"
           "src/app/tpce/*.cc"                                                                    # apps continued
           "src/app/graph/*.cc"                                                                   # apps continued 
           "src/framework/*.cc"  "src/framework/utils/*.cc"                                       # framework
@@ -55,24 +57,9 @@ file(GLOB SOURCES
 
 include(cmake/tpce.cmake)
 add_executable(noccocc ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
+add_executable(rdma third_party/rlib/test_msg.cc)
+
 target_compile_options(noccocc PRIVATE "-DOCC_TX")
-
-add_executable(noccsi ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(noccsi PRIVATE "-DSI_TX")
-
-add_executable(noccfarm ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(noccfarm PRIVATE "-DFARM")
-
-add_executable(noccrad ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(noccrad PRIVATE "-DRAD_TX")
-
-## Micro with one-sided RDMA
-add_executable(nn ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(nn PRIVATE "-DRPC=0" "-DOCC_TX")
-
-# Micro with RDMA RPC
-add_executable(nr ${SOURCES} ${TPCE_SOURCES} ${RDMA_SOURCES})
-target_compile_options(nr PRIVATE "-DRPC=1" "-DOCC_TX")
 
 ## Install static dependencies
 include(cmake/Dependencies.cmake)
@@ -80,7 +67,7 @@ include(cmake/Dependencies.cmake)
 #
 # Configure binary linking
 #
-set( apps noccrad noccocc noccsi noccfarm nn nr )
+set(apps noccocc rdma)
 foreach( prog ${apps} )
   if( LINK_STATIC_LIB )
     target_link_libraries( ${prog}
@@ -103,8 +90,6 @@ endforeach( prog )
 # for the ease of running
 set(CMAKE_INSTALL_PREFIX ./)
 install(TARGETS noccocc  DESTINATION scripts) 
-install(TARGETS noccfarm DESTINATION scripts)
-install(TARGETS noccsi   DESTINATION scripts)
 
 
 ## for tests

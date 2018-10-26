@@ -1,9 +1,6 @@
 #include "tx_config.h"
 
 #include "tpcc_worker.h"
-#include "db/txs/dbtx.h"
-#include "db/txs/dbsi.h"
-#include "db/txs/dbrad.h"
 
 #include <set>
 
@@ -12,11 +9,7 @@ using namespace std;
 extern int verbose;
 
 namespace nocc {
-
-using namespace db;
-
 namespace oltp {
-
 namespace tpcc {
 
 void convertString(char *newstring, const char *oldstring, int size) {
@@ -467,7 +460,7 @@ void TpccStockLoader::load() {
           assert(sizeof(stock::value) < INLINE_OVERWRITE_MAX_PAYLOAD);
           memcpy(node->padding,v,sizeof(stock::value));
 #else
-          node->off = (uint64_t)wrapper - (uint64_t)(cm->conn_buf_);
+          node->off = (uint64_t)wrapper - (uint64_t)(rdma_buffer);
           assert(node->off != 0);
 #endif
         }

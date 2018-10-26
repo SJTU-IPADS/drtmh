@@ -6,14 +6,10 @@
 
 #include "bank_schema.h"
 #include "bank_worker.h"
-#include "bank_log_cleaner.h"
-
-#include "db/txs/dbsi.h"
-#include "db/txs/ts_manager.hpp"
 
 #include "framework/bench_runner.h"
 
-#include "rdmaio.h"
+#include "rdma_ctrl.hpp"
 using namespace rdmaio;
 
 #include <boost/foreach.hpp>
@@ -33,6 +29,7 @@ extern size_t total_partition;
 extern int verbose;
 
 extern uint64_t ops_per_worker;
+extern std::vector<std::string> cluster_topology;
 
 namespace nocc {
 
@@ -41,6 +38,9 @@ namespace oltp {
 
 extern char *store_buffer; // the buffer used to store DrTM-kv
 extern MemDB *backup_stores_[MAX_BACKUP_NUM];
+
+extern char *rdma_buffer;
+extern uint64_t r_buffer_size;
 
 namespace bank {
 
@@ -80,7 +80,6 @@ class BankMainRunner : public BenchRunner  {
   virtual void init_put() {}
   virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store = NULL);
   virtual std::vector<RWorker *> make_workers();
-  virtual std::vector<BackupBenchWorker *> make_backup_workers();
   virtual void init_store(MemDB* &store);
   virtual void init_backup_store(MemDB* &store);
   virtual void populate_cache();
@@ -139,7 +138,7 @@ void BankMainRunner::init_store(MemDB* &store){
   // Should not give store_buffer to backup MemDB!
   store = new MemDB(store_buffer);
 
-  int meta_size = META_SIZE;
+  int meta_size = META_LENGTH;
 #if ONE_SIDED_READ
   meta_size = sizeof(rtx::RdmaValHeader);
 #endif
@@ -152,15 +151,15 @@ void BankMainRunner::init_store(MemDB* &store){
 
 #if ONE_SIDED_READ == 1
   //store->EnableRemoteAccess(ACCT,cm);
-  store->EnableRemoteAccess(SAV,cm);
-  store->EnableRemoteAccess(CHECK,cm);
+  store->EnableRemoteAccess(SAV,rdma_buffer);
+  store->EnableRemoteAccess(CHECK,rdma_buffer);
 #endif
 }
 
 void BankMainRunner::init_backup_store(MemDB* &store){
   assert(store == NULL);
   store = new MemDB();
-  int meta_size = META_SIZE;
+  int meta_size = META_LENGTH;
 
 #if ONE_SIDED_READ
   meta_size = sizeof(rtx::RdmaValHeader);
@@ -250,7 +249,7 @@ class BankLoader : public BenchLoader {
       s->s_balance = balance_s;
       auto node = store_->Put(SAV,i,(uint64_t *)wrapper_saving,sizeof(savings::value));
       if(is_primary_ && ONE_SIDED_READ) {
-        node->off = (uint64_t)wrapper_saving - (uint64_t)(cm->conn_buf_);
+        node->off = (uint64_t)wrapper_saving - (uint64_t)(rdma_buffer);
         ASSERT(node->off % sizeof(uint64_t) == 0) << "saving value size " << save_size;
       }
 
@@ -263,7 +262,7 @@ class BankLoader : public BenchLoader {
         LOG(3) << "check cv balance " << c->c_balance;
 
       if(is_primary_ && ONE_SIDED_READ) {
-        node->off =  (uint64_t)wrapper_check - (uint64_t)(cm->conn_buf_);
+        node->off =  (uint64_t)wrapper_check - (uint64_t)(rdma_buffer);
         ASSERT(node->off % sizeof(uint64_t) == 0) << "check value size " << check_size;
       }
 
@@ -274,33 +273,6 @@ class BankLoader : public BenchLoader {
   }
 
   void check_remote_traverse() {
-    // check remote traverse, if possible
-    char *rbuf = (char *)(cm->conn_buf_);
-
-    int dev_id = cm->get_active_dev(0);
-    int port_idx = cm->get_active_port(0);
-
-    cm->thread_local_init();
-    cm->open_device(dev_id);
-    cm->register_connect_mr(dev_id); // register memory on the specific device
-
-    cm->link_connect_qps(nthreads + nthreads + 1,dev_id,port_idx,0,IBV_QPT_RC);
-
-    Qp *qp = cm->get_rc_qp(nthreads + nthreads + 1,current_partition,0);
-
-    for(uint i = 0;i <= NumAccounts();++i) {
-
-      uint64_t pid = AcctToPid(i);
-      if(pid != current_partition) continue;
-
-      // fetch
-      MemNode *res_local = store_->stores_[CHECK]->Get(i);
-      MemNode remote_node;
-      uint64_t remote_off = store_->stores_[CHECK]->RemoteTraverse(i,qp,(char *)(&remote_node));
-      assert((rbuf + remote_off) == (char *)res_local);
-      assert(memcmp((char *)res_local,(char *)(&remote_node),sizeof(MemNode)) == 0);
-    }
-    fprintf(stdout,"check passed!\n");
   }
 };
 
@@ -335,37 +307,11 @@ std::vector<RWorker *> BankMainRunner::make_workers() {
   return ret;
 }
 
-std::vector<BackupBenchWorker *> BankMainRunner::make_backup_workers() {
-  std::vector<BackupBenchWorker *> ret;
-  assert(false);
-  int num_backups = my_view->is_backup(current_partition);
-  LogCleaner* log_cleaner = new BankLogCleaner;
-  for(uint j = 0; j < num_backups; j++){
-    assert(backup_stores_[j] != NULL);
-    log_cleaner->add_backup_store(backup_stores_[j]);
-  }
-
-  DBLogger::set_log_cleaner(log_cleaner);
-  for(uint i = 0; i < backup_nthreads; i++){
-    ret.push_back(new BackupBenchWorker(i));
-  }
-  return ret;
-}
-
 void BankMainRunner::populate_cache() {
 
 #if ONE_SIDED_READ == 1 && RDMA_CACHE == 1
-  LOG(2) << "loading cache.";
 
-  // create a temporal QP for usage
-  int dev_id = cm->get_active_dev(0);
-  int port_idx = cm->get_active_port(0);
-
-  cm->thread_local_init();
-  cm->open_device(dev_id);
-  cm->register_connect_mr(dev_id); // register memory on the specific device
-
-  cm->link_connect_qps(nthreads + nthreads + 1,dev_id,port_idx,0,IBV_QPT_RC);
+  LOG(2) << "loading smallbank's cache.";
 
   // calculate the time of populating the cache
   struct  timeval start;
@@ -376,16 +322,23 @@ void BankMainRunner::populate_cache() {
   auto db = store_;
   char *temp = (char *)Rmalloc(256);
 
+  int wid = nthreads + nthreads + 1;
+  RdmaCtrl::DevIdx nic_idx = cm->convert_port_idx(0);  // use the zero nic
+  ASSERT(cm->open_device(nic_idx) != nullptr);
+  ASSERT(cm->register_memory(wid,rdma_buffer,r_buffer_size,cm->get_device()) == true);
+  cm->link_symmetric_rcqps(cluster_topology,
+                            wid, // local mr_id
+                            wid, // mr_id
+                            wid  /* as thread id */);
+
   for(uint64_t i = 0;i <= NumAccounts();++i) {
 
     auto pid = AcctToPid(i);
 
-    auto off = db->stores_[CHECK]->RemoteTraverse(i,
-                                                  cm->get_rc_qp(nthreads + nthreads + 1,pid,0),temp);
+    auto off = db->stores_[CHECK]->RemoteTraverse(i,cm->get_rc_qp(create_rc_idx(pid,wid)),temp);
     assert(off != 0);
 
-    off = db->stores_[SAV]->RemoteTraverse(i,
-                                           cm->get_rc_qp(nthreads + nthreads + 1,pid,0),temp);
+    off = db->stores_[SAV]->RemoteTraverse(i,cm->get_rc_qp(create_rc_idx(pid,wid)),temp);
     assert(off != 0);
 
     if(i % (total_partition * 10000) == 0)

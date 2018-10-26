@@ -247,10 +247,6 @@ txn_result_t TpccWorker::txn_new_order_new(yield_func_t &yield) {
   return txn_result_t(res,1);
 }
 
-txn_result_t TpccWorker::txn_super_stocklevel_new(yield_func_t &yield) {
-  return txn_result_t(true,1);
-}
-
 TpccWorker::~TpccWorker() {
 
 }

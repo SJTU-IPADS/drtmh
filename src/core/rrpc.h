@@ -5,9 +5,9 @@
 
 #include "all.h"
 #include "framework/config.h" // to be fixed later!
-#include "msg_handler.h"
+#include "msg_interface.hpp"
 
-#include "ralloc.h" // RDMA malloc
+#include "rpc_buf_allocator.hpp"
 
 #include "logging.h"
 
@@ -15,7 +15,6 @@
 
 #include <functional>
 
-//
 namespace nocc {
 
 namespace oltp {
@@ -60,9 +59,9 @@ class RRpc {
     return reply_counts_[cid];
   }
 
-  void set_msg_handler(rdmaio::MsgHandler *msg) {
+  void set_msg_handler(rdmaio::MsgAdapter *msg) {
     msg_handler_ = msg;
-    msg_padding_ = msg->msg_padding();
+    msg_padding_ = msg->msg_meta_len();
   }
 
   void register_callback(rpc_func_t callback,int id,bool overwrite = false) {
@@ -83,7 +82,9 @@ class RRpc {
   bool  poll_comp_callback(char *msg,int nid,int tid);
 
   // Meta-data reserved for each message. It includes a header, and some implementation specific padding
-  inline int rpc_padding() const { return msg_padding_ + sizeof(rrpc_header);}
+  inline int rpc_padding() const {
+    return msg_padding_ + sizeof(rrpc_header);
+  }
 
   // Get a buffer for sending RPC request. The buffer will not be allocate to other
   inline char *get_static_buf(int size) {
@@ -92,19 +93,19 @@ class RRpc {
     return res;
   }
 
-  inline void  free_static_buf(char *ptr) { Rfree(ptr - rpc_padding());}
+  inline void  free_static_buf(char *ptr) {
+    Rfree(ptr - rpc_padding());
+  }
 
   // Get a reply buffer for the RPC handler
   inline char *get_reply_buf() {
-    auto res = reply_buf_pool_[(reply_buf_slot_++) % reply_buf_pool_.size()];
-    return res + rpc_padding();
+    return allocator_.get_reply_buf() + rpc_padding();
   }
 
   // Get a buffer for sending RPC request.
   // This buffer can be re-used.
   inline char *get_fly_buf(int cid) {
-    char *res = req_buf_pool_[cid][(req_buf_slots_[cid]++) % req_buf_pool_[cid].size()];
-    return res + rpc_padding();
+    return allocator_.get_fly_buf(cid) + rpc_padding();
   }
 
   inline void prepare_header(char *msg, int rpc_id,int size,int cid,int type) {
@@ -145,11 +146,13 @@ class RRpc {
                                  int rpc_id,int size,int cid,int type,
                                  int server_id,int server_tid) {
     prepare_header(msg,rpc_id,size,cid,type);
-    msg_handler_->post_pending(server_id,server_tid,
+    msg_handler_->send_pending(server_id,server_tid,
                                (char *)(msg - rpc_padding()),size + sizeof(rrpc_header));
   }
 
-  inline void flush_pending() { msg_handler_->flush_pending(); }
+  inline void flush_pending() {
+    msg_handler_->flush_pending();
+  }
 
   inline void broadcast_to(char *msg,
                            int rpc_id, int size,int cid,int type,
@@ -175,9 +178,9 @@ class RRpc {
 
   // uses a specific handler to send the reply
   inline void send_reply(char *msg,int size,int server_id,int server_tid,int cid,
-                         rdmaio::MsgHandler *handler) {
+                         rdmaio::MsgAdapter *handler) {
     prepare_header(msg,0,size,cid,REPLY);
-    handler->post_pending(server_id,server_tid,
+    handler->send_pending(server_id,server_tid,
                           (char *)(msg - rpc_padding()),size + sizeof(rrpc_header));
   }
 
@@ -185,25 +188,19 @@ class RRpc {
   const int worker_id_;
 
  private:
+  // RPC register information
   rpc_func_t callbacks_[MAX_RPC_SUPPORT];
   bool       register_[MAX_RPC_SUPPORT];
 
   // msg handler related structures
-  int8_t msg_padding_;
-  rdmaio::MsgHandler * msg_handler_;
+  uint8_t msg_padding_;
+  rdmaio::MsgAdapter * msg_handler_;
 
-  // buffer pools
-  std::vector<char *> reply_buf_pool_;
-  std::vector<std::vector<char *> >req_buf_pool_;
-  uint16_t reply_buf_slot_ = 0;
-  std::vector<uint8_t> req_buf_slots_;
+  // reply data structures, used for storing buffer of replies
+  char        **reply_bufs_ ;          // registered buffer for each coroutine
+  static __thread int *reply_counts_;  // pending replies for each coroutine
 
-  // reply data structures, used for replying message
-  char        **reply_bufs_ ;
-  static __thread int *reply_counts_;
-
-  // some statics count
-  uint64_t processed_rpc_ = 0;
+  RPCBufAllocator allocator_;
 
   friend class RScheduler;
   DISABLE_COPY_AND_ASSIGN(RRpc);

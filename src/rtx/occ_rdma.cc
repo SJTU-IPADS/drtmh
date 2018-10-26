@@ -17,8 +17,7 @@ bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
       auto off = (*it).off;
 
       // post RDMA requests
-      //Qp *qp = qp_vec_[(*it).pid];
-      Qp *qp = get_qp((*it).pid);
+      RCQP *qp = get_qp((*it).pid);
       assert(qp != NULL);
 
 #if INLINE_OVERWRITE
@@ -36,7 +35,7 @@ bool OCCR::lock_writes_w_rdma(yield_func_t &yield) {
       req.post_reqs(scheduler_,qp);
 
       // two request need to be polled
-      if(unlikely(qp->rc_need_poll())) {
+      if(unlikely(qp->need_poll())) {
         worker_->indirect_yield(yield);
       }
       write_batch_helper_.mac_set_.insert(it->pid);
@@ -87,8 +86,7 @@ void OCCR::release_writes_w_rdma(yield_func_t &yield) {
     if((*it).pid != node_id_) {
       MemNode *node = (MemNode *)((*it).data_ptr - sizeof(MemNode));
       if(node->lock == 0) { // successfull locked
-        //Qp *qp = qp_vec_[(*it).pid];
-        Qp *qp = get_qp((*it).pid);
+        RCQP *qp = get_qp((*it).pid);
         assert(qp != NULL);
         node->lock = 0;
         scheduler_->post_send(qp,cor_id_,IBV_WR_RDMA_WRITE,(char *)(node),sizeof(uint64_t),
@@ -120,8 +118,7 @@ void OCCR::write_back_w_rdma(yield_func_t &yield) {
 #else
       RdmaValHeader *node = (RdmaValHeader *)((*it).data_ptr - sizeof(RdmaValHeader));
 #endif
-      //Qp *qp = qp_vec_[(*it).pid];
-      Qp *qp = get_qp((*it).pid);
+      RCQP *qp = get_qp((*it).pid);
       assert(qp != NULL);
 
       node->seq = (*it).seq + 2; // update the seq
@@ -132,7 +129,7 @@ void OCCR::write_back_w_rdma(yield_func_t &yield) {
       req.post_reqs(scheduler_,qp);
 
       // avoid send queue from overflow
-      if(unlikely(qp->rc_need_poll())) {
+      if(unlikely(qp->need_poll())) {
         worker_->indirect_yield(yield);
       }
 
@@ -156,8 +153,7 @@ bool OCCR::validate_reads_w_rdma(yield_func_t &yield) {
       RdmaValHeader *node = (RdmaValHeader *)((*it).data_ptr - sizeof(RdmaValHeader));
       it->seq = node->seq;
 #endif
-      //Qp *qp = qp_vec_[(*it).pid];
-      Qp *qp = get_qp((*it).pid);
+      RCQP *qp = get_qp((*it).pid);
       assert(qp != NULL);
 
       scheduler_->post_send(qp,cor_id_,

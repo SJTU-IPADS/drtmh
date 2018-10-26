@@ -5,15 +5,14 @@
 #include "./app/config.h"  // application specific config
 #include "tx_config.h"
 
-#include "framework/backup_worker.h"
 #include "framework/bench_worker.h"
-#include "db/txs/tx_handler.h"
 
 #include "core/utils/latency_profier.h"
 
 #define MAX_REQ_NUM 100
 
 extern size_t current_partition;
+using namespace std;
 
 namespace nocc {
 
@@ -295,7 +294,7 @@ namespace nocc {
 				uint64_t *addrs;
 				uint64_t *rkeys;
 
-				vector<Qp*> qps_;
+				vector<RCQP*> qps_;
 				vector<bool> need_polls_;
 				char* rdma_buf_; // buf used to send RDMA requests
 

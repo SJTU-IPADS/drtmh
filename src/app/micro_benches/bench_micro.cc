@@ -6,14 +6,11 @@
 
 #include "util/mapped_log.h"
 
-#include "db/txs/dbrad.h"
-#include "db/txs/dbtx.h"
-#include "db/txs/dbsi.h"
-#include "db/txs/db_farm.h"
-
 #include "framework/bench_runner.h"
 
 #include "../smallbank/bank_worker.h" // use the smallbank workload for test
+
+#define RPC 1
 
 // for parsing config xml
 #include <boost/foreach.hpp>
@@ -33,6 +30,7 @@ extern size_t distributed_ratio;
 using namespace rdmaio;
 
 extern __thread MappedLog local_log;
+extern std::vector<std::string> cluster_topology;
 
 namespace nocc {
 
@@ -93,9 +91,6 @@ class MicroMainRunner : public BenchRunner {
 	virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store){
 		return std::vector<BenchLoader *>();
 	}
-	virtual std::vector<BackupBenchWorker *> make_backup_workers() {
-		return std::vector<BackupBenchWorker *> ();
-	}
 	virtual void init_store(MemDB* &store) { store = new MemDB(); assert(store_ != NULL);}
 	virtual void init_backup_store(MemDB* &store) {}
 	virtual std::vector<RWorker *> make_workers();
@@ -107,47 +102,6 @@ class MicroMainRunner : public BenchRunner {
 
 	virtual void init_put() {
 
-		if(micro_type != MICRO_TX_RAD && micro_type != MICRO_TX_RW && micro_type != MICRO_TX_READ)
-			return; // only TX workloads requires populate the database
-		assert(store_ != NULL);
-		int meta_size = META_SIZE;
-		store_->AddSchema(TAB,TAB_HASH,sizeof(uint64_t),CACHE_LINE_SZ,META_SIZE);
-		using namespace nocc::oltp::bank;
-
-		scale_factor = 1;
-		fprintf(stdout,"[MICRO] %d accounts total loaded\n",NumAccounts());
-
-		uint64_t account_per_mac = NumAccounts() / total_partition;
-
-		fast_random r;
-		r.set_seed0(current_partition * 73 + 1);
-#if 1
-		for(uint64_t i = account_per_mac * current_partition,k(0);
-			k < account_per_mac;++i,++k){
-
-			char *wrapper_acct = new char[meta_size + CACHE_LINE_SZ];
-			assert(wrapper_acct != NULL);
-			memset(wrapper_acct,0,meta_size);
-			store_->Put(TAB,i,(uint64_t *)wrapper_acct);
-
-
-			// set a random seq
-#if SI_TX
-			MemNode *node = store_->stores_[TAB]->GetWithInsert(i);
-			uint64_t id = r.next() % total_partition;
-			node->seq = SI_ENCODE_TS(id,2);
-#endif
-		}
-#else
-		for(uint i = 0;i < NumAccounts();++i) {
-			int pid = AcctToPid(i);
-			if(pid != current_partition) continue;
-			char *wrapper_acct = new char[meta_size + CACHE_LINE_SZ];
-			assert(wrapper_acct != NULL);
-			memset(wrapper_acct,0,meta_size);
-			store_->Put(TAB,i,(uint64_t *)wrapper_acct);
-		}
-#endif
 	}
 
 };
@@ -203,17 +157,9 @@ void MicroWorker::thread_local_init() {
 		case MICRO_RDMA_READ_MULTI:
 		case MICRO_RDMA_SCHED:
 			{
-				// connecting QPs
-				for(uint i = 0;i < cm_->get_num_nodes();++i) {
-					Qp *qp = cm_->get_rc_qp(worker_id_,i,0);
-					//Qp *qp = cm_->get_rc_qp(worker_id_ + 8,i,1);
-					qps_.push_back(qp);
-				}
-				//rdma_buf_ = (char*)Rmalloc(4096);
 				break;
 			}
 		case MICRO_LOGGER_WRITE: {
-			assert(db_logger_ != NULL);
 			break;
 		}
 		case MICRO_TS_STRSS:
@@ -221,28 +167,6 @@ void MicroWorker::thread_local_init() {
 		case MICRO_TX_RW:
 		case MICRO_TX_READ:
 			{
-				// init tx data structures
-				for(uint i = 0;i < server_routine + 1;++i) {
-#ifdef RAD_TX
-					txs_[i] = new DBRad(store_,worker_id_,rpc_,i);
-#elif defined(OCC_TX)
-					txs_[i] = new DBTX(store_,worker_id_,rpc_,i);
-#elif defined(FARM)
-					txs_[i] = new DBFarm(cm,rdma_sched_,store_,worker_id_,rpc_,i);
-#elif defined(SI_TX)
-					txs_[i] = new DBSI(store_,worker_id_,rpc_,i);
-#else
-					ASSERT_PRINT(false,stdout,"No transactional layer used.\n");
-#endif
-				} // end init tx handlers for coroutines
-				tx_ = txs_[cor_id_];
-				// connecting QPs
-#if 0
-				for(uint i = 0;i < cm_->get_num_nodes();++i) {
-					Qp *qp = cm_->get_rc_qp(worker_id_,i,1);
-					qps_.push_back(qp);
-				}
-#endif
 
 			}
 			break;

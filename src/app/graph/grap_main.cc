@@ -3,10 +3,6 @@
 #include "graph_util.hpp"
 #include "real_distribution.hpp"
 
-#include "rdmaio.h"
-
-#include "db/txs/dbsi.h"
-
 #include "framework/bench_runner.h"
 
 #include "util/util.h"
@@ -43,7 +39,6 @@ namespace nocc {
 
       virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store = NULL);
       virtual std::vector<RWorker *> make_workers();
-      virtual std::vector<BackupBenchWorker *> make_backup_workers();
       virtual void init_store(MemDB* &store) { }
       virtual void init_backup_store(MemDB* &store) { }
       virtual void populate_cache() { }
@@ -78,11 +73,6 @@ namespace nocc {
 
     std::vector<RWorker *> GraphRunner::make_workers() {
       std::vector<RWorker *> res;
-      return res;
-    }
-
-    std::vector<BackupBenchWorker *> GraphRunner::make_backup_workers() {
-      std::vector<BackupBenchWorker *> res;
       return res;
     }
 

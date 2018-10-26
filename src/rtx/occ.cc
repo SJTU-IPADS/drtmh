@@ -20,7 +20,7 @@ OCC::OCC(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int cid,int r
     cor_id_(cid),response_node_(nid)
 {
   if(worker_id_ == 0 && cor_id_ == 0)
-    LOG(3) << "Baseline OCC.";
+    LOG(4) << "Baseline OCC.";
   register_default_rpc_handlers();
   memset(reply_buf_,0,MAX_MSG_SIZE);
 

@@ -15,9 +15,6 @@
 #include "egen/MiscConsts.h"
 #include "egen/DM.h"
 
-#include "db/txs/dbsi.h"
-#include "db/txs/dbrad.h"
-
 // for parsing config xml
 #include <boost/foreach.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -35,12 +32,15 @@ extern size_t nclients;
 extern size_t nthreads;
 extern size_t current_partition;
 extern size_t total_partition;
+extern std::vector<std::string> cluster_topology;
 
 namespace nocc {
 
 namespace oltp {
 
 extern char *store_buffer; // the buffer used to store DrTM-kv
+extern char *rdma_buffer;
+extern uint64_t r_buffer_size;
 
 namespace tpce {
 
@@ -130,7 +130,6 @@ class TpceMainRunner : public BenchRunner {
   virtual void init_put();
   virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store = NULL);
   virtual std::vector<RWorker *> make_workers();
-  virtual std::vector<BackupBenchWorker *> make_backup_workers();
   virtual void init_store(MemDB* &store);
   virtual void init_backup_store(MemDB* &store) {}
   virtual void warmup_buffer(char *);
@@ -140,14 +139,14 @@ class TpceMainRunner : public BenchRunner {
   virtual void populate_cache() {
 #if RDMA_CACHE == 1
     // create a temporal QP for usage
-    int dev_id = cm->get_active_dev(0);
-    int port_idx = cm->get_active_port(0);
-
-    cm->thread_local_init();
-    cm->open_device(dev_id);
-    cm->register_connect_mr(dev_id); // register memory on the specific device
-
-    cm->link_connect_qps(nthreads + nthreads + 1,dev_id,port_idx,0,IBV_QPT_RC);
+    int wid = nthreads + nthreads + 1;
+    RdmaCtrl::DevIdx nic_idx = cm->convert_port_idx(0);  // use the zero nic
+    ASSERT(cm->open_device(nic_idx) != nullptr);
+    ASSERT(cm->register_memory(wid,rdma_buffer,r_buffer_size,cm->get_device()) == true);
+    cm->link_symmetric_rcqps(cluster_topology,
+                             wid, // local mr_id
+                             wid, // mr_id
+                             wid  /* Thread id */);
 
     // calculate the time of populating the cache
     struct  timeval start;
@@ -163,7 +162,7 @@ class TpceMainRunner : public BenchRunner {
       uint64_t id = it->second;
       int pid = companyToPartition(SecurityToCompany[symbl]);
       auto off = store_->stores_[LT1]->RemoteTraverse(id,
-                                                  cm->get_rc_qp(nthreads + nthreads + 1,pid,0),temp);
+                                                      cm->get_rc_qp(create_rc_idx(pid,wid)),temp);
       assert(off != 0);
     }
     Rfree(temp);
@@ -185,13 +184,7 @@ void TpceTest(int argc, char **argv) {
 void TpceMainRunner::init_store(MemDB* &store){
   assert(store == NULL);
   store = new MemDB(store_buffer);
-  int meta_size = META_SIZE;
-#if RAD_TX
-  meta_size = radGetMetalen();
-#endif
-#if SI_TX
-  meta_size = SI_META_LEN;
-#endif
+  int meta_size = META_LENGTH;
   store->AddSchema(BROKER, TAB_BTREE,sizeof(uint64_t), sizeof(broker::value),meta_size);
   store->AddSchema(TRADETYPE,TAB_BTREE,sizeof(uint64_t),sizeof(trade_type::value),meta_size);
   store->AddSchema(CHARGE,TAB_BTREE,sizeof(uint64_t),sizeof(charge::value),meta_size);
@@ -202,7 +195,7 @@ void TpceMainRunner::init_store(MemDB* &store){
   store->AddSchema(LT1,TAB_HASH,sizeof(uint64_t),sizeof(last_trade::value),meta_size,
                    10000 /* expected number */);
 #if ONE_SIDED_READ == 1
-  store->EnableRemoteAccess(LT1,cm);
+  store->EnableRemoteAccess(LT1,rdma_buffer);
 #endif
 
   store->AddSchema(HOLDING, TAB_BTREE1,5,sizeof(holding::value), meta_size);
@@ -331,14 +324,11 @@ std::vector<RWorker *> TpceMainRunner::make_workers() {
   return ret;
 }
 
-std::vector<BackupBenchWorker *> TpceMainRunner::make_backup_workers() {
-  return std::vector<BackupBenchWorker *> ();
-}
 
 void TpceMainRunner::warmup_buffer(char *buffer) {
 }
 
-};
+} // namespace tpce
 
 };
 };

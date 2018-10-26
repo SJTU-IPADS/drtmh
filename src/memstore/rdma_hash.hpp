@@ -56,7 +56,7 @@ class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM
     return _GetWithInsert(key,(char *)val);
   }
 
-  uint64_t RemoteTraverse(uint64_t key,rdmaio::Qp *qp,
+  uint64_t RemoteTraverse(uint64_t key,rdmaio::RCQP *qp,
                           nocc::oltp::RScheduler *sched, yield_func_t &yield,char *val) {
 #if RDMA_CACHE
     //auto res = *(loc_cache_->get(key));
@@ -67,7 +67,7 @@ class RHash : public Memstore, public drtm::ClusterHash<MemNode,DRTM_CLUSTER_NUM
 #endif
   }
 
-  uint64_t RemoteTraverse(uint64_t key,rdmaio::Qp *qp,
+  uint64_t RemoteTraverse(uint64_t key,rdmaio::RCQP *qp,
                           char *val) {
     auto res = remote_get(key,qp,val);
 #if RDMA_CACHE

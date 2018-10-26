@@ -11,6 +11,8 @@
 
 namespace nocc {
 
+#define MAX_BACKUP_NUM 2
+
 namespace rtx {
 
 class RdmaChecker;
@@ -61,11 +63,11 @@ class Logger {
     cleaner_.add_backup_store(id,backup_store);
   }
 
- protected:
+ public:
   LogMemManager      mem_;
   DefaultLogCleaner  cleaner_;
-  RRpc *rpc_handler_ = NULL;
-  char *reply_buf_   = NULL;
+  RRpc *rpc_handler_ = nullptr;
+  char *reply_buf_   = nullptr;
 
  private:
   const int ack_rpc_id_;

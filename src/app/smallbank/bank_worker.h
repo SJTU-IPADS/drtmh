@@ -11,13 +11,10 @@
 
 #include "memstore/memdb.h"
 
-#include "framework/backup_worker.h"
 #include "framework/bench_worker.h"
 #include "framework/utils/util.h"
 
-#include "db/txs/tx_handler.h"
-
-#include "micautil/hash.h" // ensure the distribution is the same as FaSST
+#include "micautil/hash.h" // for smallbank's distribution
 #include <string>
 
 #define DEFAULT_NUM_ACCOUNTS 100000  // Accounts per partition
@@ -27,21 +24,13 @@
 
 #define TX_HOT 90 // Percentage of txns that use accounts from hotspot
 
-
 extern size_t total_partition;
 //using namespace util;
 namespace nocc {
 namespace oltp {
 namespace bank {
 
-struct balance_req_header {
-  uint64_t id;
-#ifdef SI_TX
-  uint64_t ts_vec[16];
-#else
-  uint64_t time;
-#endif
-};
+#define META_LENGTH 16
 
 void BankTest(int argc,char **argv);
 
@@ -76,25 +65,17 @@ class BankWorker : public BenchWorker {
   BankWorker(unsigned int worker_id,unsigned long seed,MemDB *db,uint64_t total_ops,
              spin_barrier *a, spin_barrier *b,BenchRunner *context);
 
-  txn_result_t txn_send_payment(yield_func_t & yield) ;
   txn_result_t txn_sp_new(yield_func_t &yield);
 
-  txn_result_t txn_deposit_checking(yield_func_t &yield);
   txn_result_t txn_dc_new(yield_func_t &yield);
 
-  txn_result_t txn_balance2(yield_func_t &yield);
   txn_result_t txn_balance_new(yield_func_t &yield);
 
-  txn_result_t txn_transact_savings(yield_func_t &yield);
   txn_result_t txn_ts_new(yield_func_t &yield);
 
-  txn_result_t txn_write_check(yield_func_t &yield);
   txn_result_t txn_wc_new(yield_func_t &yield);
 
-  txn_result_t txn_amal(yield_func_t &yield);
   txn_result_t txn_amal_new(yield_func_t &yield);
-
-  void balance_piece(int id,int cid,char *input,yield_func_t &yield);
 
   void exit_report() {
     LOG(4) << "worker exit.";

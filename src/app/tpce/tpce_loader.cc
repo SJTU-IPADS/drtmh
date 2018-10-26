@@ -1,8 +1,6 @@
 #include "tpce_worker.h"
 #include "tpce_loader_factory.h"
 
-#include "db/txs/dbtx.h"
-
 #include "core/logging.h"
 
 /* leverages this for TPCE file loading */
@@ -710,7 +708,7 @@ class TpceLTLoader : public CBaseLoader<LAST_TRADE_ROW>, public TpceMixin {
 
       auto node = store_->Put(LT1,mapped_key,(uint64_t *)se_wrapper2);
       assert(node != NULL);
-      node->off = (uint64_t)se_wrapper2 - (uint64_t)(cm->conn_buf_);
+      node->off = (uint64_t)se_wrapper2 - (uint64_t)(rdma_buffer);
       ASSERT(node->off != 0);
     }
     delete (uint64_t *)sec_key;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/rdma_sched.h"
-#include "rdmaio.h"
 
 namespace nocc {
 namespace rtx {
@@ -19,7 +18,7 @@ class RDMALogger : public Logger {
        scheduler_(rdma_sched)
   {
     // init local QP vector
-    fill_qp_vec(cm,worker_id_);
+    fill_qp_vec(cm,ms,worker_id_);
   }
 
   inline void log_remote(BatchOpCtrlBlock &clk, int cor_id) {
@@ -29,7 +28,6 @@ class RDMALogger : public Logger {
     // post the log to remote servers
     for(auto it = clk.mac_set_.begin();it != clk.mac_set_.end();++it) {
       int  mac_id = *it;
-      //auto qp = qp_vec_[mac_id];
       auto qp = get_qp(mac_id);
       auto off = mem_.get_remote_log_offset(node_id_,worker_id_,mac_id,size);
       assert(off != 0);

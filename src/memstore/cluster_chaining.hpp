@@ -4,13 +4,10 @@
 
 #include "memstore.h"
 
-#include "rdmaio.h" // for QP operations
-#include "ralloc.h" // for RDMA mallocs
+#include "ralloc/ralloc.h"      // for RDMA malloc
 
 #include "core/rdma_sched.h"
 #include "core/routine.h"
-
-#include "util/util.h"
 
 namespace nocc {
 
@@ -36,7 +33,7 @@ class ClusterHash {
   struct HeaderNode {
     Key keys[DRTM_CLUSTER_NUM];
     Data datas[DRTM_CLUSTER_NUM];
-    int32_t next;
+    uint32_t next;
   };
 
   ClusterHash(int expected_data, char *val = NULL)
@@ -49,6 +46,7 @@ class ClusterHash {
   {
     assert(indirect_num_ > 0);
     size_ = (indirect_num_ + logical_num_) * sizeof(HeaderNode);
+    //size_ = Round<uint64_t>(size_,4 * 1024 * 1024); // align to 4K
 
     // a null hash table
     if(size_ == 0) {
@@ -63,7 +61,7 @@ class ClusterHash {
       else
         data_ptr_ = (char *)malloc(size_);
     }
-    //fprintf(stdout,"[CLUSTER] Init hash table with size %d\n",size_);
+    LOG(0) << "init hash table w size " << size_ << " " << (char *)data_ptr_;
     // zeroing
     assert(data_ptr_ != NULL);
     memset(data_ptr_,0,size_);
@@ -79,13 +77,12 @@ class ClusterHash {
     return size_;
   }
 
-  void enable_remote_accesses(RdmaCtrl *cm) {
-    auto base_ptr = (char *)(cm->conn_buf_);
-    base_off_ = data_ptr_ - base_ptr;
+  void enable_remote_accesses(char *start_ptr) {
+    base_off_ = data_ptr_ - start_ptr;
   }
 
-  void fetch_node(Qp *qp,uint64_t off,char *buf,int size);
-  void fetch_node(Qp *qp,uint64_t off,char *buf,int size,
+  void fetch_node(RCQP *qp,uint64_t off,char *buf,int size);
+  void fetch_node(RCQP *qp,uint64_t off,char *buf,int size,
                   nocc::oltp::RScheduler *sched,yield_func_t &yield);
 
 
@@ -94,6 +91,7 @@ class ClusterHash {
   }
 
   inline HeaderNode *get_indirect_node(int i) {
+    ASSERT(i < indirect_num_) << "wrong indirect num " << i;
     return (HeaderNode *)(data_ptr_ + get_indirect_loc(i));
   }
 
@@ -127,13 +125,15 @@ class ClusterHash {
 
   // a blocking version of remote get
   // return offset: point to the MemNode
-  inline uint64_t remote_get(uint64_t key,Qp *qp,char *val) {
+  inline uint64_t remote_get(uint64_t key,RCQP *qp,char *val) {
+
     assert(base_off_ != 0);
     HeaderNode *node = (HeaderNode *)Rmalloc(sizeof(HeaderNode));
     assert(node != NULL);
 
     uint64_t idx = get_hash(key);
     uint64_t node_off = idx * sizeof(HeaderNode) + base_off_;
+
     fetch_node(qp,node_off,(char *)node,sizeof(HeaderNode));
 
     while(1) {
@@ -158,7 +158,7 @@ class ClusterHash {
   }
 
   //
-  inline uint64_t remote_get(uint64_t key, Qp *qp, nocc::oltp::RScheduler *sched,yield_func_t &yield,char *val) {
+  inline uint64_t remote_get(uint64_t key, RCQP *qp, nocc::oltp::RScheduler *sched,yield_func_t &yield,char *val) {
 
     assert(base_off_ != 0);
     HeaderNode *node = (HeaderNode *)Rmalloc(sizeof(HeaderNode));
@@ -183,7 +183,7 @@ class ClusterHash {
         fetch_node(qp,node_off,(char *)node,sizeof(HeaderNode),sched,yield);
         assert(node->next != -1); //reset
       } else {
-        fprintf(stderr,"fetch key error %lu, at node %d\n",key,qp->nid);
+        fprintf(stderr,"fetch key error %lu, at node %d\n",key,qp->idx_.node_id);
         assert(false);
       }
     }

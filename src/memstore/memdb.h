@@ -10,7 +10,7 @@
 
 #include "memstore.h"
 
-#include "rdmaio.h"
+#include "rdma_ctrl.hpp"
 
 /* For main table */
 #include "memstore_bplustree.h"
@@ -77,7 +77,7 @@ class MemDB {
      We do this for convenience.
      Otherwise nodes need sync about the offsets of the RDMA region in the table.
    */
-  void EnableRemoteAccess(int tableid,rdmaio::RdmaCtrl *cm);
+  void EnableRemoteAccess(int tableid,char *s_ptr);
 
   void AddSecondIndex(int index_id,TABLE_CLASS c, int klen);
   uint64_t *Get(int tableid,uint64_t key);

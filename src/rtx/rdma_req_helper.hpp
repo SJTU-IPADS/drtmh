@@ -65,16 +65,15 @@ class RDMALockReq  : public RDMAReqBase {
     sge[1].length = len;
   }
 
-  inline void post_reqs(oltp::RScheduler *s,Qp *qp) {
+  inline void post_reqs(oltp::RScheduler *s,RCQP *qp) {
 
-    sr[0].wr.atomic.remote_addr += qp->remote_attr_.memory_attr_.buf;
-    sr[0].wr.atomic.rkey = qp->remote_attr_.memory_attr_.rkey;
-    sge[0].lkey = qp->dev_->conn_buf_mr->lkey;
+    sr[0].wr.atomic.remote_addr += qp->remote_mr_.buf;
+    sr[0].wr.atomic.rkey = qp->remote_mr_.key;
+    sge[0].lkey = qp->local_mr_.key;
 
-    sr[1].wr.rdma.remote_addr += qp->remote_attr_.memory_attr_.buf;
-    sr[1].wr.rdma.rkey = qp->remote_attr_.memory_attr_.rkey;
-    sge[1].lkey = qp->dev_->conn_buf_mr->lkey;
-
+    sr[1].wr.rdma.remote_addr += qp->remote_mr_.buf;
+    sr[1].wr.rdma.rkey = qp->remote_mr_.key;
+    sge[1].lkey = qp->local_mr_.key;
     s->post_batch(qp,cor_id,&(sr[0]),&bad_sr,1);
   }
 };
@@ -117,15 +116,15 @@ class RDMAWriteReq : RDMAReqBase {
     sge[1].length = sizeof(uint64_t);
   }
 
-  inline void post_reqs(oltp::RScheduler *s,Qp *qp) {
+  inline void post_reqs(oltp::RScheduler *s,RCQP *qp) {
 
-    sr[0].wr.rdma.remote_addr += qp->remote_attr_.memory_attr_.buf;
-    sr[0].wr.rdma.rkey = qp->remote_attr_.memory_attr_.rkey;
-    sge[0].lkey = qp->dev_->conn_buf_mr->lkey;
+    sr[0].wr.rdma.remote_addr += qp->remote_mr_.buf;
+    sr[0].wr.rdma.rkey = qp->remote_mr_.key;
+    sge[0].lkey = qp->local_mr_.key;
 
-    sr[1].wr.rdma.remote_addr += qp->remote_attr_.memory_attr_.buf;
-    sr[1].wr.rdma.rkey = qp->remote_attr_.memory_attr_.rkey;
-    sge[1].lkey = qp->dev_->conn_buf_mr->lkey;
+    sr[1].wr.rdma.remote_addr += qp->remote_mr_.buf;
+    sr[1].wr.rdma.rkey = qp->remote_mr_.key;
+    sge[1].lkey = qp->local_mr_.key;
 
     if(!pa) {
       s->post_batch(qp,cor_id,&(sr[0]),&bad_sr,1);

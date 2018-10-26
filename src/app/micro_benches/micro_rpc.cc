@@ -5,6 +5,7 @@
 #include "framework/req_buf_allocator.h"
 
 extern size_t distributed_ratio;
+extern std::vector<std::string> cluster_topology;
 
 #define NEED_REPLY 0
 
@@ -34,7 +35,7 @@ txn_result_t MicroWorker::micro_rpc_write_multi(yield_func_t &yield) {
   auto num = distributed_ratio;
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free  = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes  = cluster_topology.size();
 
   char *req_buf = msg_buf_alloctors[cor_id_].get_req_buf();
 #if NAIVE == 0 // non batch execuation
@@ -109,7 +110,7 @@ txn_result_t MicroWorker::micro_rpc_write(yield_func_t &yield) {
   static uint64_t total_free  = r_buffer_size - free_offset;
   const  uint64_t write_space = total_free - size;
 
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
 
   int      pid    = random_generator[cor_id_].next() % num_nodes;
 
@@ -148,7 +149,7 @@ txn_result_t MicroWorker::micro_rpc_read(yield_func_t &yield) {
 
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
 
   auto size = distributed_ratio;
   assert(size > 0 && size <= MAX_MSG_SIZE);

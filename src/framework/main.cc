@@ -47,7 +47,8 @@
 #include "app/tpcc/tpcc_worker.h"
 #include "app/tpce/tpce_worker.h"
 #include "app/smallbank/bank_worker.h"
-#include "app/micro_benches/bench_micro.h"
+#include "app/micro/micro_worker.h"
+//#include "app/micro_benches/bench_micro.h"
 
 #include "util/spinlock.h"
 #include "util/util.h"
@@ -292,7 +293,7 @@ int main(int argc, char **argv)
     argv[i] = (char *) bench_toks[i - 1].c_str();
 
   /* install the event handler if necessary */
-  signal(SIGSEGV, nocc::segfault_handler);
+  //signal(SIGSEGV, nocc::segfault_handler);
   signal(SIGABRT, nocc::segabort_handler);
 
   test_fn(argc, argv);

@@ -2,7 +2,6 @@
 #define NOCC_BENCH_RUNNER
 
 #include "bench_worker.h"
-#include "backup_worker.h"
 
 namespace nocc {
 
@@ -28,14 +27,12 @@ class BenchRunner {
      partition: partition id of the database
      store:     the local store handler
   */
-  virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB *store = NULL) = 0;
+  virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB *store = NULL) {
+    return std::vector<BenchLoader *>();
+  }
 
   /* return a set of workers to execute application logic */
   virtual std::vector<RWorker *> make_workers() = 0;
-
-  /* make some background workers, if necessary */
-  virtual std::vector<BackupBenchWorker *> make_backup_workers() = 0;
-
 
   /*   below 2 functions are used to init data structure
        The first is called before any RDMA connections are made, which is used ti init
@@ -44,15 +41,30 @@ class BenchRunner {
        data structure that needs RDMA for communication
   */
   /* warm up the rdma buffer, can be replaced by the application */
-  virtual void warmup_buffer(char *buffer) = 0;
-  virtual void bootstrap_with_rdma(RdmaCtrl *r) = 0;
+  virtual void warmup_buffer(char *buffer) {
+
+  }
+
+  virtual void bootstrap_with_rdma(RdmaCtrl *r) {
+
+  }
 
   // cache the remote addresses of the key-value store
-  virtual void populate_cache() {}
+  virtual void populate_cache() {
 
-  virtual void init_store(MemDB* &store) = 0;
-  virtual void init_backup_store(MemDB* &store) = 0;
-  virtual void init_put() = 0;
+  }
+
+  virtual void init_store(MemDB* &store) {
+
+  }
+
+  virtual void init_backup_store(MemDB* &store) {
+
+  }
+
+  virtual void init_put() {
+
+  }
 
   spin_barrier barrier_a_;
   spin_barrier barrier_b_;

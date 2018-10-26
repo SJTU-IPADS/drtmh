@@ -22,6 +22,9 @@ import os  # change dir
 from run_util import print_with_tag
 from run_util import change_to_parent
 
+from runner import RoccRunner
+from cmd import *
+
 #====================================#
 
 original_sigint_handler = signal.getsignal(signal.SIGINT)
@@ -29,6 +32,8 @@ original_sigint_handler = signal.getsignal(signal.SIGINT)
 ## config parameters and global parameters
 ## default mac set
 mac_set = ["10.0.0.100", "10.0.0.101", "10.0.0.102", "10.0.0.103", "10.0.0.104", "10.0.0.105"]
+proxies = [] ## the proxies used to connect to remote servers
+pwd     = "123"
 mac_num = 1
 
 PORT = 8090
@@ -73,6 +78,46 @@ def copy_file(f):
         host = mac_set[i]
         #print_with_tag("copy","To %s" % host)
         subprocess.call(["scp", "./%s" % f, "%s:%s" % (host,"~")],stdout=FNULL,stderr=subprocess.STDOUT)
+
+def kill_all(e,force=False):
+    r = RoccRunner()
+    kill_cmd2 = "pkill %s" % e
+
+    killed_num = 0
+    for i in xrange(mac_num):
+        #print("kill at " + mac_set[i])
+        if force:
+            #print("force kill at " + mac_set[i])
+            killed_num += 1
+            execute_at(mac_set[i],kill_cmd2)
+        else:
+            if (r.check_liveness([],mac_set[i])):
+                #print("check liveness success @" + mac_set[i])
+                continue
+            else:
+                killed_num += 1
+    if force:
+        time.sleep(1)
+        for i in xrange(mac_num):
+            if (r.check_liveness([],mac_set[i])):
+                print("[WARINING], kill failed at " + mac_set[i])
+    return (killed_num == mac_num)
+
+def kill(e):
+    sigint = 2
+    kill_cmd1 = "pkill %s --signal %d" % (e,sigint)
+
+    for i in xrange(mac_num):
+        slient_execute_at(mac_set[i],kill_cmd1)
+
+    for i in xrange(3):
+        print("kill try " + str(i))
+        if kill_all(e):
+            break
+        time.sleep(0.5)
+        if i == 2:
+            kill_all(e,True)
+    print("Kill done")
 
 
 def kill_servers(e):
@@ -121,11 +166,14 @@ def signal_int_handler(sig, frame):
     print_with_tag("ENDING", "send ending messages in SIGINT handler")
     print_with_tag("ENDING", "kill processes")
     signal.signal(signal.SIGINT, original_sigint_handler)
-    kill_servers(exe)
+    #kill_servers(exe)
+    kill(exe)
     print_with_tag("ENDING", "kill processes done")
     time.sleep(1)
     int_lock.release()
 
+    for p in proxies:
+        p.close()
     sys.exit(0)
     return
 
@@ -161,7 +209,7 @@ def parse_bench_parameters(f):
     return
 
 def parse_hosts(f):
-    global mac_set
+    global mac_set, pwd
     tree = ET.ElementTree(file=f)
     root = tree.getroot()
     assert root.tag == "hosts"
@@ -177,6 +225,8 @@ def parse_hosts(f):
         server = e.text.strip()
         if not black_list.has_key(server):
             mac_set.append(server)
+    pwd = root.find("pwd").text
+
     return
 
 def start_servers(macset, config, bcmd,num):
@@ -235,8 +285,13 @@ def main():
 
     global base_cmd
     parse_input() ## parse input from command line
-    #parse_bench_parameters(config_file) ## parse bench parameter from config file
     parse_hosts("hosts.xml")
+
+    for h in mac_set:
+        p = ConnectProxy(h)
+        p.connect(pwd)
+        proxies.append(p)
+
     print "[START] Input parsing done."
 
     #kill_servers(exe)

@@ -18,6 +18,8 @@ extern size_t distributed_ratio;
 extern std::string exe_name;
 extern std::string bench_type;
 
+extern std::vector<std::string> cluster_topology;
+
 namespace nocc {
 
 extern RdmaCtrl *cm;
@@ -26,6 +28,10 @@ namespace oltp {
 
 static std::ofstream log_file;
 static bool global_inited = false;
+
+extern char *rdma_buffer;
+extern uint64_t r_buffer_size;
+
 static struct timespec start_t;
 
 void wait_worker_barrier(std::vector<BenchWorker *> &workers);
@@ -73,15 +79,14 @@ void BenchLocalListener::run() {
   LOG(2) << "New monitor running!";
 
   RThreadLocalInit();
-  init_routines(1);
+  create_routines(1);
 
 #if USE_RDMA
-  init_rdma();
-  create_qps();
+  init_rdma(rdma_buffer,r_buffer_size);
 #endif
 
   // first ensures all worker has initilized
-  wait_worker_barrier(workers_);
+  //wait_worker_barrier(workers_);
   inited = true;
 
   // currently, listener use UD for communication
@@ -93,6 +98,15 @@ void BenchLocalListener::run() {
   ROCC_BIND_STUB(rpc_,&BenchLocalListener::get_result_rpc_handler,this,RES_RPC_ID);
   ROCC_BIND_STUB(rpc_,&BenchLocalListener::exit_rpc_handler,this,EXIT_RPC_ID);
 
+  for(auto s :  cluster_topology) {
+ retry:
+    auto res = msg_handler_->connect(s,cm_->listening_port());
+    if(res == SUCC) {
+      continue;
+    }
+    else
+      goto retry;
+  }
   routine_v1();    // routines are ready to start
   start_routine(); // start worker routines
 }
@@ -127,12 +141,12 @@ void BenchLocalListener::worker_routine(yield_func_t &yield) {
 }
 
 void BenchLocalListener::worker_routine_master(yield_func_t &yield) {
+
 #if 1
   // a global barrier to wait for worker's connection
   while(nresult_returned_ != (total_partition - 1)) {
     yield_next(yield);
   }
-
   nresult_returned_ = 0;
 #endif
   // start all servers
@@ -208,14 +222,14 @@ void BenchLocalListener::sigint_handler(int) {
 }
 
 void BenchLocalListener::init_rpc_handler(int id,int cid,char *msg,void *arg) {
-  assert(*((int *)msg) == id);
+  ASSERT(*((int *)msg) == id)
+      << "get id " << *((int *)msg) << "; required " << id;
   nresult_returned_ += 1;
 }
 
 void BenchLocalListener::start_workers() {
 
   clock_gettime(CLOCK_REALTIME,&start_t);
-  LOG(2) << "[LISTENER] receive start RPC.";
 
   try {
     for(auto it = workers_.begin();it != workers_.end();++it) {
@@ -276,8 +290,8 @@ void BenchLocalListener::exit_handler() {
   auto m_9 = timer.report_90() / second_cycle * 1000;
   auto m_99 = timer.report_99() / second_cycle * 1000;
   auto m_av = timer.report_avg() / second_cycle * 1000;
-  LOG(4) << "Medium latency " << m_l << "ms, 90th latency " << m_9 << "ms, 99th latency "
-         << m_99 << "ms; average latency: " << m_av << "ms.";
+  LOG(4) << "Medium latency " << m_l << "ms, 90th latency " << m_9 << " ms, 99th latency "
+         << m_99 << " ms; average latency: " << m_av << " ms.";
 #endif
 #ifdef LOG_RESULTS
   if(log_file.is_open()) {

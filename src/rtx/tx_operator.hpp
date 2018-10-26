@@ -50,7 +50,7 @@ class TXOpBase {
        db_(db),
        cm_(cm),scheduler_(rdma_sched),node_id_(nid),worker_id_(tid),rpc_(rpc_handler),qp_vec_() {
     // fetch QPs
-    fill_qp_vec(cm,worker_id_);
+    fill_qp_vec(cm,ms,worker_id_);
   }
 
   // get ops

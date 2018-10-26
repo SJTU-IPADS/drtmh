@@ -19,12 +19,17 @@ class LogStoreManager {
   // add a particular store to a specific DB
   void add_backup_store(int id,MemDB *db) {
     assert(backup_stores_.get(id) == NULL);
-    auto new_val_p = backup_stores_.get_with_insert(id);
+    MemDB **new_val_p = backup_stores_.get_with_insert(id);
     *new_val_p = db;
   }
 
   MemDB *get_backed_store(int id) {
-    return (*backup_stores_.get(id));
+    MemDB **ptr = backup_stores_.get(id);
+    if(likely(ptr != nullptr))
+      return *ptr;
+    else {
+      return nullptr;
+    }
   }
 
  protected:

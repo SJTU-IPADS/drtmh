@@ -9,9 +9,8 @@
 extern size_t nthreads;
 extern size_t current_partition;
 
-using rdmaio::Qp;
 using namespace std;
-
+using namespace rdmaio;
 
 namespace nocc {
 
@@ -35,8 +34,8 @@ void RScheduler::poll_comps() {
 
   for(auto it = pending_qps_.begin();it != pending_qps_.end();) {
 
-    Qp *qp = *it;
-    auto poll_result = ibv_poll_cq(qp->send_cq,1,&wc_);
+    RCQP *qp = *it;
+    auto poll_result = qp->poll_send_completion(wc_);
 
     if(poll_result == 0) {
       it++;
@@ -45,7 +44,7 @@ void RScheduler::poll_comps() {
 
     if(unlikely(wc_.status != IBV_WC_SUCCESS)) {
       LOG(3) << "got bad completion with status: " << wc_.status << " with error " << ibv_wc_status_str(wc_.status)
-             << "@node " << qp->nid;
+             << ";@ node " << qp->idx_.node_id;
       if(wc_.status != IBV_WC_RETRY_EXC_ERR)
         assert(false);
       else {
@@ -56,9 +55,6 @@ void RScheduler::poll_comps() {
 
     static_assert(sizeof(wc_.wr_id) == sizeof(uint64_t),"Un supported wr_id size!");
     uint64_t low_watermark = decode_watermark(wc_.wr_id);
-
-    ASSERT(qp->pendings > 0);
-    qp->pendings -= 1;
 
     ASSERT(low_watermark > qp->low_watermark_) << "encoded watermark: " << low_watermark
                                                << "; current watermark: " << qp->low_watermark_;

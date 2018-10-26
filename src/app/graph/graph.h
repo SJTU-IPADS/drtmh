@@ -3,7 +3,6 @@
 
 #include "all.h"
 #include "tx_config.h"
-#include "app/config.h"
 
 namespace nocc {
   namespace oltp {

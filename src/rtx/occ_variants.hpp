@@ -13,7 +13,8 @@ class OCCFast : public OCC {
  public:
   OCCFast(oltp::RWorker *worker,MemDB *db,RRpc *rpc_handler,int nid,int cid,int response_node)
       :OCC(worker,db,rpc_handler,nid,cid,response_node) {
-
+    if(rpc_handler->worker_id_ == 0)
+      LOG(4) << "using FaSST variants";
   }
 
   bool parse_batch_result(int num) {
@@ -29,7 +30,6 @@ class OCCFast : public OCC {
           // abort case
           abort_ = true;
         }
-        //read_set_[item->idx].data_ptr = ptr + sizeof(OCCResponse);
 
         read_set_[item->idx].data_ptr = (char *)malloc(read_set_[item->idx].len);
         memcpy(read_set_[item->idx].data_ptr, ptr + sizeof(OCCResponse),read_set_[item->idx].len);
@@ -127,7 +127,7 @@ class OCCFastR : public OCCR {
 
     const uint64_t lock_content =  ENCODE_LOCK_CONTENT(response_node_,worker_id_,cor_id_ + 1);
 
-    Qp *qp = get_qp(pid);
+    RCQP *qp = get_qp(pid);
 
     RDMALockReq req(cor_id_);
     req.set_lock_meta(off,0,lock_content,data_ptr);

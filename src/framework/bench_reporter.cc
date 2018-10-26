@@ -6,6 +6,8 @@
 #include <vector>
 
 extern size_t nthreads;
+extern std::vector<std::string> cluster_topology;
+
 #define MIN(x,y) ((x) > (y)?(y):(x))
 
 // an example reporter for the framework
@@ -41,7 +43,9 @@ uint64_t second_cycle;
 
 std::vector<double> thpts;
 
-size_t BenchReporter::data_len() { return sizeof(WorkerData);}
+size_t BenchReporter::data_len() {
+  return sizeof(WorkerData);
+}
 
 void BenchReporter::init(const std::vector<BenchWorker *> *workers) {
 
@@ -72,7 +76,7 @@ void BenchReporter::merge_data(char *data,int id) {
   WorkerData *p = (WorkerData *)data;
   assert(p->throughput < 1000000000L);
   fprintf(stdout,"merge data %s from %s\n", normalize_throughput(p->throughput).c_str(),
-          cm->network_[id].c_str());
+          cluster_topology[id].c_str());
   throughputs[id] = p->throughput;
 }
 
@@ -90,7 +94,7 @@ void BenchReporter::collect_data(char *data,struct  timespec &start_t) {
 
   double my_thr = (double)res / elapsed_sec;
 
-  fprintf(stdout,"my throughput %s, ratio %f\n",normalize_throughput(my_thr).c_str(),abort_ratio);
+  //fprintf(stdout,"my throughput %s, ratio %f\n",normalize_throughput(my_thr).c_str(),abort_ratio);
 
   WorkerData *p = (WorkerData *)data;
   p->throughput = my_thr;
@@ -173,6 +177,8 @@ uint64_t BenchReporter::calculate_commits(std::vector<uint64_t> &prevs) {
 }
 
 uint64_t BenchReporter::calculate_aborts(std::vector<uint64_t> &prevs) {
+
+  ASSERT(workers_->size() >= nthreads) << "there is only " << workers_->size() << " workers.";
 
   uint64_t sum = 0;
   for(uint i = 0;i < nthreads;++i) {

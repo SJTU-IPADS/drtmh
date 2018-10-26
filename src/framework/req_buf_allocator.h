@@ -2,10 +2,10 @@
 #define NOCC_DB_MEM_ALLOCATOR
 
 #include "all.h"
-#include "ralloc.h"
 #include "config.h"
 #include "./config.h"
-#include "rpc.h"
+#include "ralloc/ralloc.h"
+#include "core/rrpc.h"
 
 #include <stdint.h>
 #include <queue>
@@ -22,7 +22,8 @@ namespace nocc {
         RThreadLocalInit();
         for(int i = 0;i < MAX_INFLIGHT_REQS;++i) {
 #if 1
-          buf_pools_[i] = (char *)Rmalloc(MAX_MSG_SIZE + Rpc::reserved_payload()) + Rpc::reserved_payload();
+          // FIXME: this is legacy code, so we hard coded this. shall be removed later
+          buf_pools_[i] = (char *)Rmalloc(MAX_MSG_SIZE) + sizeof(uint64_t) + sizeof(uint64_t);
           // check for alignment
           assert( ((uint64_t)(buf_pools_[i])) % 8 == 0);
           if(buf_pools_[i] != NULL)

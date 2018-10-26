@@ -2,11 +2,6 @@
 
 #include "rworker.h"
 
-#include "msg_handler.h" // abstract interface
-
-#include <string>
-#include <vector>
-#include <mutex>
 #include <unordered_map>
 
 #include <zmq.hpp>    // a wrapper over zeromq
@@ -77,7 +72,7 @@ class AdapterPoller : public oltp::RWorker {
   zmq::socket_t *recv_socket;
 };
 
-class Adapter : public MsgHandler {
+class Adapter : public MsgAdapter {
 
   static std::vector<zmq::socket_t *> sockets;
   // prevent threads from concurrently accessing the sockets
@@ -103,10 +98,14 @@ class Adapter : public MsgHandler {
       sockets[i]->close();
   }
 
-  Adapter(msg_func_t callback,int node_id,int thread_id,SingleQueue *q) :
-      callback_(callback),thread_id_(thread_id),queue_(q),node_id_(node_id)
+  Adapter(msg_callback_t_ callback,int node_id,int thread_id,SingleQueue *q) :
+      MsgAdapter(callback),thread_id_(thread_id),queue_(q),node_id_(node_id)
   {
     assert(queue_ != NULL);
+  }
+
+  ConnStatus connect(std::string ip,int port) {
+    return SUCC;
   }
 
   void create_dedicated_sockets(const std::vector<std::string> &network,int port,zmq::context_t &context) {
@@ -120,9 +119,11 @@ class Adapter : public MsgHandler {
     fprintf(stdout,"[worker %d] created %lu dedicated socket done.\n",thread_id_,sockets_.size());
   }
 
-  Qp::IOStatus send_to(int node_id,char *msg,int len) { return send_to(node_id,thread_id_,msg,len);}
+  ConnStatus send_to(int node_id,char *msg,int len) {
+    return send_to(node_id,thread_id_,msg,len);
+  }
 
-  Qp::IOStatus send_to(int node_id,int tid,char *msg,int len) {
+  ConnStatus send_to(int node_id,int tid,char *msg,int len) {
     zmq::message_t m(len + sizeof(char) + sizeof(char));
     *((char *)(m.data())) = tid;
     *((char *)(m.data()) + sizeof(char)) = node_id_;
@@ -141,21 +142,15 @@ class Adapter : public MsgHandler {
     s->send(m);
     l->unlock();
 #endif
+    return SUCC;
   }
 
-  Qp::IOStatus broadcast_to(int *node_ids, int num_of_node, char *msg,int len) {
-
-    for(uint i = 0;i < num_of_node;++i) {
-      send_to(node_ids[i],msg,len);
-    }
-    return Qp::IO_SUCC;
-  }
-
-  Qp::IOStatus post_pending(int node_id,int tid,char *msg,int len) {
+  ConnStatus post_pending(int node_id,int tid,char *msg,int len) {
     return send_to(node_id,tid,msg,len);
   }
 
-  Qp::IOStatus flush_pending() { } // not buffer message for TCP
+  ConnStatus flush_pending() {
+  } // not buffer message for TCP
 
   int  get_num_nodes() {
 #if DEDICATED
@@ -187,6 +182,5 @@ class Adapter : public MsgHandler {
   int node_id_;   // machine id
   int thread_id_; // thread id
   SingleQueue *queue_;      // internal communication from the Adapterpoller
-  msg_func_t callback_;     // msg callback after receiving a message
 };
 };

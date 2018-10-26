@@ -8,7 +8,6 @@
 #include "routine.h"
 
 // rdma related libs
-#include "ring_imm_msg.h"
 #include "tcp_adapter.hpp"
 
 #include "utils/amd64.h" // for nop pause
@@ -26,7 +25,6 @@
 
 using namespace std;
 using namespace rdmaio;
-using namespace rdmaio::ring_imm_msg;
 
 namespace nocc {
 
@@ -80,7 +78,7 @@ int RWorker::choose_rnic_port() {
   // default as 1.
   use_port_ = 1;
 
-  int total_devices = cm_->query_devinfo();
+  int total_devices = cm_->query_devs().size();
   assert(total_devices > 0);
 
   if(total_devices <= 1)
@@ -93,23 +91,22 @@ int RWorker::choose_rnic_port() {
   return use_port_;
 }
 
-void RWorker::init_rdma() {
+void RWorker::init_rdma(char *rbuffer,uint64_t rbuf_size) {
 
   if(!USE_RDMA) // avoids calling cm on other networks
     return;
 
-  cm_->thread_local_init();
   choose_rnic_port();
 
-  // get the device id and port id used on the nic.
-  int dev_id = cm_->get_active_dev(use_port_);
-  int port_idx = cm_->get_active_port(use_port_);
-  ASSERT(port_idx > 0) << "worker " << worker_id_
-                       << " get port idx " << port_idx;
+  RdmaCtrl::DevIdx idx = cm_->convert_port_idx(use_port_);
+  LOG(0) << "worker " << worker_id_ << " uses " << "["
+         << idx.dev_id << "," << idx.port_id << "]";
 
-  // open the specific RNIC handler, and register its memory
-  cm_->open_device(dev_id);
-  cm_->register_connect_mr(dev_id); // register memory on the specific device
+  // open the device handler
+  ASSERT(cm_->open_device(idx) != nullptr);
+
+  // register the RDMA buffer
+  ASSERT(cm_->register_memory(worker_id_,rbuffer,rbuf_size,cm_->get_device()) == true);
 }
 
 void RWorker::create_qps(int num) {
@@ -121,19 +118,10 @@ void RWorker::create_qps(int num) {
   LOG(1) << "using RDMA device: " << use_port_ << " to create qps @" << worker_id_;
   assert(use_port_ >= 0); // check if init_rdma has been called
 
-  int dev_id = cm_->get_active_dev(use_port_);
-  int port_idx = cm_->get_active_port(use_port_);
-
-  for(uint i = 0; i < QP_NUMS; i++){
-    cm_->link_connect_qps(worker_id_, dev_id, port_idx, i, IBV_QPT_RC);
-  }
-  // note, link_connect_qps correctly handles duplicates creations
-#if USE_UD_MSG == 0 && USE_TCP_MSG == 0 // use RC QP, thus create its QP
-  cm_->link_connect_qps(worker_id_, dev_id, port_idx, 0, IBV_QPT_RC);
-#endif // USE_UD_MSG
+  ASSERT(false);
 }
 
-void RWorker::init_routines(int coroutines) {
+void RWorker::create_routines(int coroutines) {
 
   // init Ralloc, which will allocate memory on RDMA region
   RThreadLocalInit();
@@ -169,21 +157,17 @@ void RWorker::init_routines(int coroutines) {
 void RWorker::create_client_connections(int total_connections) {
 
   if(server_type_ == UD_MSG && msg_handler_ != NULL) {
-    client_handler_ = static_cast<UDMsg *>(msg_handler_);
+    client_handler_ = static_cast<UDAdapter *>(msg_handler_);
   } else {
     // create one
     ASSERT(cm_ != NULL) << "Currently client connection uses UD.";
     if(rpc_ == NULL)
       rpc_ = new RRpc(worker_id_,total_worker_coroutine);
-    assert(use_port_ >= 0);
-    int dev_id = cm_->get_active_dev(use_port_);
-    int port_idx = cm_->get_active_port(use_port_);
 
-    client_handler_ = new UDMsg(cm_,worker_id_,total_connections,
-                                2048, // max concurrent msg received
-                                std::bind(&RRpc::poll_comp_callback,rpc_,
-                                          std::placeholders::_1,std::placeholders::_2,std::placeholders::_3),
-                                dev_id,port_idx,1);
+    msg_handler_ = new UDAdapter(cm_,cm_->get_device(),cm_->get_local_mr(worker_id_),
+                                 worker_id_,2048,
+                                 std::bind(&RRpc::poll_comp_callback,rpc_,
+                                           std::placeholders::_1,std::placeholders::_2,std::placeholders::_3));
     if(msg_handler_ == NULL) {
       msg_handler_ = client_handler_;
       rpc_->set_msg_handler(msg_handler_);
@@ -192,6 +176,7 @@ void RWorker::create_client_connections(int total_connections) {
 }
 
 void RWorker::create_rdma_rc_connections(char *start_buffer,uint64_t total_ring_sz,uint64_t total_ring_padding) {
+#if 0
   ASSERT(USE_RDMA);
   ASSERT(rpc_ == NULL && msg_handler_ == NULL);
   rpc_ = new RRpc(worker_id_,total_worker_coroutine);
@@ -199,28 +184,22 @@ void RWorker::create_rdma_rc_connections(char *start_buffer,uint64_t total_ring_
                                  std::bind(&RRpc::poll_comp_callback,rpc_,
                                            std::placeholders::_1,std::placeholders::_2,std::placeholders::_3));
   rpc_->set_msg_handler(msg_handler_);
-
+#endif
+  ASSERT(false); // not implemented
   server_type_ = RC_MSG;
 }
 
 // must be called after init rdma
 void RWorker::create_rdma_ud_connections(int total_connections) {
 
-  assert(cm_ != NULL);
-
-  int dev_id = cm_->get_active_dev(use_port_);
-  int port_idx = cm_->get_active_port(use_port_);
-
   assert(USE_RDMA);
-
   rpc_ = new RRpc(worker_id_,total_worker_coroutine);
 
-  using namespace rdmaio::udmsg;
-  msg_handler_ = new UDMsg(cm_,worker_id_,total_connections,
-                           2048, // max concurrent msg received
-                           std::bind(&RRpc::poll_comp_callback,rpc_,
-                                     std::placeholders::_1,std::placeholders::_2,std::placeholders::_3),
-                           dev_id,port_idx,1);
+  msg_handler_ = new UDAdapter(cm_,cm_->get_device(),cm_->get_local_mr(worker_id_),
+                               worker_id_,2048,
+                               std::bind(&RRpc::poll_comp_callback,rpc_,
+                                         std::placeholders::_1,std::placeholders::_2,std::placeholders::_3));
+  // need connect
   rpc_->set_msg_handler(msg_handler_);
 
   server_type_ == UD_MSG;
@@ -233,7 +212,7 @@ void RWorker::create_tcp_connections(util::SingleQueue *queue, int tcp_port, zmq
 
   auto adapter = new Adapter(std::bind(&RRpc::poll_comp_callback,rpc_,
                                        std::placeholders::_1,std::placeholders::_2,std::placeholders::_3),
-                             cm_->get_nodeid(),
+                             cm_->current_node_id(),
                              worker_id_,queue);
 #if DEDICATED == 1
   adapter->create_dedicated_sockets(cm_->network_,tcp_port,context);
@@ -246,7 +225,7 @@ void RWorker::create_tcp_connections(util::SingleQueue *queue, int tcp_port, zmq
 
 void RWorker::create_logger() {
   char log_path[16];
-  sprintf(log_path,"./%d_%d.log",cm_->get_nodeid(),worker_id_);
+  sprintf(log_path,"./%d_%d.log",cm_->current_node_id(),worker_id_);
   new_mapped_log(log_path, &local_log,4096);
 }
 

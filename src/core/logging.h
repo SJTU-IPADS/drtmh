@@ -27,15 +27,17 @@ namespace nocc {
  * \def LOG_EVERYTHING
  *   Log everything
  */
+enum loglevel {
+    LOG_NONE       = 7,
+    LOG_FATAL      = 6,
+    LOG_ERROR      = 5,
+    LOG_WARNING    = 4,
+    LOG_EMPH       = 3,
+    LOG_INFO       = 2,
+    LOG_DEBUG      = 1,
+    LOG_EVERYTHING = 0
+};
 
-#define LOG_NONE 7
-#define LOG_FATAL 6
-#define LOG_ERROR 5
-#define LOG_WARNING 4
-#define LOG_EMPH 3
-#define LOG_INFO 2
-#define LOG_DEBUG 1
-#define LOG_EVERYTHING 0
 
 #ifndef ROCC_LOG_LEVEL
 #define ROCC_LOG_LEVEL LOG_INFO
@@ -59,7 +61,7 @@ namespace nocc {
 
 #define ASSERT(condition) \
     if(unlikely(!(condition))) \
-        ::nocc::MessageLogger((char*)__FILE__, __LINE__, LOG_FATAL + 1).stream() << "Assertion! "
+        ::nocc::MessageLogger((char*)__FILE__, __LINE__, ::nocc::LOG_FATAL + 1).stream() << "Assertion! "
 
 #define VERIFY(n,condition) LOG_IF(n,(!(condition)))
 

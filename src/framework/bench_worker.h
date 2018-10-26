@@ -8,16 +8,12 @@
 
 #include "util/util.h"
 
-#include "db/txs/tx_handler.h"
-
 #include "rtx/logger.hpp"
 #include "rtx/occ.h"
-
 
 #include <queue>          // std::queue
 
 using namespace nocc::util;
-using namespace nocc::db;
 
 #define CS 0
 #define LOCAL_CLIENT 0
@@ -30,7 +26,6 @@ extern size_t coroutine_num;
 namespace nocc {
 
 extern __thread coroutine_func_t *routines_;
-extern __thread TXHandler   **txs_;
 extern __thread rtx::OCC    **new_txs_;
 extern     RdmaCtrl *cm;
 
@@ -42,7 +37,8 @@ namespace oltp {
 
 class BenchWorker;
 class BenchRunner;
-extern View* my_view; // replication setting of the data
+
+extern char *rdma_buffer;
 
 /* Txn result return type */
 typedef std::pair<bool, double> txn_result_t;
@@ -61,7 +57,6 @@ struct workload_desc {
   double frequency;
   txn_fn_t fn;
   util::BreakdownTimer latency_timer; // calculate the latency for each TX
-  Profile p; // per tx profile
 };
 
 typedef std::vector<workload_desc> workload_desc_vec_t;
@@ -92,8 +87,7 @@ class BenchWorker : public RWorker {
 
   /* methods */
   BenchWorker(unsigned worker_id,bool set_core,unsigned seed,uint64_t total_ops,
-              spin_barrier *barrier_a,spin_barrier *barrier_b,BenchRunner *context = NULL,
-              DBLogger *db_logger = NULL);
+              spin_barrier *barrier_a,spin_barrier *barrier_b,BenchRunner *context = NULL);
 
   void init_tx_ctx();
 
@@ -104,14 +98,12 @@ class BenchWorker : public RWorker {
   void req_rpc_handler(int id,int cid,char *msg,void *arg);
 
   void change_ctx(int cor_id) {
-    tx_ = txs_[cor_id];
     rtx_ = new_txs_[cor_id];
   }
 
   // simple wrapper to the underlying routine layer
   inline void context_transfer() {
     int next = routine_meta_->next_->id_;
-    tx_      = txs_[next];
     cor_id_  = next;
     auto cur = routine_meta_;
     routine_meta_ = cur->next_;
@@ -126,14 +118,14 @@ class BenchWorker : public RWorker {
     if(worker_id_ == 0)
       LOG(3) << "Use RPC for logging.";
     new_logger_ = new rtx::RpcLogger(rpc_,RTX_LOG_RPC_ID,RTX_LOG_CLEAN_ID,M2,
-                                     MAX_BACKUP_NUM,(char *)(cm_->conn_buf_) + HUGE_PAGE_SZ,
+                                     MAX_BACKUP_NUM,rdma_buffer + HUGE_PAGE_SZ,
                                      total_partition,nthreads,(coroutine_num + 1) * RTX_LOG_ENTRY_SIZE);
 #elif TX_LOG_STYLE == 2 // one-sided RDMA case
     if(worker_id_ == 0)
       LOG(3) << "Use RDMA for logging.";
     new_logger_ = new rtx::RDMALogger(cm_,rdma_sched_,current_partition,worker_id_,M2,
                                       rpc_,RTX_LOG_CLEAN_ID,
-                                      MAX_BACKUP_NUM,(char *)(cm_->conn_buf_) + HUGE_PAGE_SZ,
+                                      MAX_BACKUP_NUM,rdma_buffer + HUGE_PAGE_SZ,
                                       total_partition,nthreads,(coroutine_num) * RTX_LOG_ENTRY_SIZE);
 #endif
 
@@ -165,9 +157,7 @@ class BenchWorker : public RWorker {
   /* we shall init msg_handler first, then init rpc_handler with msg_handler at the
      start of run time.
   */
-  DBLogger *db_logger_;
   rtx::Logger *new_logger_;
-  TXHandler *tx_;       /* current coroutine's tx handler */
 
   rtx::OCC *rtx_;
   rtx::OCC *rtx_hook_ = NULL;

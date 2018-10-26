@@ -7,7 +7,7 @@
 #include "util/spinlock.h"
 #include "core/rdma_sched.h"
 
-#include "rdmaio.h"
+#include "rdma_ctrl.hpp"
 
 #include <stdlib.h>
 #include <chrono>
@@ -104,13 +104,13 @@ class Memstore {
   }
   virtual MemNode* _GetWithInsert(uint64_t key,char *val) = 0;
 
-  virtual uint64_t RemoteTraverse(uint64_t key, rdmaio::Qp *qp,
+  virtual uint64_t RemoteTraverse(uint64_t key, rdmaio::RCQP *qp,
                                   char* val) {
     NOCC_NOT_IMPLEMENT("RemoteTraverse");
     return 0;
   }
 
-  virtual uint64_t RemoteTraverse(uint64_t key,rdmaio::Qp *qp,
+  virtual uint64_t RemoteTraverse(uint64_t key,rdmaio::RCQP *qp,
                                   nocc::oltp::RScheduler *sched, yield_func_t &yield,char *val) {
     NOCC_NOT_IMPLEMENT("RemoteTraverseYield");
     return 0;

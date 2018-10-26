@@ -1,8 +1,7 @@
 <bench>
-  <port>8888</port>
   <scale>   1 </scale>
-  <micro>14</micro>
-  <rep_factor>0</rep_factor>
+  <micro>0</micro>
+  <rep_factor>2</rep_factor>
   <bank>
     <sp> 25 </sp>
     <dc> 15 </dc>
@@ -18,9 +17,5 @@
     <del>0</del>
     <stock>0</stock>
     <order>0</order>
-  </tpcc>
-  
-  <paxos>
-    <pv>100</pv>
-  </paxos>
+  </tpcc>  
 </bench>

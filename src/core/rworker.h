@@ -7,18 +7,14 @@
 
 #include "rrpc.h"
 #include "commun_queue.hpp"
-#include "ud_msg.h"
 #include "rdma_sched.h"
 #include "routine.h"
 
-#include <vector>
-#include <string>
-#include <stdint.h>
+#include "ud_adapter.hpp"
 
 #include <zmq.hpp>
 
 using namespace rdmaio;
-using namespace rdmaio::udmsg;
 
 namespace nocc {
 
@@ -66,9 +62,9 @@ class RWorker : public ndb_thread {
 
   // init functions provided
   // the init shall be called sequentially
-  void init_routines(int coroutines);
+  void create_routines(int coroutines);
 
-  void init_rdma();
+  void init_rdma(char *rbuf,uint64_t size);
 
   void create_qps(int num  = 0); // depends init_rdma
 
@@ -150,10 +146,10 @@ class RWorker : public ndb_thread {
   bool   running = false;
   bool   inited  = false;
 
+  MsgAdapter *msg_handler_ = NULL;  // communication between servers
+  UDAdapter  *client_handler_   = NULL;  // communication with clients
 
  private:
-  MsgHandler *msg_handler_ = NULL;  // communication between servers
-  UDMsg *client_handler_   = NULL;  // communication with clients
   MSGER_TYPE  server_type_ = UD_MSG;
   coroutine_func_t *routines_ = NULL;
 

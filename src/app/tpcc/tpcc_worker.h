@@ -9,14 +9,7 @@
 #include "tpcc_mixin.h"
 #include "memstore/memdb.h"
 
-#include "framework/backup_worker.h"
 #include "framework/bench_worker.h"
-
-#include "db/txs/tx_handler.h"
-
-#include "db/txs/dbrad.h"
-#include "db/txs/dbtx.h"
-#include "db/txs/dbsi.h"
 
 #include "core/utils/latency_profier.h"
 
@@ -36,15 +29,7 @@ namespace oltp {
 namespace tpcc {
 
 // multi-version store can use dedicated meta length
-#ifdef RAD_TX
-#undef META_LENGTH
-#define META_LENGTH RAD_META_LEN
-#endif
-
-#ifdef SI_TX
-#undef META_LENGTH
-#define META_LENGTH SI_META_LEN
-#endif
+#define META_LENGTH 16
 
 /* Main function */
 void TpccTest(int argc,char **argv);
@@ -82,31 +67,8 @@ class TpccWorker : public TpccMixin, public BenchWorker {
              BenchRunner *context);
   ~TpccWorker();
 
-  txn_result_t txn_new_order(yield_func_t &yield);
   txn_result_t txn_new_order_new(yield_func_t &yield);
 
-  txn_result_t txn_payment(yield_func_t &yield);
-  txn_result_t txn_delivery(yield_func_t &yield);
-  txn_result_t txn_stock_level(yield_func_t &yield);
-  txn_result_t txn_order_status(yield_func_t &yield);
-  txn_result_t txn_super_stock_level(yield_func_t &yield);
-
-  txn_result_t txn_super_stocklevel_new(yield_func_t &yield);
-
-  txn_result_t txn_micro(yield_func_t &yield);
-
-  // naive version of 2 TXs
-  txn_result_t txn_new_order_naive(yield_func_t &yield);  // non speculative execution
-  txn_result_t txn_new_order_naive1(yield_func_t &yield); // + batching
-
-  txn_result_t txn_payment_naive(yield_func_t &yield);    // non speculative execution
-  txn_result_t txn_payment_naive1(yield_func_t &yield);   // + batching
-
-
-  /* The later are used for transactions handling ro fork/join modes */
-  void stock_level_piece(yield_func_t &yield,int id,int cid,char* input);
-
- private:
   const uint warehouse_id_start_ ;
   const uint warehouse_id_end_ ;
   uint64_t last_no_o_ids_[1024][10];
@@ -115,12 +77,11 @@ class TpccWorker : public TpccMixin, public BenchWorker {
  public:
   virtual workload_desc_vec_t get_workload() const ;
   static  workload_desc_vec_t _get_workload();
-  virtual void check_consistency();
+
   virtual void thread_local_init();
   virtual void register_callbacks();
 
   virtual void workload_report() {
-    BenchWorker::workload_report();
     double res;
     REPORT_V(read,res);
     latencys_.push_back(res);
@@ -140,41 +101,28 @@ class TpccWorker : public TpccMixin, public BenchWorker {
 
   /* Wrapper for implementation of transaction */
   static txn_result_t TxnNewOrder(BenchWorker *w,yield_func_t &yield) {
-    //txn_result_t r = static_cast<TpccWorker *>(w)->txn_new_order(yield);
     txn_result_t r = static_cast<TpccWorker *>(w)->txn_new_order_new(yield);
     return r;
   }
 
   static txn_result_t TxnPayment(BenchWorker *w,yield_func_t &yield) {
-#if NAIVE == 1
-    txn_result_t r = static_cast<TpccWorker *>(w)->txn_payment_naive(yield);
-#elif NAIVE == 2 || NAIVE == 3
-    txn_result_t r = static_cast<TpccWorker *>(w)->txn_payment_naive1(yield);
-#else
-    txn_result_t r = static_cast<TpccWorker *>(w)->txn_payment(yield);
-#endif
-    return r;
+    return txn_result_t(false,1);
   }
 
   static txn_result_t TxnDelivery(BenchWorker *w,yield_func_t &yield) {
-    txn_result_t r = static_cast<TpccWorker *>(w)->txn_delivery(yield);
-    return r;
+    return txn_result_t(false,1);
   }
 
   static txn_result_t TxnStockLevel(BenchWorker *w,yield_func_t &yield) {
-    txn_result_t r = static_cast<TpccWorker *>(w)->txn_stock_level(yield);
-    //txn_result_t r = static_cast<TpccWorker *>(w)->txn_super_stock_level(yield);
-    return r;
+    return txn_result_t(false,1);
   }
 
   static txn_result_t TxnSuperStockLevel(BenchWorker *w,yield_func_t &yield) {
-    txn_result_t r = static_cast<TpccWorker *>(w)->txn_super_stock_level(yield);
-    return r;
+    return txn_result_t(false,1);
   }
 
   static txn_result_t TxnOrderStatus(BenchWorker *w,yield_func_t &yield) {
-    txn_result_t r = static_cast<TpccWorker *>(w)->txn_order_status(yield);
-    return r;
+    return txn_result_t(false,1);
   }
 };
 

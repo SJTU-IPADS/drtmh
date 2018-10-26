@@ -22,7 +22,7 @@ class OCCR : public OCC {
              cm,rdma_sched,ms)
   {
     if(worker_id_ == 0 && cor_id_ == 0) {
-      LOG(3) << "Use one-sided for read.";
+      LOG(4) << "Use one-sided for read.";
     }
 
     // register normal RPC handlers

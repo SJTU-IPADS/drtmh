@@ -19,8 +19,7 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include "ring_imm_msg.h"
-
+using namespace std;
 
 /* global config constants */
 size_t nthreads = 1;                      // total server threads used
@@ -34,8 +33,9 @@ size_t current_partition = 0;             // current worker id
 
 size_t distributed_ratio = 1; // the distributed transaction's ratio
 
-
 int tcp_port = 33333;
+
+std::vector<std::string> cluster_topology;
 
 namespace nocc {
 
@@ -68,12 +68,7 @@ uint64_t r_buffer_size = 0;
 std::string config_file_name;
 std::string host_file = "hosts.xml";  // default host file
 
-LogHelper *logger = new LogHelper();
-
-View *my_view = NULL;
-
 MemDB *backup_stores_[MAX_BACKUP_NUM];
-
 
 /* Abstract bench runner */
 BenchRunner::BenchRunner(std::string &config_file)
@@ -83,7 +78,7 @@ BenchRunner::BenchRunner(std::string &config_file)
 
   parse_config(config_file); // should fill net_def_
 
-  std::fill_n(backup_stores_,RTX_MAX_BACKUP,static_cast<MemDB *>(NULL));
+  std::fill_n(backup_stores_,RTX_MAX_BACKUP,static_cast<MemDB *>(nullptr));
 
   rtx::global_view = new rtx::SymmetricView(rep_factor,net_def_.size());
   //rtx::global_view->print();
@@ -106,29 +101,16 @@ BenchRunner::run() {
   assert(rdma_buffer != NULL);
 
   // start creating RDMA
-  cm = new RdmaCtrl(current_partition,net_def_,r_port,false);
-  cm->set_connect_mr(rdma_buffer,r_buffer_size); // register the buffer
+  cm = new RdmaCtrl(current_partition,r_port);
 
 #if USE_RDMA
-  cm->query_devinfo();
+  cm->query_devs();
 #endif
 
   memset(rdma_buffer,0,r_buffer_size);
   uint64_t M2 = HUGE_PAGE_SZ;
 
-  uint64_t ring_area_sz = 0;
-#if USE_UD_MSG == 0 && USE_TCP_MSG == 0
-  // Calculating message size
-  using namespace rdmaio::ring_imm_msg;
-  ring_padding = MAX_MSG_SIZE;
-  total_ring_sz = coroutine_num * (2 * MAX_MSG_SIZE + 2 * 4096)  + ring_padding + MSG_META_SZ; // used for applications
-  assert(total_ring_sz < r_buffer_size);
-
-  ringsz = total_ring_sz - ring_padding - MSG_META_SZ;
-
-  ring_area_sz = (total_ring_sz * net_def_.size()) * (nthreads + 1);
-  LOG(3) << "[Mem] Total msg buf area: " << get_memory_size_g(ring_area_sz) << "G.";
-#elif USE_TCP_MSG
+#if USE_TCP_MSG
   // init TCP connections
   for(uint i = 0;i < nthreads + nclients + 4;++i) {
     local_comm_queues.push_back(new SingleQueue());
@@ -140,7 +122,7 @@ BenchRunner::run() {
 #if DEDICATED == 0
   Adapter::create_shared_sockets(cm->network_,tcp_port,send_context);
 #endif // end if create dedicated send sockets
-#endif // end if USE_RDMA
+#endif //
 
   // Calculating logger memory size
   using namespace rtx;
@@ -152,6 +134,7 @@ BenchRunner::run() {
   logger_sz = Round(logger_sz, M2);
   LOG(2) << "Total logger area " << get_memory_size_g(logger_sz) << "G.";
 
+  uint64_t ring_area_sz = 0;
   uint64_t total_sz = logger_sz + ring_area_sz + M2;
   assert(r_buffer_size > total_sz);
 
@@ -165,18 +148,21 @@ BenchRunner::run() {
 #endif
   total_sz += store_size;
 
+  if(total_sz <= 8 * M2)
+    total_sz = 8 * M2;
+
   // Init rmalloc
   free_buffer = rdma_buffer + total_sz; // use the free buffer as the local RDMA heap
+  LOG(3) << "First " << get_memory_size_g(total_sz) << "G are left over.";
   uint64_t real_alloced = RInit(free_buffer, r_buffer_size - total_sz);
   assert(real_alloced != 0);
-  LOG(3) << "[Mem] RDMA heap size " << get_memory_size_g(real_alloced) <<"G.";
+  LOG(3) << "RDMA heap size " << get_memory_size_g(real_alloced) <<"G.";
 
   RThreadLocalInit();
 
   warmup_buffer(rdma_buffer);
 
   if(cm == NULL && net_def_.size() != 1) {
-    fprintf(stdout,"Distributed transactions needs RDMA support!\n");
     LOG(7) << "Cannot create RDMA connection manger, or cannot find cluster setting.";
   }
 
@@ -187,29 +173,24 @@ BenchRunner::run() {
   MemNode::init_time = std::chrono::system_clock::now();
 #endif
 
-  const vector<BenchLoader *> loaders = make_loaders(current_partition);
+  const std::vector<BenchLoader *> loaders = make_loaders(current_partition);
   {
-    const pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
+    const std::pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
     {
-      //  scoped_timer t("dataloading", verbose);
-      for (vector<BenchLoader *>::const_iterator it = loaders.begin();
+      for (std::vector<BenchLoader *>::const_iterator it = loaders.begin();
            it != loaders.end(); ++it) {
         (*it)->start();
       }
-      for (vector<BenchLoader *>::const_iterator it = loaders.begin();
+      for (std::vector<BenchLoader *>::const_iterator it = loaders.begin();
            it != loaders.end(); ++it)
         (*it)->join();
     }
-    const pair<uint64_t, uint64_t> mem_info_after = get_system_memory_info();
+    const std::pair<uint64_t, uint64_t> mem_info_after = get_system_memory_info();
     const int64_t delta = int64_t(mem_info_before.first) - int64_t(mem_info_after.first); // free mem
     const double delta_mb = double(delta)/1048576.0;
-    cout << "[Runner] local db size: " << delta_mb << " MB" << endl;
+    std::cout << "[Runner] local db size: " << delta_mb << " MB" << std::endl;
   }
   init_put();
-
-#if USE_RDMA
-  cm->start_server(); // listening server for receive QP connection requests
-#endif
 
 #if ONE_SIDED_READ == 1
   {
@@ -226,42 +207,42 @@ BenchRunner::run() {
   std::set<int> backed_list; // the primary id which I should backed
   global_view->response_for(current_partition,backed_list);
 
-  int i(0);
+  int i(0);LOG(5) << "backed list num: " << backed_list.size();
   for(auto it = backed_list.begin();it != backed_list.end();++it) {
 
     int backed_id = *it;
 
     init_backup_store(backup_stores_[i]);
-    const vector<BenchLoader *> loaders = make_loaders(backed_id,backup_stores_[i]);
+    const std::vector<BenchLoader *> loaders = make_loaders(backed_id,backup_stores_[i]);
     {
-      const pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
+      const std::pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
       {
         //  scoped_timer t("dataloading", verbose);
-        for (vector<BenchLoader *>::const_iterator it = loaders.begin();
+        for (std::vector<BenchLoader *>::const_iterator it = loaders.begin();
              it != loaders.end(); ++it) {
           (*it)->start();
         }
-        for (vector<BenchLoader *>::const_iterator it = loaders.begin();
+        for (std::vector<BenchLoader *>::const_iterator it = loaders.begin();
              it != loaders.end(); ++it) {
           (*it)->join();
         }
       }
-      const pair<uint64_t, uint64_t> mem_info_after = get_system_memory_info();
+      const std::pair<uint64_t, uint64_t> mem_info_after = get_system_memory_info();
       const int64_t delta = int64_t(mem_info_before.first) - int64_t(mem_info_after.first); // free mem
       const double delta_mb = double(delta)/1048576.0;
       LOG(2) << "[Runner] Backup DB[" << i << "] for " << backed_id << " size: " << delta_mb << " MB";
+      i++;
     }
-    logger->add_backup_store(backed_id,backup_stores_[i++]);
   }
 
-  const pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
-  vector<RWorker *> workers = make_workers();
+  const std::pair<uint64_t, uint64_t> mem_info_before = get_system_memory_info();
+  std::vector<RWorker *> workers = make_workers();
 
   if(poller != NULL)
     workers.push_back(poller);
 
   bootstrap_with_rdma(cm);
-  for (vector<RWorker *>::const_iterator it = workers.begin();
+  for (std::vector<RWorker *>::const_iterator it = workers.begin();
        it != workers.end(); ++it){
     (*it)->start();
   }
@@ -277,8 +258,6 @@ BenchRunner::run() {
   }
 
   l->join();
-
-  cm->end_server();
 
   // close TCP connections, if possible
   try {
@@ -348,6 +327,7 @@ void BenchRunner::parse_config(std::string &config_file) {
 
   net_def_.clear();
   net_def_ = parse_network(total_partition,host_file);
+  cluster_topology = net_def_;
 } // parse config parameter
 
 

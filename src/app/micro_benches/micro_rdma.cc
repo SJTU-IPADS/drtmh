@@ -2,11 +2,12 @@
 #include "bench_micro.h"
 #include "framework/req_buf_allocator.h"
 
-#include "ralloc.h"
+#include "rlib/ralloc/ralloc.h"
 
 extern size_t current_partition;
 extern size_t total_partition;
 extern size_t distributed_ratio; // re-use some configure parameters
+extern std::vector<std::string> cluster_topology;
 
 namespace nocc {
 
@@ -29,7 +30,7 @@ txn_result_t MicroWorker::micro_rdma_atomic(yield_func_t &yield) {
 
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free  = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
 
   int      pid    = random_generator[cor_id_].next() % num_nodes;
   uint64_t offset = random_generator[cor_id_].next() % (working_space - sizeof(uint64_t));
@@ -38,8 +39,6 @@ txn_result_t MicroWorker::micro_rdma_atomic(yield_func_t &yield) {
 
   uint64_t size = sizeof(uint64_t);
   char *local_buf = (char *)Rmalloc(size);
-  qps_[pid]->rc_post_fetch_and_add(local_buf,offset,1,IBV_SEND_SIGNALED,cor_id_);
-  rdma_sched_->add_pending(cor_id_,qps_[pid]);
   indirect_yield(yield);
   Rfree(local_buf);
 
@@ -53,7 +52,7 @@ txn_result_t MicroWorker::micro_rdma_write(yield_func_t &yield) {
 #if 1
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free  = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
 
   char *local_buf = rdma_buffer + worker_id_ * 4096 + cor_id_ * CACHE_LINE_SZ;
 
@@ -79,14 +78,15 @@ txn_result_t MicroWorker::micro_rdma_write(yield_func_t &yield) {
       flag |= IBV_SEND_INLINE;
 #if PA
     flag = 0;
-
+#if 0
     if(qp->first_send()) flag |= IBV_SEND_SIGNALED;
     if(qp->need_poll()) {
       qp->poll_completion();
     }
-    qp->rc_post_send(IBV_WR_RDMA_WRITE,local_buf,size,offset,
-                     flag,
-                     cor_id_);
+#endif
+    //qp->rc_post_send(IBV_WR_RDMA_WRITE,local_buf,size,offset,
+    //flag,
+    //               cor_id_);
 #else
     flag |= IBV_SEND_SIGNALED;
     rdma_sched_->post_send(qp,cor_id_,IBV_WR_RDMA_WRITE,local_buf,size,offset,
@@ -106,7 +106,7 @@ txn_result_t MicroWorker::micro_rdma_read(yield_func_t &yield) {
 #if 1
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free  = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
 
   const int window_size = 10;
   for(uint i = 0;i < window_size;++i) {
@@ -148,7 +148,7 @@ txn_result_t MicroWorker::micro_rdma_write_multi(yield_func_t &yield) {
 
   static const uint64_t free_offset = free_buffer - rdma_buffer;
   static const uint64_t total_free  = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
 
   //const uint64_t write_space = total_free - CACHE_LINE_SZ - CACHE_LINE_SZ;
   const uint64_t write_space = working_space - CACHE_LINE_SZ;
@@ -231,7 +231,7 @@ txn_result_t MicroWorker::micro_rdma_read_multi(yield_func_t &yield) {
 
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free  = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
 
 #if NAIVE == 0
   // non batch mode
@@ -311,7 +311,7 @@ txn_result_t MicroWorker::micro_rdma_atomic_multi(yield_func_t &yield) {
 
   static uint64_t free_offset = free_buffer - rdma_buffer;
   static uint64_t total_free  = r_buffer_size - free_offset;
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
   static uint64_t size = sizeof(uint64_t);
 
 #if NAIVE == 0
@@ -384,7 +384,7 @@ txn_result_t MicroWorker::micro_rdma_atomic_multi(yield_func_t &yield) {
 
 txn_result_t MicroWorker::micro_rdma_one_op(yield_func_t &yield) {
 
-  static const int num_nodes = cm->get_num_nodes();
+  static const int num_nodes = cluster_topology.size();
   static uint64_t free_offset = free_buffer - rdma_buffer;
   //static uint64_t total_free  = r_buffer_size - free_offset; // free RDMA space
   static uint64_t total_free = 1024 * 1024 * 8;
@@ -395,15 +395,15 @@ txn_result_t MicroWorker::micro_rdma_one_op(yield_func_t &yield) {
   int target = random_generator[cor_id_].next() % num_nodes;
   //while(this->running) {
   //int target = current_partition;
-  Qp *qp = qps_[target];
+  RCQP *qp = qps_[target];
 
   // clear pending states
   int send_flag = IBV_SEND_INLINE;
-  if(qp->first_send()) send_flag = IBV_SEND_SIGNALED;// | IBV_SEND_INLINE;
-  if(qp->need_poll()) { auto ret = qp->poll_completion(); assert(ret == Qp::IO_SUCC); }
+  //if(qp->first_send()) send_flag = IBV_SEND_SIGNALED;// | IBV_SEND_INLINE;
+  //if(qp->need_poll()) { auto ret = qp->poll_completion(); assert(ret == Qp::IO_SUCC); }
   uint64_t offset = sizeof(uint64_t) * worker_id_;
-  qp->rc_post_send(IBV_WR_RDMA_WRITE,rdma_buf_ + sizeof(CACHE_LINE_SZ) * cor_id_,
-                   sizeof(uint64_t),offset,send_flag);
+  //  qp->rc_post_send(IBV_WR_RDMA_WRITE,rdma_buf_ + sizeof(CACHE_LINE_SZ) * cor_id_,
+  //sizeof(uint64_t),offset,send_flag);
   //qp->rc_post_send(IBV_WR_RDMA_READ,rdma_buf_,sizeof(uint64_t),offset,send_flag);
   //this->ntxn_commits_ += 1;
   //}
@@ -511,9 +511,9 @@ retry:
   if (target == current_partition)
     goto retry;
 #else
-  int target = (current_partition + 1) % (cm->get_num_nodes());
+  int target = (current_partition + 1) % (cluster_topology.size());
 #endif
-
+#if 0
   char *local_buf = msg_buf_alloctors[cor_id_].get_req_buf() + sizeof(uint64_t) + sizeof(rpc_header);
   Qp *qp = cm_->get_rc_qp(this->worker_id_, target);
 
@@ -522,10 +522,10 @@ retry:
     send_flag = IBV_SEND_SIGNALED;
   }
   if (qp->need_poll()) {
-    if (qp->poll_completion() != Qp::IO_SUCC) {}
+    if (qp->poll_completion() != SUCC) {}
   }
-
-  qp->rc_post_send(IBV_WR_RDMA_WRITE, local_buf, sizeof(uint64_t), offset * cor_id_, send_flag);
+#endif
+  //qp->rc_post_send(IBV_WR_RDMA_WRITE, local_buf, sizeof(uint64_t), offset * cor_id_, send_flag);
   //qp->rc_post_send(IBV_WR_RDMA_READ,local_buf,sizeof(uint64_t),offset * cor_id_,send_flag);
   //this->ntxn_commits_ += 1;
   //}

@@ -18,7 +18,7 @@ class RdmaChecker {
         auto off = (*it).off;
 
         // post RDMA requests
-        Qp *qp = c->qp_vec_[(*it).pid];
+        RCQP *qp = c->qp_vec_[(*it).pid];
         assert(qp != NULL);
 
         c->scheduler_->post_send(qp,c->cor_id_,
@@ -63,7 +63,7 @@ class RdmaChecker {
         // get previous offset
         LOG(2) << "send read to " << m << " to check log";
         uint64_t off = mem.get_previous_remote_offset(c->node_id_,c->worker_id_,m,b.batch_msg_size());
-        Qp *qp = c->qp_vec_[m];
+        RCQP *qp = c->qp_vec_[m];
         memset(lbuffer,0,4096);
         c->scheduler_->post_send(qp,c->cor_id_,
                                  IBV_WR_RDMA_READ,lbuffer,b.batch_msg_size(),

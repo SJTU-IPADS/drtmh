@@ -7,27 +7,26 @@
 
 #include "req_buf_allocator.h"
 
-#include "db/txs/dbrad.h"
-#include "db/txs/dbsi.h"
-
 extern size_t coroutine_num;
 extern size_t current_partition;
 extern size_t nclients;
 extern size_t nthreads;
 extern int tcp_port;
 
+extern std::vector<std::string> cluster_topology;
+
 namespace nocc {
 
 __thread oltp::BenchWorker *worker = NULL;
-__thread TXHandler   **txs_ = NULL;
 __thread rtx::OCC      **new_txs_ = NULL;
 
 extern uint64_t total_ring_sz;
 extern uint64_t ring_padding;
 
-std::vector<CommQueue *> conns; // connections between clients and servers
 extern std::vector<SingleQueue *>   local_comm_queues;
 extern zmq::context_t send_context;
+
+std::vector<CommQueue *> conns; // connections between clients and servers
 
 namespace oltp {
 
@@ -41,6 +40,7 @@ __thread std::vector<size_t> *txn_remote_counts = NULL;
 __thread workload_desc_vec_t *workloads;
 
 extern char *rdma_buffer;
+extern uint64_t r_buffer_size;
 
 extern __thread util::fast_random *random_generator;
 
@@ -51,9 +51,8 @@ extern MemDB *backup_stores_[MAX_BACKUP_NUM];
 SpinLock exit_lock;
 
 BenchWorker::BenchWorker(unsigned worker_id,bool set_core,unsigned seed,uint64_t total_ops,
-                         spin_barrier *barrier_a,spin_barrier *barrier_b,BenchRunner *context,
-                         DBLogger *db_logger):
-    RWorker(worker_id,cm,seed),
+                         spin_barrier *barrier_a,spin_barrier *barrier_b,BenchRunner *context)
+    :RWorker(worker_id,cm,seed),
     initilized_(false),
     set_core_id_(set_core),
     ntxn_commits_(0),
@@ -64,8 +63,6 @@ BenchWorker::BenchWorker(unsigned worker_id,bool set_core,unsigned seed,uint64_t
     ntxn_strict_counts_(0),
     total_ops_(total_ops),
     context_(context),
-    db_logger_(db_logger),
-    // r-set some local members
     new_logger_(NULL)
 {
   assert(cm_ != NULL);
@@ -84,7 +81,6 @@ BenchWorker::BenchWorker(unsigned worker_id,bool set_core,unsigned seed,uint64_t
 void BenchWorker::init_tx_ctx() {
 
   worker = this;
-  txs_              = new TXHandler*[1 + server_routine + 2];
   new_txs_          = new rtx::OCC*[1 + server_routine + 2];
   std::fill_n(new_txs_,1 + server_routine + 2,static_cast<rtx::OCC*>(NULL));
 
@@ -99,9 +95,6 @@ void BenchWorker::init_tx_ctx() {
     txn_aborts->push_back(0);
     txn_remote_counts->push_back(0);
   }
-  for(uint i = 0;i < 1 + server_routine + 2;++i)
-    txs_[i] = NULL;
-
   // init workloads
   workloads = new workload_desc_vec_t[server_routine + 2];
 }
@@ -117,16 +110,13 @@ void BenchWorker::run() {
   }
   exit_lock.Unlock();
 
-  //BindToCore(worker_id_); // really specified to platforms
+  BindToCore(worker_id_); // really specified to platforms
   //binding(worker_id_);
   init_tx_ctx();
-  init_routines(server_routine);
-
-  //create_logger();
+  create_routines(server_routine);
 
 #if USE_RDMA
-  init_rdma();
-  create_qps();
+  init_rdma(rdma_buffer,r_buffer_size);
 #endif
 #if USE_TCP_MSG == 1
   assert(local_comm_queues.size() > 0);
@@ -147,6 +137,27 @@ void BenchWorker::run() {
                              total_ring_sz,ring_padding);
 #endif
 
+#endif
+
+  // let the RPC connect to other servers
+  for(auto s :  cluster_topology) {
+
+ retry:
+    auto res = msg_handler_->connect(s,cm_->listening_port());
+    if(res == SUCC) {
+      continue;
+    }
+    else {
+      usleep(500);
+      goto retry;
+    }
+  }
+  // create rc qps
+#if 1
+  cm_->link_symmetric_rcqps(cluster_topology,
+                            worker_id_, // local mr_id
+                            worker_id_, // mr_id
+                            worker_id_ /* as thread id */);
 #endif
 
   this->init_new_logger(backup_stores_);
@@ -183,7 +194,6 @@ BenchWorker::worker_routine(yield_func_t &yield) {
 
   assert(conns.size() != 0);
 
-  using namespace db;
   /* worker routine that is used to run transactions */
   workloads[cor_id_] = get_workload();
   auto &workload = workloads[cor_id_];
@@ -314,15 +324,13 @@ void BenchWorker::exit_handler() {
     auto &workload = workloads[1];
 
     auto second_cycle = BreakdownTimer::get_one_second_cycle();
-#if 1
-    //exit_lock.Lock();
+
     fprintf(stdout,"aborts: ");
     workload[0].latency_timer.calculate_detailed();
     fprintf(stdout,"%s ratio: %f ,executed %lu, latency %f, rw_size %f, m %f, 90 %f, 99 %f\n",
             workload[0].name.c_str(),
             (double)((*txn_aborts)[0]) / ((*txn_counts)[0] + ((*txn_counts)[0] == 0)),
             (*txn_counts)[0],workload[0].latency_timer.report() / second_cycle * 1000,
-            workload[0].p.report(),
             workload[0].latency_timer.report_medium() / second_cycle * 1000,
             workload[0].latency_timer.report_90() / second_cycle * 1000,
             workload[0].latency_timer.report_99() / second_cycle * 1000);
@@ -334,7 +342,6 @@ void BenchWorker::exit_handler() {
               (double)((*txn_aborts)[i]) / ((*txn_counts)[i] + ((*txn_counts)[i] == 0)),
               (*txn_counts)[i],
               workload[i].latency_timer.report() / second_cycle * 1000,
-              workload[i].p.report(),
               workload[i].latency_timer.report_medium() / second_cycle * 1000,
               workload[i].latency_timer.report_90() / second_cycle * 1000,
               workload[i].latency_timer.report_99() / second_cycle * 1000);
@@ -349,34 +356,10 @@ void BenchWorker::exit_handler() {
             (double)(ntxn_commits_));
 
     exit_report();
-#endif
-#if RECORD_STALE
-    util::RecordsBuffer<double> total_buffer;
-    for(uint i = 0; i < server_routine + 1;++i) {
-
-      // only calculate staleness for timestamp based method
-#if RAD_TX
-      auto tx = dynamic_cast<DBRad *>(txs_[i]);
-#elif SI_TX
-      auto tx = dynamic_cast<DBSI *>(txs_[i]);
-#else
-      DBRad *tx = NULL;
-#endif
-      assert(tx != NULL);
-      total_buffer.add(tx->stale_time_buffer);
-    }
-    fprintf(stdout,"total %d points recorded\n",total_buffer.size());
-    total_buffer.sort_buffer(0);
-    std::vector<int> cdf_idx({1,5,10,15,20,25,30,35,40,45,
-            50,55,60,65,70,75,80,81,82,83,84,85,90,95,
-            97,98,99,100});
-    total_buffer.dump_as_cdf("stale.res",cdf_idx);
-#endif
     check_consistency();
 
     //exit_lock.Unlock();
-
-    fprintf(stdout,"master routine exit...\n");
+    LOG(4) << "master routine exit.";
   }
   return;
 }
@@ -400,9 +383,9 @@ void BenchClient::run() {
   // client only support ud msg for communication
   BindToCore(worker_id_);
 #if USE_RDMA
-  init_rdma();
+  init_rdma(rdma_buffer,r_buffer_size);
 #endif
-  init_routines(coroutine_num);
+  create_routines(coroutine_num);
   //create_server_connections(UD_MSG,nthreads);
 #if CS == 1 && LOCAL_CLIENT == 0
   create_client_connections();

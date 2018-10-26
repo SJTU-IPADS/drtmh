@@ -1,13 +1,10 @@
 #include "tpcc_worker.h"
 #include "tpcc_schema.h"
 #include "tpcc_mixin.h"
-#include "tpcc_log_cleaner.h"
 #include "tx_config.h"
 
 #include <getopt.h>
 #include <iostream>
-
-#include "db/txs/dbsi.h"
 
 #include "framework/bench_runner.h"
 
@@ -28,16 +25,22 @@ extern size_t total_partition;
 extern size_t nthreads;
 extern volatile bool running;
 extern int verbose;
+extern std::vector<std::string> cluster_topology;
 
 extern size_t distributed_ratio;
 
 namespace nocc {
 
 extern RdmaCtrl *cm;       // global RDMA handler
+
 namespace oltp {
 
 extern char *store_buffer; // the buffer used to store DrTM-kv
 extern MemDB *backup_stores_[MAX_BACKUP_NUM];
+
+extern char *rdma_buffer;
+extern uint64_t r_buffer_size;
+
 
 namespace tpcc {
 
@@ -89,7 +92,6 @@ class TpccMainRunner : public BenchRunner {
   virtual void init_put();
   virtual std::vector<BenchLoader *> make_loaders(int partition, MemDB* store = NULL);
   virtual std::vector<RWorker *> make_workers();
-  virtual std::vector<BackupBenchWorker *> make_backup_workers();
   virtual void init_store(MemDB* &store);
   virtual void init_backup_store(MemDB* &store);
   virtual void warmup_buffer(char *);
@@ -229,7 +231,7 @@ TpccMainRunner::TpccMainRunner(std::string &config_file)
 void TpccMainRunner::init_store(MemDB* &store){
 
   store = new MemDB(store_buffer);
-  int meta_size = META_SIZE;
+  int meta_size = META_LENGTH;
 
   // store as normal B-tree
   //store->AddSchema(WARE,TAB_BTREE,sizeof(uint64_t),sizeof(warehouse::value),meta_size);
@@ -243,9 +245,9 @@ void TpccMainRunner::init_store(MemDB* &store){
   store->AddSchema(STOC,TAB_HASH,sizeof(uint64_t),sizeof(stock::value),meta_size,
                    NumItems() * scale_factor);
 #if ONE_SIDED_READ == 1
-  store->EnableRemoteAccess(WARE,cm);
-  store->EnableRemoteAccess(DIST,cm);
-  store->EnableRemoteAccess(STOC,cm);
+  store->EnableRemoteAccess(WARE,rdma_buffer);
+  store->EnableRemoteAccess(DIST,rdma_buffer);
+  store->EnableRemoteAccess(STOC,rdma_buffer);
 #endif
 
   store->AddSchema(CUST,TAB_BTREE,sizeof(uint64_t),sizeof(customer::value),meta_size);
@@ -264,8 +266,9 @@ void TpccMainRunner::init_store(MemDB* &store){
 }
 
 void TpccMainRunner::init_backup_store(MemDB* &store){
+
   store = new MemDB();
-  int meta_size = META_SIZE;
+  int meta_size = META_LENGTH;
 
   // store as DrTM kv
   store->AddSchema(WARE,TAB_HASH,sizeof(uint64_t),sizeof(warehouse::value),meta_size,scale_factor * 2);
@@ -349,12 +352,6 @@ std::vector<RWorker *> TpccMainRunner::make_workers() {
     }
   }
 
-#if SI_TX
-  // add ts worker
-  ts_manager = new TSManager(nthreads + nclients + 1,cm,total_partition - 1,0);
-  ret.push_back(ts_manager);
-#endif
-
 #if CS == 1
   for(uint i = 0;i < nclients;++i)
     ret.push_back(new TpccClient(nthreads + i,r.next(),n_ware_per_worker * nthreads * total_partition));
@@ -364,41 +361,24 @@ std::vector<RWorker *> TpccMainRunner::make_workers() {
   return ret;
 }
 
-std::vector<BackupBenchWorker *> TpccMainRunner::make_backup_workers() {
-  std::vector<BackupBenchWorker *> ret;
-
-  int num_backups = my_view->is_backup(current_partition);
-  LogCleaner* log_cleaner = new TpccLogCleaner;
-  for(uint j = 0; j < num_backups; j++){
-    assert(backup_stores_[j] != NULL);
-    log_cleaner->add_backup_store(backup_stores_[j]);
-  }
-
-  DBLogger::set_log_cleaner(log_cleaner);
-  for(uint i = 0; i < backup_nthreads; i++){
-    ret.push_back(new BackupBenchWorker(i));
-  }
-  return ret;
-}
-
 void TpccMainRunner::warmup_buffer(char *buffer) {
 }
 
 void TpccMainRunner::populate_cache() {
 #if RDMA_CACHE == 1
   // create a temporal QP for usage
-  int dev_id = cm->get_active_dev(0);
-  int port_idx = cm->get_active_port(0);
-
-  cm->thread_local_init();
-  cm->open_device(dev_id);
-  cm->register_connect_mr(dev_id); // register memory on the specific device
-
-  cm->link_connect_qps(nthreads + nthreads + 1,dev_id,port_idx,0,IBV_QPT_RC);
-
   // calculate the time of populating the cache
   struct  timeval start;
   struct  timeval end;
+
+  int wid = nthreads + nthreads + 1;
+  RdmaCtrl::DevIdx nic_idx = cm->convert_port_idx(0);  // use the zero nic
+  ASSERT(cm->open_device(nic_idx) != nullptr);
+  ASSERT(cm->register_memory(wid,rdma_buffer,r_buffer_size,cm->get_device()) == true);
+  cm->link_symmetric_rcqps(cluster_topology,
+                           wid, // local mr_id
+                           wid, // mr_id
+                           wid  /* as thread id */);
 
   gettimeofday(&start,NULL);
 

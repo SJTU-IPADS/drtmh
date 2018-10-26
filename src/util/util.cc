@@ -164,7 +164,7 @@ void *malloc_huge_pages(size_t size,uint64_t huge_page_sz,bool flag)
       LOG(4) << "huge page alloc failed!";
       goto ALLOC_FAILED;
     } else {
-      LOG(2) << "huge page real size " << (double)(get_memory_size_g(real_size));
+      LOG(2) << "huge page real size " << (double)(get_memory_size_g(real_size)) << "G";
       // Save real_size since mmunmap() requires a size parameter
       *((size_t *)ptr) = real_size;
       // Skip the page with metadata

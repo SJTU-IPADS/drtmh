@@ -46,7 +46,8 @@ class DefaultLogCleaner : public LogCleaner {
 
       assert(item->pid != current_partition);
       auto store = get_backed_store(item->pid);
-      assert(store != NULL);
+      ASSERT(store != nullptr) << "pid: " << (int)item->pid << "; of key " << (uint64_t)item->key
+                            << " " <<"; from table " << (int)item->tableid;
 
       MemNode *node = store->stores_[item->tableid]->GetWithInsert((uint64_t)(item->key));
       char *new_val;
