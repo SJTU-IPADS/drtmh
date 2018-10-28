@@ -82,14 +82,14 @@ bool TXOpBase::local_try_release_op(int tableid,uint64_t key,uint64_t lock_conte
 }
 
 inline __attribute__((always_inline))
-bool TXOpBase::local_validate_op(MemNode *node,uint64_t seq) {
-  return (seq == node->seq) && (node->lock == 0);
+bool TXOpBase::local_validate_op(MemNode *node,uint64_t seq,uint64_t lock_content) {
+  return (seq == node->seq) && (node->lock == lock_content);
 }
 
 inline __attribute__((always_inline))
-bool TXOpBase::local_validate_op(int tableid,uint64_t key,uint64_t seq) {
+bool TXOpBase::local_validate_op(int tableid,uint64_t key,uint64_t seq,uint64_t lock_content) {
   MemNode *node = db_->stores_[tableid]->Get(key);
-  return local_validate_op(node,seq);
+  return local_validate_op(node,seq,lock_content);
 }
 
 inline __attribute__((always_inline))

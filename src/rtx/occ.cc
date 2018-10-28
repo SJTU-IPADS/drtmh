@@ -327,6 +327,7 @@ bool OCC::validate_reads(yield_func_t &yield) {
 bool OCC::lock_writes(yield_func_t &yield) {
 
   START(lock);
+  uint64_t lock_content = ENCODE_LOCK_CONTENT(response_node_,worker_id_,cor_id_ + 1); 
   start_batch_rpc_op(write_batch_helper_);
   for(auto it = write_set_.begin();it != write_set_.end();++it) {
     if((*it).pid != node_id_) { // remote case
@@ -334,13 +335,12 @@ bool OCC::lock_writes(yield_func_t &yield) {
                                    /*init RTXLockItem */ (*it).pid,(*it).tableid,(*it).key,(*it).seq);
     }
     else {
-      if(unlikely(!local_try_lock_op(it->node,
-                                     ENCODE_LOCK_CONTENT(response_node_,worker_id_,cor_id_ + 1)))){
+      if(unlikely(!local_try_lock_op(it->node,lock_content))){
 #if !NO_ABORT
         return false;
 #endif
       }
-      if(unlikely(!local_validate_op(it->node,it->seq))) {
+      if(unlikely(!local_validate_op(it->node,it->seq,lock_content))) {
 #if !NO_ABORT
         return false;
 #endif

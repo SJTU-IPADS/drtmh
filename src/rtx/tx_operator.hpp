@@ -70,8 +70,8 @@ class TXOpBase {
   bool     local_try_release_op(int tableid,uint64_t key,uint64_t lock_content);
   bool     local_try_release_op(MemNode *node,uint64_t lock_content);
 
-  bool     local_validate_op(int tableid,uint64_t key,uint64_t seq);
-  bool     local_validate_op(MemNode *node,uint64_t seq);
+  bool     local_validate_op(int tableid,uint64_t key,uint64_t seq,uint64_t lock_content = 0);
+  bool     local_validate_op(MemNode *node,uint64_t seq,uint64_t lock_content = 0);
 
   MemNode  *inplace_write_op(int tableid,uint64_t key,char *val,int len);
   MemNode  *inplace_write_op(MemNode *node,char *val,int len,int meta = 0);

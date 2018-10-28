@@ -5,7 +5,6 @@
 #include "all.h"
 
 #include "tx_config.h"
-#include "app/config.h"
 
 #include "bank_schema.h"
 

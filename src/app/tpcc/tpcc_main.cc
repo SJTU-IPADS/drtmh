@@ -224,7 +224,6 @@ TpccMainRunner::TpccMainRunner(std::string &config_file)
     cout << "Txn " << workload[i].name << ", "<< (workload[i].frequency * 100) << endl;
   }
   cout <<"Remote counts: " << g_new_order_remote_item_pct << endl;
-  cout <<"NAIVE: " << NAIVE;
 
 }
 
