@@ -1,7 +1,5 @@
 // new implementation of TPC-C
 
-#include "app/config.h"
-
 #include "tpcc_worker.h"
 
 namespace nocc {
