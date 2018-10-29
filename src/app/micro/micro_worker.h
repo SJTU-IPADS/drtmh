@@ -12,7 +12,7 @@ namespace micro {
 enum MICRO_TYPE {
   RPC        = 0,
   RDMA_READ  = 1,
-  RDMA_WRITE = 2,
+  RDMA_WRITE = 15,
   RDMA_CAS   = 3
 };
 
