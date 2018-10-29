@@ -39,7 +39,7 @@ txn_result_t MicroWorker::micro_rdma_write(yield_func_t &yield) {
       << "cannot overwrite RDMA heap's memory, w free area " << get_memory_size_g((uint64_t)free_buffer - (uint64_t)rdma_buffer) << "G";
 
   auto size = distributed_ratio;
-  const int window_size = 10;
+  const int window_size = 1;
 
   for(uint i = 0;i < window_size;++i) {
 
@@ -67,7 +67,7 @@ txn_result_t MicroWorker::micro_rdma_write(yield_func_t &yield) {
 txn_result_t MicroWorker::micro_rdma_read(yield_func_t &yield) {
 
   auto size = distributed_ratio;
-  const int window_size = 10;
+  const int window_size = 1;
 
   for(uint i = 0;i < window_size;++i) {
 
