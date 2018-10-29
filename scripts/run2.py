@@ -287,11 +287,6 @@ def main():
     parse_input() ## parse input from command line
     parse_hosts("hosts.xml")
 
-    for h in mac_set:
-        p = ConnectProxy(h)
-        p.connect(pwd)
-        proxies.append(p)
-
     print "[START] Input parsing done."
 
     #kill_servers(exe)
