@@ -103,7 +103,7 @@ void RWorker::init_rdma(char *rbuffer,uint64_t rbuf_size) {
          << idx.dev_id << "," << idx.port_id << "]";
 
   // open the device handler
-  ASSERT(cm_->open_device(idx) != nullptr);
+  ASSERT(cm_->open_thread_local_device(idx) != nullptr);
 
   // register the RDMA buffer
   ASSERT(cm_->register_memory(worker_id_,rbuffer,rbuf_size,cm_->get_device()) == true);
