@@ -19,6 +19,7 @@
     <a> val00 </a>
   </macs>
   <black>
+    <a> val02 </a>
   <!-- The macs which are ignored-->
   </black>
   <pwd> 123 </pwd>

@@ -372,7 +372,7 @@ void TpccMainRunner::populate_cache() {
 
   int wid = nthreads + nthreads + 1;
   RdmaCtrl::DevIdx nic_idx = cm->convert_port_idx(0);  // use the zero nic
-  ASSERT(cm->open_device(nic_idx) != nullptr);
+  ASSERT(cm->open_thread_local_device(nic_idx) != nullptr);
   ASSERT(cm->register_memory(wid,rdma_buffer,r_buffer_size,cm->get_device()) == true);
   cm->link_symmetric_rcqps(cluster_topology,
                            wid, // local mr_id
